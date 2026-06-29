@@ -13,7 +13,7 @@ This tool is a BAT launcher plus a single Windows PowerShell 5.1-compatible scan
 - No secret values are printed to TXT or JSON reports.
 - User profile and endpoint telemetry scans are opt-in only.
 
-For distribution and non-technical users, see [安全性と設計上の約束](docs/safety-model-ja.md).
+For distribution and non-technical users, see [Safety Model](docs/safety-model-en.md).
 
 ## Usage
 
