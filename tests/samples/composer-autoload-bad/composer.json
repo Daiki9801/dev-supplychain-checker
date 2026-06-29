@@ -1,0 +1,8 @@
+{
+  "name": "example/bad",
+  "autoload": {
+    "files": [
+      "src/bootstrap.php"
+    ]
+  }
+}

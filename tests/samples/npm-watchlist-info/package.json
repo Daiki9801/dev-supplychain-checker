@@ -1,0 +1,7 @@
+{
+  "name": "watchlist-context-sample",
+  "version": "1.0.0",
+  "dependencies": {
+    "@tanstack/react-router": "^1.0.0"
+  }
+}

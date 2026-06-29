@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "0.1.7",
+  "lastUpdated": "2026-06-24",
+  "sourceSet": "manual-public-advisory-review-20260624",
+  "expiresAfterDays": 30,
+  "domains": [
+    "sfrclak.com"
+  ],
+  "patterns": [
+    {
+      "id": "glassworm_solana_c2_execution_marker",
+      "regex": "(@solana/web3\\.js|mainnet-beta|api\\.mainnet-beta\\.solana\\.com|solana).{0,500}(eval\\s*\\(|Function\\s*\\(|Buffer\\.from|atob\\s*\\(|process\\.env|GITHUB_TOKEN|auth\\.json)",
+      "severity": "WARN",
+      "title": "GlassWorm-style Solana C2 marker appears near execution or token access text",
+      "notes": "Solana C2-like marker appeared near execution or token-access text. Values redacted.",
+      "contexts": [
+        "code",
+        "execution-config",
+        "active-ai-config",
+        "executable-tooling"
+      ]
+    },
+    {
+      "id": "glassworm_dht_or_calendar_c2_marker",
+      "regex": "(bittorrent-dht|dht-rpc|k-rpc|announce_peer|get_peers|googleapis\\.com/calendar|calendar/v3|calendar\\.events\\.list)",
+      "severity": "WARN",
+      "title": "GlassWorm-style DHT or Google Calendar C2 marker appears in executable context",
+      "notes": "DHT or Google Calendar C2-like marker appeared in executable context. Values redacted.",
+      "contexts": [
+        "code",
+        "execution-config",
+        "active-ai-config",
+        "executable-tooling"
+      ]
+    }
+  ]
+}

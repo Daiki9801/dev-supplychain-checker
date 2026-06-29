@@ -1,0 +1,500 @@
+{
+  "schemaVersion": "1",
+  "hashNormalization": "text-lf-sha256 normalizes CRLF and CR to LF before UTF-8 SHA-256; bytes-sha256 hashes raw bytes; presence-only never reads file content.",
+  "samples": [
+    {
+      "relativePath": "clean-js/index.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "aaf7cf274e800934790bcb31029964753f0387d37054151574526ef230be0d74",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-active-bad/.codex/agents/bad.toml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "88cccb57dee5b876d70da13a1b3d1adb1dd594ac3f1b6c683fa82a929bcf3435",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-active-unpinned/.codex/agents/unpinned.toml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "cdfbd30b41f6e114b5633377269cfabc0b01cf80275a8d0b7cc5f4824c7b622d",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-cache-dist-script/.codex/plugins/cache/vendor/plugin/1.0.0/dist/install.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "e3cc0853022beec991b91af4fa82a0fa582b8991f586a9bd345b7b11bdddd0de",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-cache-known-package/.codex/plugins/cache/vendor/plugin/1.0.0/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "b0009825077e7dec84a050323179edf33e71b1248e656ba3b5077b7b863ebdf6",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-metadata-bad/.codex/plugins/cache/vendor/plugin/.codex-plugin/plugin.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "17514a40b32a625f88e1dd50b58ba1f19f7cea6a87a9bc31d4c24f189a690c19",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-metadata-clean/.codex/plugins/cache/vendor/plugin/.codex-plugin/plugin.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "194920fc781230e78b501fe3074812b355ed7462ba978e3a98abc2ca0cc58458",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-reference-text/.codex/vendor_imports/skills/sample/SKILL.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "ec0c51b1cd48e5aebcf146d3700c25322dc83ca0d8da98de45ac43518f65ac01",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-reference-executable-sample/.codex/skills/sample/SKILL.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "afe47154f430f1c88e448e5913ff9f67201fc13303be7e889d419a7e66a215b6",
+      "expectedCategories": [
+        "AI_REFERENCE_TEXT_EXECUTABLE_SAMPLE_RISK"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-session-log/.codex/sessions/2026/06/09/sample.jsonl",
+      "hashMode": "text-lf-sha256",
+      "sha256": "d21997e33954e4baffe9b8e956a9575a4bc30045d5e6f75c39ba9839eb54d93e",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-exfil/.codex/skills/sample/scripts/exfil.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "e16c3217996773b95e616e211d2f041e5093e7739ce64b76edcde0c64c9a30d4",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-fetch/.codex/skills/sample/scripts/install.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "943143b463cf7f007f007317e39197d78bf83dcf5435a08abad3fe4ba8b66981",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-github-token-client/.codex/skills/sample/scripts/github_client.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "df775c02c5ad1af82377340d853352ceacf0f5cb3eecfeba2e697b9ee62881b0",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-codex-home-path-only/.codex/skills/sample/scripts/path.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "dcede32f7b910763389d521cc2c69f316011aa8888879335f9ffffe25d1b0fcb",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-github-token-write/.codex/skills/sample/scripts/github_write.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "df3facc4b34e5667e8cc1787fdcc1562417081e53edd965419d05a43864a72b0",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-token-to-untrusted-egress/.codex/skills/sample/scripts/exfil.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "8aa1f2f33d6fe308588124e95ac042549c52027e8209fca91b6cb7a93ed7a5fd",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-auth-file-exfil/.codex/skills/sample/scripts/exfil-auth.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "768bacdd0ffa1aa772fcb17e92b6a4b16403f64c0b3c7fe465aa0655717dc627",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-url-and-exec-unrelated/.codex/skills/sample/scripts/utility.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "4e42963327540479b60f5a113e3a3a5bb2cdf49f35e2be2541d4c8473e2c6e7e",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-tooling-fetch-execute/.codex/skills/sample/scripts/install.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "8dde7cd42860534a7f6a71fe8a2ca8b639bca7b95eeb406a90108fe0100c8c78",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-capability-many-files/.codex/plugins/cache/vendor/plugin/1.0.0/scripts/deploy-one.sh",
+      "hashMode": "text-lf-sha256",
+      "sha256": "e2eff96f35b2d029e2505909b3012dd2982ca372a131bc1e06f210a4cb454954",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-capability-many-files/.codex/plugins/cache/vendor/plugin/1.0.0/scripts/deploy-two.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "531e60117a3aebae300ee21070a60b146ab75dbe941efbbed586c2be21c0e768",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "codex-plugin-capability-many-files/.codex/plugins/cache/vendor/plugin/1.0.0/scripts/upload-three.ps1",
+      "hashMode": "text-lf-sha256",
+      "sha256": "e6fd2c46495f112176fb8789098028b9a408004897d9a4a4bbf6c8125a1c0eda",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "composer-autoload-bad/composer.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "0434910b5d1c8d2a76bef7438348888c7e463fb2ae80497d24eae67031580bae",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "composer-autoload-bad/vendor/composer/autoload_files.php",
+      "hashMode": "text-lf-sha256",
+      "sha256": "67ea9102448170911fc4fae37302c52301b83dd3bdf62f2a7a830e828f8e4595",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "composer-clean/composer.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "b0d26474ee48c4c4f5335106bfd75d8b6714ae635a215bafc8001e083f2c3fe5",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "github-actions-clean/.github/workflows/ci.yml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "1364bf1aa8fd6ee1918ffa04681655ac2bbc9e8055534a34082327c7c9aa88d6",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "github-actions-passive-regex/.github/workflows/workspace-check.yml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "4ed5ad410e48427eb4f398f6518321ce4cd4709e44f27f33c7aedf0e77b4e811",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "github-actions-danger/.github/workflows/backdoor.yml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "6c11f4162e1ff49ae4f5abf0ec33cec930b237c69852a6ebbf75f955af3d50d5",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "github-actions-discussion-self-hosted/.github/workflows/discussion.yaml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "5f00efad314b0ef154b7f56d70871606dd9f280b59340848ec5d00f9b1017d21",
+      "expectedCategories": [
+        "GITHUB_ACTIONS_DISCUSSION_SELF_HOSTED_EXECUTION"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "github-actions-secrets-artifact/.github/workflows/secrets-artifact.yaml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "452fd20761ba2b8ba27c9cf1ea76e71a7c6a14ba8d42fda1b226349c1255fff4",
+      "expectedCategories": [
+        "GITHUB_ACTIONS_SECRETS_ARTIFACT_EXFIL_PATTERN"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "glassworm-c2-marker-only/src/channel.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "6370c359ec3de414ff8c318a331d08ef521d9af57b471a48ab165fe8209bc32f",
+      "expectedCategories": [
+        "GLASSWORM_C2_MARKER_IN_EXECUTABLE_CONTEXT"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "glassworm-unicode-c2-exec/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "a1f14a337bfffc4c333e221ca8c37e7b9ef7347e6ee7c07372405f14e3985085",
+      "expectedCategories": [
+        "INVISIBLE_UNICODE_EXECUTION_COMPOUND",
+        "GLASSWORM_C2_EXECUTION_OR_EXFIL_PATTERN"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "invisible-unicode-eval/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "e3eab8c99ca5de486e3d133178a50d3c42df003efc4ef80fd3264dde78c4704d",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "invisible-unicode-only/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "31ace8b269e61b2dcca231da47551b1c6e97e4d7b894187512da2d699241ac98",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "mcp-danger/mcp.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "39947875f474d4caacc3ac3fc8d4a56a927a9dd696d1658c44cea57a1782897c",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "mcp-doc-npx-only/agent.toml",
+      "hashMode": "text-lf-sha256",
+      "sha256": "4fa01a7dbcc23aacc3d9804d88b27418b6bb8f9f595b1755f92702a4728d9e98",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "mcp-pinned-command/mcp.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "ac4676098688b7807a4fabe1eaab467f831f16550c4d90a733a4990f3782c263",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "mcp-unpinned-command/mcp.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "bfaff93ac04103a933a657352917c41b3a79ef0d9a51ee6f8903a9447d86c890",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "mcp-unpinned/mcp.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "d8805341c60bb9a0922a0bdebd2024887cf73d685674f42846373cbdcadad208",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "known-ioc-doc-reference/README.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "475ea9d85dc8519efb769e3c9eb54b8fa18ea8ca8217ef63119d7cd270d21ab0",
+      "expectedCategories": [
+        "KNOWN_IOC_REFERENCE_TEXT"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-bad/package-lock.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "a60b6834af8a44036e07d04253dfb2f0d1a3d5a0c04974fa14a162f3ef4859de",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-bad/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "dc5deddb3d6f493f82652551aeacce47c3fc0898cb60d5a0b70112408b4664b8",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-lifecycle-secret-exfil/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "c180f6bc3b5c18d31be8db601c90fd48c0676abc2c290d406bdd4fc168933f74",
+      "expectedCategories": [
+        "PACKAGE_LIFECYCLE_SECRET_EXFIL_PATTERN"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-lifecycle-devtool-persistence/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "8ef7ef86a16f5f512ca0d08deed09f128debd7f3b98895795404f7493cf05a91",
+      "expectedCategories": [
+        "PACKAGE_LIFECYCLE_DEV_TOOL_PERSISTENCE_PATTERN"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-shai-hulud-payload/setup_bun.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "1f6b19551504ead59e41b0c186301659ff8a3489c2d4653f52a4c840fa594314",
+      "expectedCategories": [
+        "PACKAGE_CODE_SECRET_EXFIL_PATTERN",
+        "NPM_INCIDENT_MARKER_EXECUTABLE_CONTEXT"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-watchlist-info/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "baaa7ee1bc99097b105fdf5ba672eca9612d2cbb8e65fca6060c392f8e2c7391",
+      "expectedCategories": [
+        "NPM_INCIDENT_WATCHLIST_PACKAGE_NAME"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-global-static-bad/AppData/Roaming/npm/node_modules/axios/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "b0009825077e7dec84a050323179edf33e71b1248e656ba3b5077b7b863ebdf6",
+      "expectedCategories": [
+        "NPM_GLOBAL_KNOWN_COMPROMISED_PACKAGE"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-cache-static-metadata/AppData/Local/npm-cache/_cacache/index-v5/aa/bb",
+      "hashMode": "text-lf-sha256",
+      "sha256": "c637d207344ff5ad6a9e4e06ae68f3b31ae93566cbc97baead506a7f2d1ca468",
+      "expectedCategories": [
+        "NPM_CACHE_METADATA_KNOWN_PACKAGE"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-cache-static-metadata/AppData/Local/npm-cache/_cacache/content-v2/sha512/aa/blob",
+      "hashMode": "bytes-sha256",
+      "sha256": "8f738b7998a92c6aa8295ba3a4e12667697b07c5caeb079d1ed6b808a0480650",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-cache-blob/.npm-cache/_cacache/content-v2/sha512/aa/bb/cache-blob",
+      "hashMode": "bytes-sha256",
+      "sha256": "c08ce51dd82b96441bd7ad332987fc39198e09001d44af59a8ffaf49876bb8c7",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "npm-clean/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "f2ca9e171390d30807cfb240ead9478d33bcc0cd505c81141fde2896ccc82bdb",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "python-pth-bad/requirements.txt",
+      "hashMode": "text-lf-sha256",
+      "sha256": "75d55414ba5ced3de5c30f94f4f3647de12c6a96d1958c61d1944d77d73154c3",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "python-pth-bad/site-packages/litellm_init.pth",
+      "hashMode": "text-lf-sha256",
+      "sha256": "910f2498367c6c4e1a1455b87215dbf0cdc4eff2ef4aa3da997ef9fcfe1cb854",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "python-pth-clean/site-packages/clean.pth",
+      "hashMode": "text-lf-sha256",
+      "sha256": "fac4e2747524e432e9dfade8ab77fca217dca869bfae6e8561afe2309b98491a",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "README.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "29d1648bf6703ef52b1ada08e38c7c3615855e2a44d436dc6a62f97142feb5b9",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "reference-benign-security-terms/README.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "40d04889c2a6ac1f54e9914468aeb2ab31508feac297046760db40706e82c06d",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "secret-inventory/.codex/auth.json",
+      "hashMode": "presence-only",
+      "sha256": "",
+      "expectedCategories": [
+        "SECRET_FILE_PRESENT"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "unicode-emoji-metadata/example-1.0.0.dist-info/METADATA",
+      "hashMode": "text-lf-sha256",
+      "sha256": "0739f311792a93a2bd75d804ebcdc1da99b2cd938d9aa2597dce7a21769c5e08",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "unicode-rich-data/pip/_vendor/rich/_emoji_codes.py",
+      "hashMode": "text-lf-sha256",
+      "sha256": "6d03e2590f63cf9f3c69c830c227df4ba96e01496f42e07f81d0c829ea6aa8b6",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "unicode-vs-doc-with-exec-word/README.md",
+      "hashMode": "text-lf-sha256",
+      "sha256": "58a8bd2f6c581f317e8ead073e8d5bb8322c3ba37c92e2e274a8d02c78223973",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "unicode-vs-exec-code/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "fc48ca77750ef177c9e8ffbc729ff33b2622d07123ae6507e5ff0f7a194fa154",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "vscode-extension-bad/.vscode/extensions/nrwl.angular-console-18.95.0/native.node",
+      "hashMode": "bytes-sha256",
+      "sha256": "a68aecd75c16bf426df8f83a4941e4dced5378938b537b0e4ed7f4f5f8ac72d9",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "vscode-extension-bad/.vscode/extensions/nrwl.angular-console-18.95.0/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "f41f34466cfa3ef2be4fe47618010eab998eeddc8401856ace3fceabf2d686f4",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "vscode-extension-glassworm-openvsx/.vscode/extensions/oorzc.ssh-tools-0.5.1/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "a3164a58284f4c8b25d33a6b62ba903d283bd66cf054396bc97114fe07c58ce0",
+      "expectedCategories": [
+        "KNOWN_SUSPICIOUS_IDE_EXTENSION"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "vscode-extension-secret-exfil/.vscode/extensions/example.bad-1.0.0/extension.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "5f5dbc94e027b599551c68c72eec112825d054eedaecd3b6c74e9350091ec0c8",
+      "expectedCategories": [
+        "IDE_EXTENSION_SECRET_EXFIL_PATTERN"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "vscode-extension-clean/.vscode/extensions/publisher.clean-1.0.0/package.json",
+      "hashMode": "text-lf-sha256",
+      "sha256": "0efd2a2adccf2a11d85b1878627d6e575424339d6b9a7a30fd346a7872820ccd",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    }
+  ]
+}

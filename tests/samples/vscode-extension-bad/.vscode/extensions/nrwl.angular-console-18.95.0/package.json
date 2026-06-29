@@ -1,0 +1,9 @@
+{
+  "publisher": "nrwl",
+  "name": "angular-console",
+  "version": "18.95.0",
+  "activationEvents": ["*"],
+  "scripts": {
+    "postinstall": "node install.js"
+  }
+}

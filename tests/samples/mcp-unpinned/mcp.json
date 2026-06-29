@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "."],
+      "env": {
+        "EXAMPLE_API_KEY": "FAKE_DO_NOT_PRINT"
+      }
+    }
+  }
+}

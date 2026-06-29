@@ -1,0 +1,16 @@
+name: Passive Pattern Scanner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: windows-latest
+    steps:
+      - name: Define passive scanner patterns
+        shell: pwsh
+        run: |
+          $ForbiddenLinePatterns = @(
+            '^\s*(curl|wget|iwr|irm|Invoke-WebRequest|Invoke-RestMethod).*(\|\s*(iex|bash|sh|powershell|pwsh))'
+          )
+          Write-Host "This fixture contains regex strings only."
