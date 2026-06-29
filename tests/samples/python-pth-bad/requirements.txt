@@ -1,1 +1,2 @@
-litellm==1.82.7
+# Synthetic fixture only.
+# No real dependency is declared here; the risky Python behavior is in the synthetic .pth hook file.

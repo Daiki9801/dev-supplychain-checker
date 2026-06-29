@@ -388,7 +388,7 @@
     {
       "relativePath": "python-pth-bad/requirements.txt",
       "hashMode": "text-lf-sha256",
-      "sha256": "75d55414ba5ced3de5c30f94f4f3647de12c6a96d1958c61d1944d77d73154c3",
+      "sha256": "164be39a057bf1a755eb69de0911a0ecfb6d0105b8e11fb49be14ecb7c510337",
       "expectedCategories": [],
       "skipInParentScan": true
     },
@@ -397,6 +397,15 @@
       "hashMode": "text-lf-sha256",
       "sha256": "910f2498367c6c4e1a1455b87215dbf0cdc4eff2ef4aa3da997ef9fcfe1cb854",
       "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "python-known-ioc/requirements.ioc-sample",
+      "hashMode": "text-lf-sha256",
+      "sha256": "75d55414ba5ced3de5c30f94f4f3647de12c6a96d1958c61d1944d77d73154c3",
+      "expectedCategories": [
+        "KNOWN_COMPROMISED_PACKAGE"
+      ],
       "skipInParentScan": true
     },
     {
