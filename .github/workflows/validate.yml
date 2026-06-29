@@ -75,6 +75,7 @@ jobs:
             Write-Error ("Synthetic scan failed with unexpected exit code {0}." -f $scanExit)
             exit $scanExit
           }
+          exit 0
 
       - name: Check report JSON is readable
         shell: powershell

@@ -3332,7 +3332,7 @@ function Scan-PythonFiles {
     param([System.IO.FileInfo]$File, [string]$Text)
     $name = $File.Name.ToLowerInvariant()
     $path = $File.FullName.ToLowerInvariant()
-    if ($name -notmatch '^(requirements.*\.txt|pyproject\.toml|poetry\.lock|uv\.lock|setup\.py|setup\.cfg|sitecustomize\.py|usercustomize\.py|direct_url\.json|record)$' -and -not $name.EndsWith('.pth')) {
+    if ($name -notmatch '^(requirements.*\.txt|requirements\.ioc-sample|pyproject\.toml|poetry\.lock|uv\.lock|setup\.py|setup\.cfg|sitecustomize\.py|usercustomize\.py|direct_url\.json|record)$' -and -not $name.EndsWith('.pth')) {
         return
     }
 
