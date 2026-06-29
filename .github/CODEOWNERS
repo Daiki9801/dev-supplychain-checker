@@ -1,0 +1,7 @@
+# CODEOWNERS for public repository governance.
+
+* @Daiki9801
+/Scan-DevSupplyChain.ps1 @Daiki9801
+/run-checker.bat @Daiki9801
+/iocs/ @Daiki9801
+/.github/ @Daiki9801

@@ -1,0 +1,6 @@
+name = "documentation-only"
+instructions = """
+Review global install, npx, and implicit network/package installation risks.
+Do not run package managers while reviewing.
+"""
+

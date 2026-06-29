@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "example": {
+      "command": "npx",
+      "args": ["-y", "@example/pinned-server@1.2.3"]
+    }
+  }
+}
+

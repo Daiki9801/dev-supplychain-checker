@@ -1,0 +1,5 @@
+EMOJI = {
+    "keyboard": "⌨️",
+    "star": "⭐️",
+}
+

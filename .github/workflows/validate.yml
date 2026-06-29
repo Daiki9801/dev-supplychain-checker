@@ -1,0 +1,162 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scanner-contract:
+    name: Scanner contract
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Parse PowerShell scanner
+        shell: powershell
+        run: |
+          $errors = $null
+          $tokens = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path .\Scan-DevSupplyChain.ps1),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors -and $errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+
+      - name: Validate local JSON data
+        shell: powershell
+        run: |
+          $jsonFiles = @()
+          if (Test-Path -LiteralPath .\iocs) {
+            $jsonFiles += Get-ChildItem -LiteralPath .\iocs -Filter *.json -File -Force
+          }
+          if (Test-Path -LiteralPath .\tests\samples\manifest.json) {
+            $jsonFiles += Get-Item -LiteralPath .\tests\samples\manifest.json
+          }
+          foreach ($file in $jsonFiles) {
+            try {
+              Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json | Out-Null
+            } catch {
+              Write-Error ("Invalid JSON: {0}: {1}" -f $file.FullName, $_.Exception.Message)
+              exit 1
+            }
+          }
+
+      - name: Run synthetic sample scan only
+        shell: powershell
+        run: |
+          powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+            -File .\Scan-DevSupplyChain.ps1 `
+            -Path .\tests\samples `
+            -ReportDir .\reports `
+            -Quiet
+          $scanExit = $LASTEXITCODE
+          if ($scanExit -notin @(0, 1, 2)) {
+            Write-Error ("Synthetic scan failed with unexpected exit code {0}." -f $scanExit)
+            exit $scanExit
+          }
+
+      - name: Check report JSON is readable
+        shell: powershell
+        run: |
+          $latest = Get-ChildItem -LiteralPath .\reports -Filter *.json -File |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $latest) {
+            Write-Error "No JSON report was generated."
+            exit 1
+          }
+          $report = Get-Content -LiteralPath $latest.FullName -Raw | ConvertFrom-Json
+          if (-not $report.summary) {
+            Write-Error "Report is missing summary."
+            exit 1
+          }
+          if ($report.scanner.networkAccess -ne $false) {
+            Write-Error "Report does not declare scanner.networkAccess: false."
+            exit 1
+          }
+          if (-not $report.executionSafety) {
+            Write-Error "Report is missing executionSafety."
+            exit 1
+          }
+          if ($report.executionSafety.networkAccess -ne "none") {
+            Write-Error "Report does not declare executionSafety.networkAccess: none."
+            exit 1
+          }
+          if ($report.executionSafety.externalCommands -ne "none") {
+            Write-Error "Report does not declare executionSafety.externalCommands: none."
+            exit 1
+          }
+          if ($report.executionSafety.targetCodeExecution -ne "none") {
+            Write-Error "Report does not declare executionSafety.targetCodeExecution: none."
+            exit 1
+          }
+          if ([int]$report.summary.danger -lt 1) {
+            Write-Error "Synthetic high-risk samples did not produce any DANGER findings."
+            exit 1
+          }
+          if (-not $report.findings) {
+            Write-Error "Report is missing findings."
+            exit 1
+          }
+          $requiredFindingFields = @(
+            "severity",
+            "category",
+            "title",
+            "path",
+            "line",
+            "evidence",
+            "recommendation",
+            "riskType",
+            "confidence",
+            "check",
+            "detectionMethod"
+          )
+          $findingsMissingContract = @($report.findings | Where-Object {
+            $finding = $_
+            $missing = $false
+            foreach ($field in $requiredFindingFields) {
+              if ($finding.PSObject.Properties.Name -notcontains $field) {
+                $missing = $true
+              }
+            }
+            $missing
+          })
+          if ($findingsMissingContract.Count -gt 0) {
+            Write-Error ("Finding contract fields missing in {0} finding(s)." -f $findingsMissingContract.Count)
+            exit 1
+          }
+
+      - name: Check publication placeholders
+        shell: powershell
+        run: |
+          $codeowners = Get-Content -LiteralPath .\.github\CODEOWNERS -Raw
+          if ($codeowners -match '(?m)^\s*[^#\s].*@your-github-user-or-team') {
+            Write-Error "CODEOWNERS contains an active placeholder owner."
+            exit 1
+          }
+          if ($codeowners -notmatch '@your-github-user-or-team') {
+            Write-Host "CODEOWNERS appears to contain a real owner."
+          } else {
+            Write-Warning "CODEOWNERS is still a commented template. Configure it before enabling Code Owner branch rules."
+          }

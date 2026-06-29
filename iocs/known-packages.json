@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "0.1.7",
+  "lastUpdated": "2026-06-24",
+  "sourceSet": "manual-public-advisory-review-20260624",
+  "expiresAfterDays": 30,
+  "packages": [
+    {
+      "ecosystem": "npm",
+      "name": "axios",
+      "versions": [
+        "1.14.1",
+        "0.30.4"
+      ],
+      "severity": "DANGER",
+      "notes": "Known compromised Axios versions from June 2026 supply-chain reports."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "plain-crypto-js",
+      "versions": [
+        "4.2.1"
+      ],
+      "severity": "DANGER",
+      "notes": "Known malicious dependency used by the Axios compromise campaign."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@aifabrix/miso-client",
+      "versions": [
+        "4.7.2"
+      ],
+      "severity": "DANGER",
+      "notes": "Known compromised package version retained from the built-in baseline."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@iflow-mcp/watercrawl-watercrawl-mcp",
+      "versions": [
+        "1.3.0",
+        "1.3.1",
+        "1.3.2",
+        "1.3.3",
+        "1.3.4"
+      ],
+      "severity": "DANGER",
+      "notes": "Known compromised MCP package versions retained from the built-in baseline."
+    },
+    {
+      "ecosystem": "python",
+      "name": "litellm",
+      "versions": [
+        "1.82.7",
+        "1.82.8"
+      ],
+      "severity": "DANGER",
+      "notes": "Known compromised Python package versions retained from the built-in baseline."
+    }
+  ]
+}

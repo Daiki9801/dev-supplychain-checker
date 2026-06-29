@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "0.1.7",
+  "lastUpdated": "2026-06-24",
+  "sourceSet": "manual-public-advisory-review-20260624",
+  "expiresAfterDays": 30,
+  "files": [
+    {
+      "path": "%PROGRAMDATA%\\wt.exe",
+      "pathPattern": "\\\\programdata\\\\wt\\.exe$",
+      "severity": "DANGER",
+      "notes": "Reported persistence filename associated with the Axios/plain-crypto-js compromise campaign."
+    }
+  ]
+}

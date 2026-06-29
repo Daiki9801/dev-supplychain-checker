@@ -1,0 +1,11 @@
+name: synthetic discussion runner sample
+
+on:
+  discussion:
+
+jobs:
+  synthetic:
+    runs-on: self-hosted
+    steps:
+      - name: run discussion body
+        run: ${{ github.event.discussion.body }}

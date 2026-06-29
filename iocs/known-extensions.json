@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "0.1.7",
+  "lastUpdated": "2026-06-24",
+  "sourceSet": "manual-public-advisory-review-20260624",
+  "expiresAfterDays": 30,
+  "extensions": [
+    {
+      "id": "nrwl.angular-console",
+      "versions": [
+        "18.95.0"
+      ],
+      "severity": "DANGER",
+      "notes": "Known compromised Nx Console exposure version retained from the built-in baseline."
+    },
+    {
+      "id": "specstudio.code-wakatime-activity-tracker",
+      "versions": [
+        "*"
+      ],
+      "severity": "DANGER",
+      "notes": "Known suspicious extension baseline retained from built-ins."
+    },
+    {
+      "id": "floktokbok.autoimport",
+      "versions": [
+        "*"
+      ],
+      "severity": "DANGER",
+      "notes": "Known suspicious extension baseline retained from built-ins."
+    },
+    {
+      "id": "quartz.quartz-markdown-editor",
+      "versions": [
+        "0.3.0"
+      ],
+      "severity": "DANGER",
+      "notes": "Known suspicious extension baseline retained from built-ins."
+    },
+    {
+      "id": "oorzc.ssh-tools",
+      "versions": [
+        "0.5.1"
+      ],
+      "severity": "DANGER",
+      "notes": "GlassWorm/OpenVSX compromised extension version."
+    },
+    {
+      "id": "oorzc.i18n-tools-plus",
+      "versions": [
+        "1.6.8"
+      ],
+      "severity": "DANGER",
+      "notes": "GlassWorm/OpenVSX compromised extension version."
+    },
+    {
+      "id": "oorzc.mind-map",
+      "versions": [
+        "1.0.61"
+      ],
+      "severity": "DANGER",
+      "notes": "GlassWorm/OpenVSX compromised extension version."
+    },
+    {
+      "id": "oorzc.scss-to-css-compile",
+      "versions": [
+        "1.3.4"
+      ],
+      "severity": "DANGER",
+      "notes": "GlassWorm/OpenVSX compromised extension version."
+    }
+  ]
+}

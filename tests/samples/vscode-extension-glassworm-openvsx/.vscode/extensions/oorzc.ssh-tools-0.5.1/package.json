@@ -1,0 +1,10 @@
+{
+  "publisher": "oorzc",
+  "name": "ssh-tools",
+  "version": "0.5.1",
+  "displayName": "Synthetic SSH Tools",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js"
+}

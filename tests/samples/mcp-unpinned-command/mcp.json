@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "example": {
+      "command": "npx",
+      "args": ["-y", "@example/unpinned-server"],
+      "env": {
+        "EXAMPLE_API_KEY": "redacted-sample-value"
+      }
+    }
+  }
+}
+

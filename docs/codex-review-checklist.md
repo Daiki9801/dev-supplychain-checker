@@ -1,0 +1,45 @@
+# Codex Review Checklist
+
+Review the implementation for the following before using it on real projects.
+
+- Dependency-free: no added package manager dependencies or external modules.
+- Offline-only: no network retrieval or IOC auto-update.
+- Read-only: no deletion, quarantine, uninstall, remediation, registry modification, or settings mutation.
+- No target code execution: package scripts, hooks, workflows, and build files are only scanned as text.
+- The single BAT launcher is thin and uses `-NoProfile`.
+- The launcher passes `-LauncherPath`, shows scanner/target/report paths before scans, and warns before continuing from an incomplete distribution.
+- `run-checker.bat major`, `run-checker.bat userprofile`, and `run-checker.bat full` require explicit confirmation.
+- `run-checker.bat npmstatic` requires explicit confirmation and only passes `-Checks NpmGlobal,NpmCache`.
+- Confirmation-required launcher modes reject `--no-pause` instead of waiting for input in non-interactive use.
+- `-Checks` validation rejects unknown names before scanning and defaults to `Recommended`.
+- `Recommended` does not read npm global/cache. `MajorRecommended` adds static npm global, and `AllSafe` adds static npm global/cache without enabling endpoint telemetry.
+- UserProfile and EndpointTelemetry remain explicit mode switches, not `-Checks` aliases.
+- PowerShell remains compatible with Windows PowerShell 5.1.
+- TXT and JSON reports are UTF-8 with BOM.
+- `Add-Finding` centrally redacts evidence.
+- Known secret files are not read.
+- `.codex` reference text, session logs, cache data, and plugin metadata without command fields do not produce DANGER by text-only examples.
+- Active AI configs, executable tooling, and plugin metadata command fields still detect external execution and token exfil patterns.
+- GitHub API clients using `GITHUB_TOKEN` for allowed read endpoints are not reported as `DANGER`.
+- Token or auth-file data sent to untrusted endpoints is still reported as `DANGER` with `riskType=active-exfil`; allowed GitHub write/install capability is `WARN` unless auth-file contents are read or sent.
+- Capability-only findings do not fill `priorityFindings`; `known-ioc`, `active-exfil`, and active config fetch-execute remain prioritized.
+- Local IOC JSON files are manually curated, offline-only, and do not trigger network refresh.
+- The scanner never executes `npm root -g`, `npm cache ls`, `git clone`, `git archive`, node, python, or package scripts.
+- Static npm global scanning reads bounded candidate `node_modules` roots and package metadata only.
+- Static npm cache scanning reads bounded `_cacache\index-v5|v6|v7` metadata only and never decodes `_cacache\content-v2` blobs.
+- Synthetic validation may use `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS` and `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS`; those overrides only accept paths under this repository's `tests/samples`.
+- Cache-only IOC or watchlist matches are not `DANGER` unless paired with installed metadata or executable behavior.
+- Broad campaign package families are INFO watchlist context unless exact bad versions are verified.
+- `known-files.json` and `suspicious-patterns.json` entries are actually loaded and malformed regex/JSON data is reported without stopping scans.
+- GlassWorm-style C2 markers are lower severity alone and become high priority only when paired with execution, decoding, invisible Unicode, or credential access/send behavior.
+- GlassWorm-style C2 plus execution text inside `.codex` reference text, session logs, or cache data is aggregated and does not become `DANGER`.
+- AI skill reference text can produce aggregated `WARN` for executable-looking dangerous samples, but documentation-only text does not become `DANGER`.
+- Registry existence, package popularity, provenance authenticity, and slopsquatting are documented as out of scope unless exact offline IOCs are provided.
+- Own synthetic samples are skipped only when listed in the currently running `tests/samples/manifest.json` and hash or presence checks pass; unknown or modified files are scanned.
+- External scanner artifact samples are skipped only when they match the currently running manifest by relative path and hash/presence rule; external manifests are not trusted.
+- Reports include `scanner.distributionStatus`, `scanner.distributionWarnings`, `scanner.launcherPathRedacted`, and scanner artifact skip counters.
+- Scanner self IOC strings from the running script and local IOC JSON are aggregated as scanner self-reference, while external scanner script/IOC copies are not automatically suppressed.
+- Reparse points are skipped by default.
+- `node_modules`, `.venv`, and `vendor` are targeted by default.
+- Access denied and decode failures are reported without stopping the full scan.
+- `-UserProfile` and `-EndpointTelemetry` are never used in automated validation.
