@@ -135,6 +135,10 @@ v0.1.9 以降は、`-Checks` で検査種類を選べます。
 - `iocs`
 - `tests\samples\manifest.json`
 
+一般ユーザー向けの配布物には、`tests/samples` の検証用fixture本体は入れません。`tests\samples\manifest.json` と `tests\samples\README.md` だけを残します。ソースリポジトリには、保守者が検出回帰を確認するためのfixture本体を残します。
+
+このため、軽量配布物では `tests/samples` を使った検出テストは実行できません。これは検証用サンプルを配布物から外すだけで、実際の検出ルール、IOCデータ、レポート生成、実フォルダの検査能力を減らすものではありません。
+
 レポートの `scanner.distributionStatus` が `complete` なら、実行中の配布物として必要な構成が揃っています。
 
 `script-only` や `incomplete` の場合でも互換性のためスキャンは続行しますが、古いコピーや単体コピーで実行している可能性があります。
@@ -150,6 +154,8 @@ v0.1.9 以降は、`-Checks` で検査種類を選べます。
 親フォルダや Major PC locations scan では、現在実行中の正規 manifest と hash が一致した既知 fixture だけをスキップします。
 
 未知ファイル、改変ファイル、他プロジェクトの `tests/samples`、偽の scanner フォルダは通常スキャンします。
+
+軽量配布物で `tests/samples` の中に `manifest.json` と `README.md` しかない場合、それは異常ではありません。保守者向けの完全なソース checkout だけが、危険そうな文字列を含むfixture本体を持ち、CIや回帰確認に使います。
 
 ## 結果の読み方
 

@@ -5,7 +5,9 @@
 ## 公開前
 
 - `Scan-DevSupplyChain.ps1`, `run-checker.bat`, `README.md`, `docs/`, `iocs/`, `tests/samples/manifest.json` が同じ配布物に入っていることを確認する。
-- `reports*/`, `.git/`, `other/` は配布物に入れない。
+- 一般ユーザー向けの release/source archive には、`tests/samples/**` の synthetic fixture 本体を入れない。残すのは `tests/samples/manifest.json` と `tests/samples/README.md` だけにする。
+- `reports*/`, `.git/`, `other/`, 一時 token, `.env*` は配布物に入れない。
+- `.gitattributes` が、生成レポート、ローカル参照ファイル、一時秘密情報、synthetic fixture 本体を generated source archive から除外していることを確認する。
 - `CODEOWNERS` が公開先の GitHub アカウントまたはチームを指していることを確認する。このリポジトリでは `@Daiki9801` に設定済み。
 - fork して別アカウントで公開する場合は、Code Owner review を有効化する前に `CODEOWNERS` を置き換える。
 - ライセンスが MIT でよいか確認する。別ライセンスにする場合は公開前に `LICENSE` を差し替える。

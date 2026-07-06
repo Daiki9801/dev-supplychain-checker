@@ -5,7 +5,9 @@ Use this checklist before publishing the repository publicly.
 ## Before Publishing
 
 - Include `Scan-DevSupplyChain.ps1`, `run-checker.bat`, `README.md`, `docs/`, `iocs/`, and `tests/samples/manifest.json`.
-- Do not include generated `reports*/`, `.git/`, or `other/` in release/source distribution.
+- Do not include full synthetic fixture bodies from `tests/samples/**` in end-user release/source archives. Keep only `tests/samples/manifest.json` and `tests/samples/README.md`.
+- Do not include generated `reports*/`, `.git/`, `other/`, temporary tokens, or `.env*` files in release/source distribution.
+- Confirm `.gitattributes` excludes generated reports, local reference files, temporary secrets, and synthetic fixture bodies from generated source archives.
 - Confirm that `.github/CODEOWNERS` points to the publishing GitHub account or team. This repository is set to `@Daiki9801`.
 - If you fork or republish under another account, replace `CODEOWNERS` before enabling Code Owner review.
 - Confirm that MIT is the intended license. Replace `LICENSE` before publishing if not.

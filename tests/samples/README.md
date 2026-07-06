@@ -2,6 +2,8 @@
 
 These files are intentionally small, synthetic, non-executable fixtures for scanner validation.
 
+End-user source archives may intentionally include only this README and `manifest.json`. That is expected. The full fixture bodies are kept in the maintainer source repository for regression tests and are omitted from lightweight archives because they intentionally contain suspicious-looking text.
+
 - They were not downloaded from the internet.
 - They are not real malware samples.
 - They contain static text patterns such as fake package versions, fake URLs, and fake token placeholders.

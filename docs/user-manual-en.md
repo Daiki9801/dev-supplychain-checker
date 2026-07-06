@@ -9,7 +9,7 @@ The checker performs static, read-only triage for suspicious supply-chain indica
 - This tool does not prove that a PC or repository is infected.
 - Results are review candidates.
 - Do not delete files just because a `DANGER` finding appears.
-- `tests/samples` contains synthetic test fixtures. Findings there are expected when scanned directly.
+- `tests/samples` contains synthetic test fixtures in the source repository. Findings there are expected when scanned directly. End-user archives should keep only the sample manifest/readme, not the full fixture bodies.
 - User profile and endpoint telemetry modes run only when explicitly selected.
 
 ## 2. Easiest Way To Run
@@ -81,6 +81,8 @@ Important fields:
 
 Parent scans skip only manifest-verified known fixtures from the currently running checker distribution. Unknown, modified, or unrelated `tests/samples` files are scanned normally.
 
+End-user archives may contain only `tests/samples/manifest.json` and `tests/samples/README.md`. In that case, the synthetic regression scan is unavailable by design. This does not reduce real scanning capability; maintainers and CI use the full source repository for fixture-based checks.
+
 As of v0.1.11, the running checker folder's own `reports*` directories are skipped during normal scans. This prevents old JSON/TXT reports and validation artifacts from being re-detected as current risks. If you explicitly scan a report folder with `-Path`, it is scanned.
 
 `reports*/` is also ignored by Git so generated reports are not committed or pushed.
@@ -96,4 +98,3 @@ Do not immediately:
 - uninstall tools before preserving evidence.
 
 Keep the TXT and JSON reports, review the `Path`, `Category`, `RiskType`, and `Evidence`, and involve an administrator or security specialist when appropriate.
-
