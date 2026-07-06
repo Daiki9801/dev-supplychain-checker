@@ -1,1 +1,6 @@
 reports*/
+other/
+token.txt
+*.token
+.env
+.env.*

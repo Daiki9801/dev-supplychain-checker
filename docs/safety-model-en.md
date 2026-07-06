@@ -82,6 +82,8 @@ The checker treats its own generated artifacts specially.
 
 - `tests/samples` contains synthetic fixtures and is skipped only when manifest-verified during parent scans.
 - Unknown or modified sample files are scanned normally.
+- End-user archives should omit the synthetic fixture bodies and keep only `tests/samples/manifest.json` plus `tests/samples/README.md`. The source repository keeps fixture bodies for maintainer regression tests.
+- Tradeoff: lightweight archives cannot run the synthetic fixture scan. This only removes the local validation samples from the archive; it does not remove scanner detections, IOC data, report output, or real target scanning.
 - The running checker folder's own `reports*` directories are skipped during normal scans as of v0.1.11.
 - Explicitly scanning a report folder still scans it.
 - Generated `reports*/` directories are ignored by Git and should not be committed or distributed as source.
@@ -102,4 +104,3 @@ AI tooling capability warnings mean a skill/plugin can access a network/API/inst
 The checker is not a replacement for EDR, AV, SIEM review, memory forensics, network forensics, package-manager audit services, or incident response.
 
 It does not perform full YAML/TOML semantic parsing, online reputation checks, registry popularity checks, maintainer trust checks, or slopsquatting detection without exact offline IOCs.
-

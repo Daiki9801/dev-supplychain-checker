@@ -58,11 +58,15 @@ run-checker.bat
 
 For distributed use, run `run-checker.bat` from the extracted checker folder. The folder should contain `Scan-DevSupplyChain.ps1`, `run-checker.bat`, `README.md`, `iocs`, and `tests\samples\manifest.json`. If the launcher sees an incomplete copy, it prints a warning and requires typing `YES` before continuing.
 
+End-user archives should not include the full `tests\samples` fixture tree. This source repository keeps synthetic fixtures for maintainer validation, but GitHub-generated source archives exclude fixture bodies through `.gitattributes` and keep only the sample manifest/readme needed for distribution self-checks.
+
 Non-interactive synthetic validation can call the launcher with a path and no pause:
 
 ```bat
 run-checker.bat current .\tests\samples\clean-js --no-pause
 ```
+
+This validation command requires a maintainer source checkout that includes fixture bodies. It is not expected to work from an end-user archive that intentionally omits those fixtures. Omitting fixtures from the archive does not change scanner rules, IOC data, report generation, or real target scanning.
 
 The `userprofile` and `full` launcher modes ask for explicit confirmation before scanning real user profile or endpoint telemetry data:
 
@@ -117,6 +121,7 @@ This repository includes GitHub publication support files:
 - `.github/workflows/validate.yml`: parser, JSON, and synthetic-sample validation on Windows.
 - `.github/dependabot.yml`: GitHub Actions update PRs only.
 - `.github/CODEOWNERS`: commented template; replace the owner before enabling Code Owner review.
+- `.gitattributes`: excludes generated reports, local reference files, temporary secrets, and synthetic fixture bodies from generated source archives.
 - `SECURITY.md`: vulnerability reporting scope and safety expectations.
 - `CONTRIBUTING.md`: contribution and validation rules.
 - `docs/github-publication-checklist-ja.md` / `docs/github-publication-checklist-en.md`: recommended GitHub settings for a public repository.
@@ -133,7 +138,11 @@ Only run synthetic validation against `tests/samples` unless a human explicitly 
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupplyChain.ps1 -Path .\tests\samples -ReportDir .\reports
 ```
 
-The `tests/samples` directory contains hand-written synthetic fixtures. They were not downloaded, are not real malware, and are expected to produce `WARN`/`DANGER` findings when scanned directly. Parent-directory and Major PC scans skip only manifest-verified fixture files matching the currently running checker distribution. Unrelated projects named `tests/samples`, unknown sample files, modified sample files, and fake scanner folders are scanned normally.
+The `tests/samples` directory contains hand-written synthetic fixtures for source-level regression tests. They were not downloaded, are not real malware, and are expected to produce `WARN`/`DANGER` findings when scanned directly. Parent-directory and Major PC scans skip only manifest-verified fixture files matching the currently running checker distribution. Unrelated projects named `tests/samples`, unknown sample files, modified sample files, and fake scanner folders are scanned normally.
+
+For non-technical users, distribute an archive that omits the fixture bodies and keeps only `tests\samples\manifest.json` plus `tests\samples\README.md`. This repository's `.gitattributes` applies that rule to GitHub-generated source archives.
+
+Tradeoff: users of the lightweight archive cannot run the synthetic sample regression scan because the intentionally suspicious fixture files are absent. Maintainers and CI still run those checks from the full source repository, so real detection capability is not reduced.
 
 Generated `reports*/` directories are ignored by Git and are skipped during normal scans when they are directly under the running checker folder. This prevents historical reports or validation artifacts from being re-detected as current target risks. Scan a report folder explicitly with `-Path` only when reviewing report contents intentionally.
 
