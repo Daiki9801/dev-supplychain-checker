@@ -1,0 +1,6 @@
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: codfish/semantic-release-action@5792aba0e2180b9b80b77644370a6889d5817456

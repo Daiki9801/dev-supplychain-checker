@@ -63,6 +63,7 @@ if defined DIST_WARN (
 
 if /I "%MODE%"=="current" goto ScanCurrent
 if /I "%MODE%"=="path" goto ScanPath
+if /I "%MODE%"=="deep" goto ScanDeep
 if /I "%MODE%"=="packages" goto ScanPackages
 if /I "%MODE%"=="ai" goto ScanAi
 if /I "%MODE%"=="cicd" goto ScanCiCd
@@ -76,7 +77,7 @@ echo Dev Supply Chain IOC Checker
 echo.
 echo 1. Recommended project scan
 echo 2. Scan selected path
-echo 3. Package / lockfile risks only
+echo 3. Package / Node runtime risks
 echo 4. AI / MCP / IDE config risks only
 echo 5. CI/CD and hooks risks only
 echo 6. npm global/cache static check
@@ -106,6 +107,7 @@ echo Usage:
 echo   run-checker.bat
 echo   run-checker.bat current [path] [--no-pause]
 echo   run-checker.bat path ^<path^> [--no-pause]
+echo   run-checker.bat deep ^<path^>
 echo   run-checker.bat packages [path] [--no-pause]
 echo   run-checker.bat ai [path] [--no-pause]
 echo   run-checker.bat cicd [path] [--no-pause]
@@ -114,7 +116,7 @@ echo   run-checker.bat major
 echo   run-checker.bat userprofile
 echo   run-checker.bat full [path]
 echo.
-echo npmstatic, major, userprofile, and full modes require typing YES and do not support --no-pause.
+echo deep, npmstatic, major, userprofile, and full modes require typing YES and do not support --no-pause.
 exit /b 0
 
 :PromptPath
@@ -124,6 +126,11 @@ if "%TARGET%"=="" (
   echo Cancelled.
   exit /b 0
 )
+echo.
+echo 1. Recommended traversal
+echo 2. Deep traversal ^(dependencies, build, and cache; higher load^)
+set /p TRAVERSAL=Traversal mode [1]:
+if "%TRAVERSAL%"=="2" goto ConfirmDeep
 goto RunPath
 
 :ScanCurrent
@@ -156,9 +163,52 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
 goto Finish
 
 :ScanPackages
-set "CHECKS=Packages,LifecycleScripts,ScannerSelf"
+set "CHECKS=Packages,LifecycleScripts,NodeRuntime,ScannerSelf"
 if "%TARGET%"=="" set "TARGET=%CD%"
 goto RunPath
+
+:ScanDeep
+if "%TARGET%"=="" (
+  echo Deep mode requires a target path.
+  exit /b 4
+)
+goto ConfirmDeep
+
+:ConfirmDeep
+set "CHECKS=Recommended"
+if defined NO_PAUSE (
+  echo Non-interactive execution is not allowed for Deep traversal.
+  exit /b 4
+)
+if not exist "%TARGET%" (
+  echo ERROR: Deep target path was not found: %TARGET%
+  exit /b 4
+)
+echo.
+echo Deep traversal enters dependency, build, and cache directories that a recommended scan skips.
+echo It remains read-only and does not add npm global/cache, user profile, or endpoint telemetry.
+echo Scanner path: %SCRIPT%
+echo Target path: %TARGET%
+echo Report dir: %REPORTS%
+echo Checks: %CHECKS%
+echo MaxFiles: 200000
+echo.
+set /p CONFIRM=Type YES to continue:
+if /I not "%CONFIRM%"=="YES" (
+  echo Cancelled.
+  exit /b 0
+)
+goto RunDeep
+
+:RunDeep
+powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+  -File "%SCRIPT%" ^
+  -Path "%TARGET%" ^
+  -Deep ^
+  -Checks "%CHECKS%" ^
+  -ReportDir "%REPORTS%" ^
+  -LauncherPath "%~f0"
+goto Finish
 
 :ScanAi
 set "CHECKS=AiMcp,IdeExtensions,SecretsInventory,ScannerSelf"
@@ -173,7 +223,7 @@ goto RunPath
 :PromptCustomChecks
 echo.
 echo Available checks:
-echo   Packages,LifecycleScripts,InvisibleUnicode,CiCd,AiMcp,IdeExtensions,HooksAndTasks,SecretsInventory,NpmGlobal,NpmCache,ScannerSelf
+echo   Packages,LifecycleScripts,NodeRuntime,InvisibleUnicode,CiCd,AiMcp,IdeExtensions,HooksAndTasks,SecretsInventory,NpmGlobal,NpmCache,ScannerSelf
 echo Example:
 echo   Packages,AiMcp,CiCd
 echo.

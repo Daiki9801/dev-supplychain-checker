@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -147,6 +147,426 @@ jobs:
             Write-Error ("Finding contract fields missing in {0} finding(s)." -f $findingsMissingContract.Count)
             exit 1
           }
+
+      - name: Check v0.1.13 traversal and JetBrains regressions
+        shell: powershell
+        run: |
+          function Invoke-SyntheticScan {
+            param([string]$Target, [string]$JsonOut, [string[]]$ExtraArgs)
+            $arguments = @(
+              '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+              '-File', '.\Scan-DevSupplyChain.ps1',
+              '-Path', $Target,
+              '-ReportDir', '.\reports',
+              '-JsonOut', $JsonOut,
+              '-Quiet', '-NoColor'
+            ) + $ExtraArgs
+            & powershell.exe @arguments
+            if ($LASTEXITCODE -notin @(0, 1, 2)) {
+              Write-Error ("Synthetic scan failed with unexpected exit code {0}: {1}" -f $LASTEXITCODE, $Target)
+              exit $LASTEXITCODE
+            }
+            return (Get-Content -LiteralPath $JsonOut -Raw | ConvertFrom-Json)
+          }
+
+          $project = Invoke-SyntheticScan `
+            -Target '.\tests\samples\project-discovery-parent' `
+            -JsonOut '.\reports\v013-project.json' `
+            -ExtraArgs @('-MaxFiles', '4')
+          if ([int]$project.scanStats.projectRootsDiscovered -lt 3) { throw 'Child project discovery regression.' }
+          if ([int]$project.scanStats.targetedDependencyFilesQueued -gt 2) { throw 'Targeted dependency budget exceeded 50 percent.' }
+          if (@($project.findings | Where-Object { $_.category -eq 'KNOWN_COMPROMISED_PACKAGE' }).Count -lt 1) { throw 'Child npm targeted IOC regression.' }
+          if (@($project.findings | Where-Object { $_.category -eq 'PYTHON_PTH_IMPORT_HOOK' }).Count -lt 1) { throw 'Child Python targeted hook regression.' }
+
+          $hooksOnly = Invoke-SyntheticScan `
+            -Target '.\tests\samples\project-discovery-parent' `
+            -JsonOut '.\reports\v013-hooks-only.json' `
+            -ExtraArgs @('-Checks', 'HooksAndTasks', '-MaxFiles', '4')
+          if ([int]$hooksOnly.scanStats.targetedDependencyFilesQueued -ne 0) { throw 'Hooks-only scan reserved package dependency files.' }
+
+          $normal = Invoke-SyntheticScan `
+            -Target '.\tests\samples\deep-only-dependency' `
+            -JsonOut '.\reports\v013-normal.json' `
+            -ExtraArgs @()
+          $deep = Invoke-SyntheticScan `
+            -Target '.\tests\samples\deep-only-dependency' `
+            -JsonOut '.\reports\v013-deep.json' `
+            -ExtraArgs @('-Deep')
+          if (@($normal.findings | Where-Object { $_.category -eq 'PACKAGE_CODE_EXTERNAL_EXECUTION' }).Count -ne 0) { throw 'Normal traversal entered an unselected dependency file.' }
+          if (@($deep.findings | Where-Object { $_.category -eq 'PACKAGE_CODE_EXTERNAL_EXECUTION' }).Count -lt 1) { throw 'Deep traversal regression.' }
+          if ([int]$deep.scanStats.deepFilesQueued -lt 1) { throw 'Deep traversal stats regression.' }
+
+          $depthNormal = Invoke-SyntheticScan `
+            -Target '.\tests\samples\project-discovery-depth' `
+            -JsonOut '.\reports\v013-depth-normal.json' `
+            -ExtraArgs @()
+          $depthDeep = Invoke-SyntheticScan `
+            -Target '.\tests\samples\project-discovery-depth' `
+            -JsonOut '.\reports\v013-depth-deep.json' `
+            -ExtraArgs @('-Deep')
+          if ([int]$depthNormal.scanStats.projectRootsDiscovered -ne 1) { throw 'Normal project discovery exceeded depth 4.' }
+          if ([int]$depthDeep.scanStats.projectRootsDiscovered -lt 2) { throw 'Deep project discovery did not reach depth 5.' }
+
+          $jetBrains = Invoke-SyntheticScan `
+            -Target '.\tests\samples\jetbrains-profile\AppData\Roaming\JetBrains\IdeaIC2026.1\plugins' `
+            -JsonOut '.\reports\v013-jetbrains.json' `
+            -ExtraArgs @('-Checks', 'IdeExtensions')
+          if (@($jetBrains.findings | Where-Object { $_.category -eq 'IDE_EXTENSION_EXTERNAL_EXECUTION_PATTERN' -and $_.sourceContext -eq 'jetbrains-plugin' }).Count -lt 1) { throw 'JetBrains script behavior regression.' }
+          if (@($jetBrains.findings | Where-Object { $_.category -eq 'JETBRAINS_PLUGIN_NATIVE_ARTIFACTS_AGGREGATED' }).Count -lt 1) { throw 'JetBrains native aggregation regression.' }
+          if (@($jetBrains.findings | Where-Object { $_.severity -eq 'DANGER' }).Count -ne 0) { throw 'Benign synthetic JetBrains plugin produced DANGER.' }
+
+          Add-Type -AssemblyName System.IO.Compression
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archiveRoot = '.\reports\v013-temp\JetBrains\IdeaIC2026.1\plugins\entry-limit-plugin'
+          New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
+          $nestedPath = Join-Path $archiveRoot 'nested.jar'
+          $nestedArchive = [System.IO.Compression.ZipFile]::Open($nestedPath, [System.IO.Compression.ZipArchiveMode]::Create)
+          try {
+            foreach ($index in 1..4999) { [void]$nestedArchive.CreateEntry(('payload/{0}.txt' -f $index)) }
+          }
+          finally { $nestedArchive.Dispose() }
+          $outerPath = Join-Path $archiveRoot 'plugin.jar'
+          $outerArchive = [System.IO.Compression.ZipFile]::Open($outerPath, [System.IO.Compression.ZipArchiveMode]::Create)
+          try {
+            $pluginXml = $outerArchive.CreateEntry('META-INF/plugin.xml')
+            $writer = New-Object System.IO.StreamWriter($pluginXml.Open(), (New-Object System.Text.UTF8Encoding($false)))
+            try { $writer.Write('<idea-plugin><id>invalid.entry.limit</id><version>1.0.0</version></idea-plugin>') }
+            finally { $writer.Dispose() }
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($outerArchive, $nestedPath, 'lib/nested.jar') | Out-Null
+          }
+          finally { $outerArchive.Dispose() }
+          $entryLimit = Invoke-SyntheticScan `
+            -Target $outerPath `
+            -JsonOut '.\reports\v013-jetbrains-entry-limit.json' `
+            -ExtraArgs @('-Checks', 'IdeExtensions')
+          if (@($entryLimit.findings | Where-Object { $_.category -eq 'JETBRAINS_ARCHIVES_SKIPPED_AGGREGATED' }).Count -ne 1) { throw 'JetBrains cumulative archive entry limit regression.' }
+          if ([int]$entryLimit.scanStats.jetBrainsArchiveEntriesInspected -ne 2) { throw 'Nested archive entries were counted beyond the cumulative limit.' }
+
+          $parent = Invoke-SyntheticScan `
+            -Target '.\tests' `
+            -JsonOut '.\reports\v013-parent.json' `
+            -ExtraArgs @()
+          if ([int]$parent.scanStats.targetedDependencyFilesQueued -ne 0) { throw 'Manifest-verified samples consumed targeted budget in a parent scan.' }
+          if (@($parent.findings | Where-Object { $_.severity -eq 'DANGER' }).Count -ne 0) { throw 'Manifest-verified samples leaked into parent-scan DANGER findings.' }
+
+          $tempScanner = Join-Path $env:RUNNER_TEMP 'dev-supplychain-checker-v013-ioc'
+          New-Item -ItemType Directory -Path (Join-Path $tempScanner 'iocs') -Force | Out-Null
+          Copy-Item -LiteralPath '.\Scan-DevSupplyChain.ps1' -Destination (Join-Path $tempScanner 'Scan-DevSupplyChain.ps1')
+          @{
+            schemaVersion = '0.1.13-test'
+            extensions = @(
+              @{ id='invalid.synthetic.plugin'; versions=@('1.0.0'); severity='DANGER'; platform='jetbrains'; notes='Synthetic test only' },
+              @{ id='invalid.synthetic.plugin'; versions=@('1.0.0'); severity='DANGER'; platform='vscode'; notes='Platform separation test only' },
+              @{ id='com.intellij.modules.platform'; versions=@('*'); severity='WARN'; platform='jetbrains'; notes='Dependency parsing test only' }
+            )
+          } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $tempScanner 'iocs\known-extensions.json') -Encoding UTF8
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+            -File (Join-Path $tempScanner 'Scan-DevSupplyChain.ps1') `
+            -Path '.\tests\samples\jetbrains-profile\AppData\Roaming\JetBrains\IdeaIC2026.1\plugins\synthetic-plugin\META-INF\plugin.xml' `
+            -Checks IdeExtensions `
+            -ReportDir '.\reports' `
+            -JsonOut '.\reports\v013-jetbrains-ioc.json' `
+            -Quiet -NoColor
+          if ($LASTEXITCODE -notin @(0, 1, 2)) { throw 'Synthetic JetBrains IOC scan failed.' }
+          $jetBrainsIoc = Get-Content -LiteralPath '.\reports\v013-jetbrains-ioc.json' -Raw | ConvertFrom-Json
+          $jetBrainsIocMatches = @($jetBrainsIoc.findings | Where-Object { $_.category -eq 'JETBRAINS_PLUGIN_KNOWN_IOC' })
+          if ($jetBrainsIocMatches.Count -ne 1 -or $jetBrainsIocMatches[0].severity -ne 'DANGER') { throw 'JetBrains exact IOC or platform separation regression.' }
+          if (@($jetBrainsIoc.findings | Where-Object { $_.category -eq 'JETBRAINS_PLUGIN_REFERENCES_KNOWN_BAD_ID' }).Count -ne 1) { throw 'JetBrains dependency metadata parsing regression.' }
+          exit 0
+
+      - name: Check v0.1.14 Node runtime regressions
+        shell: powershell
+        run: |
+          function Invoke-NodeRuntimeScan {
+            param([string]$Target, [string]$JsonOut, [string[]]$Checks = @('NodeRuntime'), [string[]]$ExtraArgs = @())
+            $arguments = @(
+              '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+              '-File', '.\Scan-DevSupplyChain.ps1',
+              '-Path', $Target,
+              '-Checks', ($Checks -join ','),
+              '-ReportDir', '.\reports',
+              '-JsonOut', $JsonOut,
+              '-Quiet', '-NoColor'
+            ) + $ExtraArgs
+            & powershell.exe @arguments
+            if ($LASTEXITCODE -notin @(0, 1, 2)) {
+              throw ("Node runtime scan failed with exit code {0}: {1}" -f $LASTEXITCODE, $Target)
+            }
+            return (Get-Content -LiteralPath $JsonOut -Raw | ConvertFrom-Json)
+          }
+
+          $critical = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-critical-pin' `
+            -JsonOut '.\reports\v014-node-critical.json'
+          $criticalFinding = @($critical.findings | Where-Object {
+            $_.category -eq 'NODE_RUNTIME_VULNERABILITY_VERSION' -and $_.vulnerability.upstreamSeverity -eq 'CRITICAL'
+          })
+          if ($criticalFinding.Count -ne 1 -or $criticalFinding[0].severity -ne 'WARN') { throw 'Critical project pin severity regression.' }
+          if ($criticalFinding[0].riskType -ne 'vulnerability' -or $criticalFinding[0].confidence -ne 'medium') { throw 'Critical project pin contract regression.' }
+
+          $high = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-high-pin' `
+            -JsonOut '.\reports\v014-node-high.json'
+          if (@($high.findings | Where-Object { $_.vulnerability.upstreamSeverity -eq 'HIGH' -and $_.severity -eq 'WARN' }).Count -ne 1) { throw 'High project pin regression.' }
+
+          $safe = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-safe' `
+            -JsonOut '.\reports\v014-node-safe.json'
+          if (@($safe.findings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -ne 0) { throw 'Fixed Node version produced a vulnerability finding.' }
+
+          $constraint = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-constraint' `
+            -JsonOut '.\reports\v014-node-constraint.json'
+          $constraintFindings = @($constraint.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_VULNERABILITY_CONSTRAINT' })
+          if ($constraintFindings.Count -ne 1 -or $constraintFindings[0].severity -ne 'INFO') { throw 'engines.node constraint severity regression.' }
+
+          $surfaces = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-surfaces' `
+            -JsonOut '.\reports\v014-node-surfaces.json'
+          $surfaceKinds = @($surfaces.findings | Where-Object { $_.riskType -eq 'vulnerability' } | ForEach-Object { $_.vulnerability.evidenceKind } | Sort-Object -Unique)
+          foreach ($requiredKind in @('version-manager-pin', 'container-image-pin', 'ci-runtime-pin')) {
+            if ($surfaceKinds -notcontains $requiredKind) { throw ("Missing Node runtime evidence kind: {0}" -f $requiredKind) }
+          }
+
+          $volta = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-volta' `
+            -JsonOut '.\reports\v014-node-volta.json'
+          if (@($volta.findings | Where-Object { $_.vulnerability.evidenceKind -eq 'version-manager-pin' -and $_.severity -eq 'WARN' }).Count -ne 1) { throw 'Volta Node pin regression.' }
+          if ([int]$volta.scanStats.nodeRuntimeUnresolvedReferences -lt 1) { throw 'Volta package engines range was not aggregated.' }
+
+          $unresolved = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-unresolved' `
+            -JsonOut '.\reports\v014-node-unresolved.json'
+          if (@($unresolved.findings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -ne 0) { throw 'Unresolved Node aliases or variables were guessed as vulnerable.' }
+          if ([int]$unresolved.scanStats.nodeRuntimeUnresolvedReferences -lt 7) { throw 'Node alias/range/variable aggregation regression.' }
+          if (@($unresolved.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_REFERENCES_UNRESOLVED' }).Count -ne 1) { throw 'Unresolved Node references were not aggregated once.' }
+
+          $matrixRoot = '.\tests\samples\_generated-node-runtime-matrix'
+          New-Item -ItemType Directory -Path $matrixRoot -Force | Out-Null
+          $matrix = [ordered]@{
+            'critical-2019' = '13.7.9'
+            'critical-2020' = '14.10.1'
+            'critical-2021' = '15.9.9'
+            'high-july-path' = '20.19.3'
+            'high-july-strings' = '24.4.0'
+            'high-january' = '25.2.9'
+            'high-march-tls' = '20.20.0'
+            'high-march-http' = '25.8.1'
+            'high-june' = '26.3.0'
+            'prerelease-before-fix' = '22.23.0-rc.1'
+            'large-numeric-prerelease' = ('22.23.0-' + ('9' * 100))
+            'fixed-20' = '20.20.2'
+            'fixed-22' = '22.23.0'
+            'fixed-24' = '24.17.0'
+            'fixed-25' = '25.8.2'
+            'fixed-26' = '26.3.1'
+            'build-metadata-fixed' = '22.23.0+build.1'
+            'project-four-component' = '22.22.1.0'
+            'unresolved' = 'latest'
+          }
+          foreach ($entry in $matrix.GetEnumerator()) {
+            $directory = Join-Path $matrixRoot $entry.Key
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $directory '.nvmrc'), [string]$entry.Value, (New-Object System.Text.UTF8Encoding($false)))
+          }
+          $matrixReport = Invoke-NodeRuntimeScan `
+            -Target $matrixRoot `
+            -JsonOut '.\reports\v014-node-matrix.json'
+          $matrixIds = @($matrixReport.findings | Where-Object { $_.riskType -eq 'vulnerability' } | ForEach-Object { $_.vulnerability.advisoryIds } | Sort-Object -Unique)
+          foreach ($requiredId in @(
+            'CVE-2019-15605', 'CVE-2020-8251', 'CVE-2021-22883',
+            'CVE-2025-27210', 'CVE-2025-27209', 'CVE-2025-55131',
+            'CVE-2025-55130', 'CVE-2025-59465', 'CVE-2026-21637',
+            'CVE-2026-21710', 'CVE-2026-48933', 'CVE-2026-48618'
+          )) {
+            if ($matrixIds -notcontains $requiredId) { throw ("Node advisory boundary regression: {0}" -f $requiredId) }
+          }
+          foreach ($fixedVersion in @('20.20.2', '22.23.0', '24.17.0', '25.8.2', '26.3.1', '22.23.0+build.1')) {
+            if (@($matrixReport.findings | Where-Object { $_.vulnerability.detectedVersion -eq $fixedVersion }).Count -gt 0) { throw ("Fixed Node version matched: {0}" -f $fixedVersion) }
+          }
+          if ([int]$matrixReport.scanStats.nodeRuntimeUnresolvedReferences -lt 2) { throw 'Unresolved Node reference aggregation regression.' }
+          if (@($matrixReport.findings | Where-Object { ([string]$_.path) -match 'project-four-component' -and $_.riskType -eq 'vulnerability' }).Count -gt 0) { throw 'Project declaration accepted a Windows-only four-component file version.' }
+          if (@($matrixReport.findings | Where-Object { $_.category -in @('SCANNER_ERROR', 'SCANNER_FILE_ERROR') }).Count -ne 0) { throw 'Node prerelease comparison produced a scanner error.' }
+          if ($matrixReport.nodeRuntimeData.status -ne 'baseline-parity') { throw 'Built-in and shipped Node IOC parity regression.' }
+          if (@($matrixReport.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_IOC_PARITY_MISMATCH' }).Count -ne 0) { throw 'Node IOC parity mismatch finding was emitted.' }
+
+          $boundaryRoot = '.\tests\samples\_generated-node-runtime-boundaries'
+          New-Item -ItemType Directory -Path $boundaryRoot -Force | Out-Null
+          $boundaryData = Get-Content -LiteralPath '.\iocs\known-node-runtimes.json' -Raw | ConvertFrom-Json
+          $boundaryCases = New-Object System.Collections.ArrayList
+          foreach ($advisory in @($boundaryData.advisories)) {
+            $rangeIndex = 0
+            $highestMajor = 0
+            foreach ($range in @($advisory.affectedRanges)) {
+              $minimum = [version]$range.minInclusive
+              $maximum = [version]$range.maxExclusive
+              if ($maximum.Major -gt $highestMajor) { $highestMajor = $maximum.Major }
+              $beforeMaximum = if ($maximum.Build -gt 0) {
+                '{0}.{1}.{2}' -f $maximum.Major, $maximum.Minor, ($maximum.Build - 1)
+              }
+              else {
+                '{0}.{1}.999' -f $maximum.Major, ($maximum.Minor - 1)
+              }
+              $caseValues = [ordered]@{
+                min = [string]$range.minInclusive
+                before = $beforeMaximum
+                prerelease = ([string]$range.maxExclusive + '-rc.1')
+                fixed = [string]$range.maxExclusive
+                build = ([string]$range.maxExclusive + '+build.1')
+                nextminor = ('{0}.{1}.0' -f $maximum.Major, ($maximum.Minor + 1))
+              }
+              foreach ($caseEntry in $caseValues.GetEnumerator()) {
+                $expectedMatch = $caseEntry.Key -in @('min', 'before', 'prerelease')
+                $caseName = ('{0}-r{1}-{2}' -f $advisory.id.ToLowerInvariant(), $rangeIndex, $caseEntry.Key)
+                $caseDirectory = Join-Path $boundaryRoot $caseName
+                New-Item -ItemType Directory -Path $caseDirectory -Force | Out-Null
+                [System.IO.File]::WriteAllText((Join-Path $caseDirectory '.nvmrc'), [string]$caseEntry.Value, (New-Object System.Text.UTF8Encoding($false)))
+                [void]$boundaryCases.Add([pscustomobject]@{ name=$caseName; id=[string]$advisory.id; expected=$expectedMatch })
+              }
+              $rangeIndex++
+            }
+            $nextMajorName = ('{0}-nextmajor' -f $advisory.id.ToLowerInvariant())
+            $nextMajorDirectory = Join-Path $boundaryRoot $nextMajorName
+            New-Item -ItemType Directory -Path $nextMajorDirectory -Force | Out-Null
+            [System.IO.File]::WriteAllText((Join-Path $nextMajorDirectory '.nvmrc'), ('{0}.0.0' -f ($highestMajor + 1)), (New-Object System.Text.UTF8Encoding($false)))
+            [void]$boundaryCases.Add([pscustomobject]@{ name=$nextMajorName; id=[string]$advisory.id; expected=$false })
+          }
+          $boundaryReport = Invoke-NodeRuntimeScan `
+            -Target $boundaryRoot `
+            -JsonOut '.\reports\v014-node-boundaries.json'
+          foreach ($boundaryCase in @($boundaryCases)) {
+            $suffix = '\' + [string]$boundaryCase.name + '\.nvmrc'
+            $caseMatches = @($boundaryReport.findings | Where-Object {
+              ([string]$_.path).EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) -and
+              @($_.vulnerability.advisoryIds) -contains [string]$boundaryCase.id
+            })
+            if ([bool]$boundaryCase.expected -and $caseMatches.Count -lt 1) { throw ("Affected Node boundary was missed: {0}" -f $boundaryCase.name) }
+            if (-not [bool]$boundaryCase.expected -and $caseMatches.Count -gt 0) { throw ("Fixed/outside Node boundary matched: {0}" -f $boundaryCase.name) }
+          }
+
+          $budgetReport = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-surfaces' `
+            -JsonOut '.\reports\v014-node-budget.json' `
+            -Checks @('Recommended') `
+            -ExtraArgs @('-MaxFiles', '5')
+          if ([int]$budgetReport.scanStats.uniqueFilesQueued -gt 5) { throw 'Node runtime candidates exceeded the run-wide MaxFiles limit.' }
+          if ([int]$budgetReport.scanStats.nodeRuntimeFilesSkippedByBudget -lt 1) { throw 'Node runtime budget limit was not reported.' }
+
+          $hostRoot = Join-Path $matrixRoot 'host-known-paths'
+          $nodeDirectory = Join-Path $hostRoot 'nodejs'
+          $otherDirectory = Join-Path $hostRoot 'other'
+          New-Item -ItemType Directory -Path $nodeDirectory, $otherDirectory -Force | Out-Null
+          $nodeSource = @'
+          using System.Reflection;
+          [assembly: AssemblyTitle("Synthetic Node Metadata")]
+          [assembly: AssemblyProduct("Node.js")]
+          [assembly: AssemblyFileVersion("22.22.1.0")]
+          [assembly: AssemblyVersion("22.22.1.0")]
+          public static class SyntheticNodeProgram { public static void Main() { } }
+          '@
+          $otherSource = @'
+          using System.Reflection;
+          [assembly: AssemblyTitle("Synthetic Utility")]
+          [assembly: AssemblyProduct("Synthetic Utility")]
+          [assembly: AssemblyFileVersion("22.22.1.0")]
+          [assembly: AssemblyVersion("22.22.1.0")]
+          public static class SyntheticOtherProgram { public static void Main() { } }
+          '@
+          Add-Type -TypeDefinition $nodeSource -OutputAssembly (Join-Path $nodeDirectory 'node.exe') -OutputType ConsoleApplication
+          $utilityPath = Join-Path $otherDirectory 'utility.exe'
+          Add-Type -TypeDefinition $otherSource -OutputAssembly $utilityPath -OutputType ConsoleApplication
+          Copy-Item -LiteralPath $utilityPath -Destination (Join-Path $otherDirectory 'node.exe')
+          $env:DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS = (Resolve-Path $hostRoot).Path
+          $env:DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_HOST_SCOPE = '1'
+          try {
+            $hostReport = Invoke-NodeRuntimeScan `
+              -Target '.\tests\samples\clean-js' `
+              -JsonOut '.\reports\v014-node-host.json'
+          }
+          finally {
+            Remove-Item Env:DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS -ErrorAction SilentlyContinue
+            Remove-Item Env:DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_HOST_SCOPE -ErrorAction SilentlyContinue
+          }
+          if ($hostReport.nodeRuntimeScope -ne 'combined') { throw 'Synthetic host Node scope regression.' }
+          $installed = @($hostReport.findings | Where-Object { $_.vulnerability.evidenceKind -eq 'installed-binary-metadata' })
+          if ($installed.Count -ne 1 -or $installed[0].confidence -ne 'high' -or $installed[0].severity -ne 'WARN') { throw 'Installed Node metadata finding regression.' }
+          if ([int]$hostReport.scanStats.nodeRuntimeBinariesInspected -ne 2) { throw 'Synthetic host binary candidate count regression.' }
+          if ([int]$hostReport.scanStats.nodeRuntimeVersionReadFailures -lt 1) { throw 'Non-Node PE identity rejection regression.' }
+          if (@($hostReport.priorityFindings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -gt 3) { throw 'Node runtime priority finding cap regression.' }
+
+          $env:DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS = (Resolve-Path $hostRoot).Path
+          $env:DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS = (Resolve-Path $hostRoot).Path
+          try {
+            $recommended = Invoke-NodeRuntimeScan `
+              -Target '.\tests\samples\node-runtime-safe' `
+              -JsonOut '.\reports\v014-node-recommended.json' `
+              -Checks @('Recommended')
+            $major = Invoke-NodeRuntimeScan `
+              -Target '.\tests\samples\clean-js' `
+              -JsonOut '.\reports\v014-node-major.json' `
+              -Checks @('MajorRecommended')
+            $allSafe = Invoke-NodeRuntimeScan `
+              -Target '.\tests\samples\clean-js' `
+              -JsonOut '.\reports\v014-node-allsafe.json' `
+              -Checks @('AllSafe')
+          }
+          finally {
+            Remove-Item Env:DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS -ErrorAction SilentlyContinue
+            Remove-Item Env:DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS -ErrorAction SilentlyContinue
+          }
+          if ($recommended.nodeRuntimeScope -ne 'project-static') { throw 'Recommended project Node scope regression.' }
+          if ($major.nodeRuntimeScope -ne 'combined' -or $allSafe.nodeRuntimeScope -ne 'combined') { throw 'Host macro Node scope regression.' }
+          if (@($allSafe.expandedChecks) -contains 'EndpointTelemetry') { throw 'AllSafe enabled endpoint telemetry.' }
+          $deepScope = Invoke-NodeRuntimeScan `
+            -Target '.\tests\samples\node-runtime-safe' `
+            -JsonOut '.\reports\v014-node-deep-scope.json' `
+            -Checks @('Recommended') `
+            -ExtraArgs @('-Deep')
+          if ($deepScope.nodeRuntimeScope -ne 'project-static') { throw 'Deep traversal implicitly enabled host Node discovery.' }
+
+          $tempScanner = Join-Path $env:RUNNER_TEMP 'dev-supplychain-checker-v014-node-ioc'
+          New-Item -ItemType Directory -Path $tempScanner -Force | Out-Null
+          Copy-Item -LiteralPath '.\Scan-DevSupplyChain.ps1' -Destination (Join-Path $tempScanner 'Scan-DevSupplyChain.ps1')
+          function Invoke-TempNodeIocScan {
+            param([string]$Name)
+            $output = Join-Path (Resolve-Path '.\reports') ("v014-node-ioc-{0}.json" -f $Name)
+            & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+              -File (Join-Path $tempScanner 'Scan-DevSupplyChain.ps1') `
+              -Path '.\tests\samples\node-runtime-critical-pin' `
+              -Checks NodeRuntime -ReportDir '.\reports' -JsonOut $output -Quiet -NoColor
+            if ($LASTEXITCODE -notin @(0, 1, 2)) { throw ("Temporary Node IOC scan failed: {0}" -f $Name) }
+            return (Get-Content -LiteralPath $output -Raw | ConvertFrom-Json)
+          }
+          $missingIoc = Invoke-TempNodeIocScan 'missing'
+          if (@($missingIoc.findings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -lt 1) { throw 'Missing Node IOC file disabled the built-in baseline.' }
+
+          New-Item -ItemType Directory -Path (Join-Path $tempScanner 'iocs') -Force | Out-Null
+          $localIocPath = Join-Path $tempScanner 'iocs\known-node-runtimes.json'
+          [System.IO.File]::WriteAllText($localIocPath, '{', (New-Object System.Text.UTF8Encoding($false)))
+          $invalidIoc = Invoke-TempNodeIocScan 'invalid'
+          if (@($invalidIoc.findings | Where-Object { $_.category -eq 'IOC_JSON_INVALID' }).Count -ne 1) { throw 'Malformed Node IOC fallback regression.' }
+          if (@($invalidIoc.findings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -lt 1) { throw 'Malformed Node IOC disabled the built-in baseline.' }
+
+          $localIoc = Get-Content -LiteralPath '.\iocs\known-node-runtimes.json' -Raw | ConvertFrom-Json
+          $localIoc.schemaVersion = '0.1.13'
+          [System.IO.File]::WriteAllText($localIocPath, ($localIoc | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+          $invalidHeaderIoc = Invoke-TempNodeIocScan 'invalid-header'
+          if (@($invalidHeaderIoc.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_IOC_HEADER_INVALID' }).Count -ne 1) { throw 'Invalid Node IOC header was not rejected.' }
+          if (@($invalidHeaderIoc.findings | Where-Object { $_.riskType -eq 'vulnerability' }).Count -lt 1) { throw 'Invalid Node IOC header disabled the built-in baseline.' }
+
+          $localIoc = Get-Content -LiteralPath '.\iocs\known-node-runtimes.json' -Raw | ConvertFrom-Json
+          $localIoc.advisories[0].upstreamSeverity = 'HIGH'
+          [System.IO.File]::WriteAllText($localIocPath, ($localIoc | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+          $conflictingIoc = Invoke-TempNodeIocScan 'conflict'
+          if (@($conflictingIoc.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_IOC_CONFLICT' }).Count -ne 1) { throw 'Conflicting Node IOC was not rejected.' }
+          if (@($conflictingIoc.findings | Where-Object { $_.vulnerability.upstreamSeverity -eq 'CRITICAL' }).Count -lt 1) { throw 'Conflicting Node IOC overrode the built-in severity.' }
+
+          $localIoc = Get-Content -LiteralPath '.\iocs\known-node-runtimes.json' -Raw | ConvertFrom-Json
+          $localIoc.lastUpdated = '2020-01-01'
+          [System.IO.File]::WriteAllText($localIocPath, ($localIoc | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+          $staleIoc = Invoke-TempNodeIocScan 'stale'
+          if (@($staleIoc.findings | Where-Object { $_.category -eq 'NODE_RUNTIME_DATA_STALE' }).Count -ne 1) { throw 'Stale Node IOC data regression.' }
+          exit 0
 
       - name: Check publication placeholders
         shell: powershell

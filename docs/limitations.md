@@ -10,9 +10,12 @@ This scanner is designed for safe initial triage.
 - It does not remediate, delete, quarantine, uninstall, rotate tokens, or modify registry/settings.
 - It does not execute target project code, package-manager commands, hooks, workflows, or build scripts.
 - It does not run `npm root -g`, `npm cache ls`, `git clone`, `git archive`, or GitHub download/API retrieval. GitHub repositories must be supplied as local folders by the user.
-- `-Checks Recommended` excludes npm global/cache reads. `NpmGlobal` and `NpmCache` are static, bounded, opt-in check categories.
+- `-Checks Recommended` excludes npm global/cache and host Node.js location discovery. `NpmGlobal` and `NpmCache` are static, bounded, opt-in check categories; known-path Node.js host discovery is limited to `MajorRecommended`, `AllSafe`, or explicit broader host modes.
 - YAML, TOML, and lockfiles are scanned with static patterns, not complete semantic parsers.
 - Dependency directories are targeted by default; absence of findings inside `node_modules`, `.venv`, or `vendor` is not a complete dependency audit.
+- Child-project discovery is bounded to depth 4 (8 in Deep), 500 project roots, and 20,000 directories. Dependency targeting uses at most `min(50,000, floor(MaxFiles * 0.5))` files so normal source and configuration scanning retains at least half of the run budget.
+- `filesEnumerated` counts observations and may include duplicates; `uniqueFilesQueued` is the run-wide deduplicated count governed by `MaxFiles`.
+- Deep is explicit opt-in. It enters dependency, build, and cache directories but does not add npm global/cache, UserProfile, MajorLocations, or EndpointTelemetry. VCS, reparse points, auth-file contents, verified fixture protection, and the running checker's report exclusion remain enforced.
 - Endpoint telemetry is opt-in, bounded, and best-effort.
 - User profile scanning is opt-in and reports only redacted paths and metadata.
 - MajorLocations mode scans common developer and AI-tool locations only; it is not a full-disk scan.
@@ -33,6 +36,19 @@ This scanner is designed for safe initial triage.
 - npm cache metadata is weak evidence by itself. Cache-only matches are reported as `WARN` or `INFO`, not proof of install or execution.
 - Broad incident family names such as TanStack, Mistral, and Red Hat npm package families are watchlist context only unless an exact affected version or strong behavior chain is present.
 - Exact offline IOC matches, lifecycle/import-time secret harvesting plus external send, and external download plus execution remain high-priority findings.
+- General semantic-version range inclusion is not evaluated. An exact installed, lockfile, or manifest version can be `DANGER`; a range or fallback text that mentions a bad version is capped at `WARN` until the resolved version is confirmed.
+- File-hash IOC detection applies only when the candidate file is reached by normal or targeted enumeration. The scanner does not recursively hash every file under dependency directories.
+- Extension publisher/name/version metadata does not reliably identify the source registry. Cross-registry identity collisions require file hashes or behavior evidence.
+- Remote WebAssembly loading and native/WASM artifact presence are capability findings by themselves. They become `DANGER` only with an exact IOC or a strong execution/exfiltration compound.
+- GitHub Action refs cannot be resolved online. Known compromised commits are exact IOC matches, while historically affected or mutable tags remain review candidates.
+- JetBrains inspection is static and bounded. It reads `META-INF/plugin.xml`, selected script entries, native-artifact names, and configured file hashes without extracting archives or executing code.
+- JetBrains archives are limited to 200 MB and 5,000 entries; plugin XML to 1 MB; nested JARs to 20 entries, 25 MB each, and 50 MB total; scripts to 20 entries, 512 KB each, and 5 MB total. Malformed, encrypted, unsafe-path, or over-limit archives are reported as aggregated limitations.
+- JetBrains `.class` files are not decompiled or searched as arbitrary bytecode strings. Marketplace origin, signatures, and online publisher status cannot be confirmed offline. Program Files and Toolbox bundled plugins require explicit `-Path`.
+- A JetBrains native artifact alone is inventory/capability context, not `DANGER`. No production JetBrains IOC is shipped unless an exact ID/version or hash is independently verified.
+- Node.js runtime coverage is deliberately bounded: official Critical releases from 2020 onward and the manually maintained recent-High window in `known-node-runtimes.json`. It is not a complete Node.js CVE audit and does not automatically classify EOL releases.
+- Node.js version comparison accepts exact `major.minor.patch` values with optional prerelease/build metadata. General semver ranges, aliases, variables, Docker ARG values, registry resolution, and package-manager resolution are not evaluated.
+- `engines.node` is a compatibility constraint, not proof of the installed runtime, so it is capped at `INFO`. Explicit project pins and accepted Windows file-version metadata are `WARN` when they match an affected range; version evidence alone is never `DANGER`.
+- Windows file-version metadata does not prove binary authenticity or signature status. The scanner does not search all `PATH` entries, query the registry, use Authenticode network validation, or execute `node.exe`; portable runtimes are found only when they are inside an explicitly scanned path.
 - Shai-Hulud style filenames such as `setup_bun.js`, `bun_environment.js`, `actionsSecrets.json`, and `truffleSecrets.json` are treated as context markers. They become high priority when paired with executable context, credential access, or artifact/exfiltration behavior.
 - GitHub Actions workflows that combine discussion/comment body input, self-hosted runners, and execution context are high-priority because they can turn repository discussions into a runner execution surface.
 - GitHub Actions workflows that serialize broad secrets into uploaded artifacts are high-priority credential exposure candidates.

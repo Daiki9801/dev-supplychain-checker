@@ -1,9 +1,9 @@
 # 図解マニュアル: Dev Supply Chain IOC Checker
 
 対象: Windowsで開発用フォルダや主要な開発環境を安全に確認したい人
-更新日: 2026-06-29
+更新日: 2026-07-15
 
-まずは下のPNGを見てください。この1枚で、特徴、使い方、検査モード、結果の見方、安全上の注意が分かるようにしています。v0.1.9 ではリスク別チェック選択メニューが追加され、v0.1.11 ではこのツール自身の `reports*` フォルダを通常スキャンから除外するようになりました。
+まずは下のPNGを見てください。この1枚で、特徴、使い方、検査モード、結果の見方、安全上の注意が分かるようにしています。v0.1.14でもメニュー番号は変わりません。`2. Scan selected path` のパス入力後に、通常の `Recommended` または確認必須の `Deep` を選べます。`IdeExtensions` はVS Code互換拡張に加えてJetBrainsプラグインも対象にし、`Recommended`はプロジェクトに明記されたNode.jsバージョンも静的に確認します。
 
 ![Dev Supply Chain IOC Checker 図解使い方マニュアル](assets/dev-supplychain-checker-manual-ja-20260629.png)
 
@@ -31,7 +31,7 @@
 ```text
 1. Recommended project scan
 2. Scan selected path
-3. Package / lockfile risks only
+3. Package / Node runtime risks
 4. AI / MCP / IDE config risks only
 5. CI/CD and hooks risks only
 6. npm global/cache static check
@@ -47,7 +47,7 @@
 |---|---:|---|
 | 今開いているプロジェクトだけ確認したい | 1 | 最初はこれがおすすめ |
 | 別のフォルダを指定して確認したい | 2 | パスを入力します |
-| 依存関係だけ確認したい | 3 | package.json や lockfile 中心 |
+| 依存関係とNode.jsを確認したい | 3 | package.json、lockfile、明示バージョン中心 |
 | AI/MCP/IDE設定だけ確認したい | 4 | agent 設定や VS Code 互換拡張 |
 | CI/CDやhooksだけ確認したい | 5 | GitHub Actions や hooks |
 | npm global/cache を静的に確認したい | 6 | 実行前に `YES` 確認があります |
@@ -56,6 +56,8 @@
 | 端末ログやDNSキャッシュなども含めたい | 9 | 詳しい人や管理者と一緒に使うのがおすすめ |
 
 通常は、まず `1` か `2` で対象プロジェクトだけを確認してください。
+
+`Deep` は依存・build・cache内部まで読む高負荷モードです。自動的にPC全体や端末ログを追加するものではなく、VCS、reparse point、認証ファイル本文、このツール自身のreportsは引き続き保護されます。
 
 ## 3. 一番安全な基本手順
 
@@ -161,6 +163,8 @@ TXTレポートでは、次の順に見ると分かりやすいです。
 
 `WARN` は「すぐ危険確定」ではありません。
 
+Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、このツールでは原則`WARN`です。これは上流の脆弱性深刻度と、実際にそのPC/プロジェクトで悪用可能かという判断を混同しないためです。
+
 よくある `WARN` の例:
 
 - MCPやAIエージェント設定で `npx` が未固定
@@ -220,6 +224,7 @@ TXTレポートでは、次の順に見ると分かりやすいです。
 - `workspace`
 - `Documents\GitHub`
 - VS Code / Cursor / Windsurf などの拡張機能
+- ユーザー領域のJetBrainsプラグイン（Major/UserProfileを明示した場合）
 - Claude / Cursor / Codex などのAIエージェント設定
 - 認証ファイルの存在確認
 

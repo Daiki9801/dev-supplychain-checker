@@ -26,6 +26,24 @@ Do not print secrets, tokens, API keys, SSH private keys, environment variable v
 Do not run the scanner against the real user profile unless explicitly asked by the human.
 Do not run EndpointTelemetry against the real host unless explicitly asked by the human.
 
+## Mandatory approval gate for real-host reads
+
+Do not invoke any scanner mode or check that can read outside the explicitly requested project or synthetic test root without prior, explicit human approval for that real-host read. Metadata reads, existence checks, directory enumeration, registry reads, event-log reads, and cache or package metadata reads all count as real-host reads even when they are read-only.
+
+This approval gate includes, but is not limited to:
+
+* `-UserProfile`, `-MajorLocations`, and `-EndpointTelemetry`.
+* `-Checks MajorRecommended` and `-Checks AllSafe`.
+* `NpmGlobal` and `NpmCache` checks.
+* `NodeRuntime` host-known-path discovery caused by a mode or check macro.
+* BAT launcher modes that expand to any of the above.
+
+Before requesting approval, expand all check macros and state the exact command, normalized target roots, candidate host roots, metadata types to be read, and expected read-only impact. A request to implement, review, validate, or test the scanner is not approval to inspect the real host. The names `AllSafe` and `MajorRecommended` are not approval by themselves.
+
+If explicit approval is absent, ambiguous, or does not cover every resolved real-host root, stop before invoking the scanner. Do not continue with a narrower host scan, a different launcher, a direct PowerShell invocation, or another tool as a workaround. Use project-local `Recommended` validation or ask one focused approval question instead.
+
+Automated validation may exercise host-scope logic only when every relevant root is redirected to synthetic directories inside this repository through the validation-only environment variables. Verify the resolved roots before execution and stop if any check can fall back to `%USERPROFILE%`, `%APPDATA%`, `%LOCALAPPDATA%`, `%ProgramFiles%`, the registry, event logs, or another real-host location.
+
 ## Allowed validation
 
 You may run PowerShell parser checks and execute the scanner only against synthetic files under tests/samples or temp test directories created inside this repository.

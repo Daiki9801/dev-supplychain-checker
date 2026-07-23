@@ -1,0 +1,9 @@
+name: Synthetic Node runtime validation
+on: workflow_dispatch
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-node@0000000000000000000000000000000000000000
+        with:
+          node-version: 24.16.0

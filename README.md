@@ -2,7 +2,7 @@
 
 Dependency-free Windows developer environment supply-chain IOC checker.
 
-This tool is a BAT launcher plus a single Windows PowerShell 5.1-compatible scanner. It performs offline, read-only static checks against project files, package metadata, CI/CD workflows, MCP/AI-agent configs, IDE extensions, and optional endpoint telemetry.
+This tool is a BAT launcher plus a single Windows PowerShell 5.1-compatible scanner. It performs offline, read-only static checks against project files, package metadata, explicitly declared Node.js runtime versions, CI/CD workflows, MCP/AI-agent configs, IDE extensions, and optional endpoint telemetry.
 
 ## Safety Model
 
@@ -43,10 +43,10 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupply
 
 Valid `-Checks` values are:
 
-- `Recommended`: default project-local static checks. Does not read npm global/cache.
-- `MajorRecommended`: `Recommended` plus static npm global package roots.
+- `Recommended`: default project-local static checks, including declared/pinned Node.js versions and already-enumerated `node.exe` files. Does not read npm global/cache or search host Node.js locations.
+- `MajorRecommended`: `Recommended` plus static npm global package roots and bounded known-path Node.js installations.
 - `AllSafe`: all non-telemetry static checks, including static npm global/cache.
-- `Packages`, `LifecycleScripts`, `InvisibleUnicode`, `CiCd`, `AiMcp`, `IdeExtensions`, `HooksAndTasks`, `SecretsInventory`, `NpmGlobal`, `NpmCache`, `ScannerSelf`.
+- `Packages`, `LifecycleScripts`, `NodeRuntime`, `InvisibleUnicode`, `CiCd`, `AiMcp`, `IdeExtensions`, `HooksAndTasks`, `SecretsInventory`, `NpmGlobal`, `NpmCache`, `ScannerSelf`.
 
 `UserProfile` and `EndpointTelemetry` are still explicit mode switches, not `-Checks` names.
 
@@ -55,6 +55,14 @@ Run the single BAT launcher:
 ```bat
 run-checker.bat
 ```
+
+For a selected folder, menu item `2` now offers `Recommended` or explicit `Deep` traversal. The command form is:
+
+```bat
+run-checker.bat deep C:\Path\To\Project
+```
+
+Deep traversal requires typing `YES`. It enters dependency, build, and cache directories, but it does not add npm global/cache, UserProfile, or EndpointTelemetry scanning. VCS directories, reparse points, auth-file contents, and the running checker's own reports remain protected.
 
 For distributed use, run `run-checker.bat` from the extracted checker folder. The folder should contain `Scan-DevSupplyChain.ps1`, `run-checker.bat`, `README.md`, `iocs`, and `tests\samples\manifest.json`. If the launcher sees an incomplete copy, it prints a warning and requires typing `YES` before continuing.
 
@@ -78,7 +86,9 @@ run-checker.bat full C:\Path\To\Project
 
 `major` scans common developer folders plus IDE and AI-agent metadata. It does not scan the whole `C:\` drive and does not include endpoint telemetry.
 
-The launcher also provides risk-specific modes for package-only, AI/MCP/IDE-only, CI/CD-only, and npm global/cache static checks. The npm static mode reads bounded candidate folders only; it does not execute `npm root -g`, `npm cache ls`, `node`, or package scripts.
+Recommended project scans discover bounded child projects under a selected parent (depth 4; Deep depth 8) and apply targeted npm, Python, and Composer checks to each discovered dependency environment. The scanner reserves at least half of `MaxFiles` for ordinary source, CI/CD, and AI configuration files.
+
+The launcher also provides risk-specific modes for package/Node-runtime, AI/MCP/IDE-only, CI/CD-only, and npm global/cache static checks. The npm static mode reads bounded candidate folders only; it does not execute `npm root -g`, `npm cache ls`, `node`, or package scripts.
 
 GitHub repositories are not downloaded by this tool. To check a GitHub repository, manually obtain a local copy using your normal approved process, then scan that local folder with `-Path` or `run-checker.bat path`.
 
@@ -95,10 +105,12 @@ TXT reports also show:
 
 - `PathType`: whether the path is a file, directory, virtual target, or unknown.
 - `Line`: the line number when a text finding can be located safely.
-- `SourceContext`: `normal`, `synthetic-sample`, `scanner-self`, `scanner-artifact`, `scanner-artifact-sample`, `scanner-artifact-untrusted`, `cache`, `dependency-metadata`, `active-ai-config`, `executable-tooling`, `reference-text`, `session-log`, `cache-data`, or `plugin-metadata`.
+- `SourceContext`: `normal`, `synthetic-sample`, `scanner-self`, `scanner-artifact`, `scanner-artifact-sample`, `scanner-artifact-untrusted`, `cache`, `dependency-metadata`, `active-ai-config`, `executable-tooling`, `reference-text`, `session-log`, `cache-data`, `plugin-metadata`, `jetbrains-plugin`, or `node-runtime`.
 
-JSON reports include `scanStats` with scan roots, scanned/skipped file counts, synthetic sample skips, and npm cache blob skips.
+JSON reports include `scanStats` with observed files, run-wide unique queued files, child-project discovery, targeted dependency budget use, Deep-only traversal, JetBrains archive inspection, Node.js runtime candidates/version evidence, synthetic sample skips, npm cache blob skips, mutable GitHub Action refs, and WASM artifact counts.
 They also include `selectedChecks`, `expandedChecks`, `skippedChecks`, `summaryByCheck`, `checkStats`, `summaryBySourceContext`, `priorityFindings`, `scanner.scriptPathRedacted`, `scanner.launcherPathRedacted`, and `scanner.distributionStatus`, which helps identify reports produced by an older copy, script-only copy, or a BAT outside the intended folder.
+
+`NodeRuntime` keeps upstream advisory severity separate from scanner severity. A static Critical/High version match is `WARN` (or `INFO` for `engines.node` constraints), never `DANGER` from version text alone. JSON includes `nodeRuntimeScope`, `nodeRuntimeSummary`, and structured `vulnerability` details. The scanner reads version declarations and Windows file-version metadata only; it does not execute Node.js, search `PATH`, query the registry, or verify binary authenticity.
 
 Every finding includes `check` and `detectionMethod` so a report can show whether a result came from package metadata, lifecycle/static code scanning, CI/CD text scanning, AI/MCP config scanning, static npm global roots, npm cache metadata, or inventory-only checks.
 
@@ -109,7 +121,7 @@ Every finding includes `check` and `detectionMethod` so a report can show whethe
 The scanner uses a small built-in IOC baseline plus optional local JSON files under `iocs/`.
 These files are offline data only; the scanner does not fetch or refresh IOC data from the internet.
 
-The current local baseline includes manually reviewed indicators for Axios/plain-crypto-js, GlassWorm/OpenVSX extension versions, Shai-Hulud style payload markers, and selected C2 or persistence markers.
+The current local baseline includes manually reviewed indicators for Axios/plain-crypto-js, GlassWorm/GlassWASM/OpenVSX, recent AsyncAPI/Jscrambler/Injective and related npm incidents, Python hook campaigns, compromised GitHub Action refs, selected C2 or persistence markers, and a bounded Node.js runtime advisory set (official Critical releases from 2020 onward plus the maintained recent-High window).
 For mass supply-chain campaigns, add only individually verified package or extension versions. Do not paste incomplete news-derived package lists into the IOC files. Broad campaign names such as TanStack, Mistral, and Red Hat npm families are treated as low-confidence context unless an exact bad version or strong behavior chain is also present.
 
 See [Local IOC Data](iocs/README.md) before updating IOC JSON.

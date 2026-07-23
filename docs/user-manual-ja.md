@@ -32,7 +32,7 @@
 ```text
 1. Recommended project scan
 2. Scan selected path
-3. Package / lockfile risks only
+3. Package / Node runtime risks
 4. AI / MCP / IDE config risks only
 5. CI/CD and hooks risks only
 6. npm global/cache static check
@@ -48,7 +48,7 @@
 |---:|---|---|
 | 1 | 今開いているフォルダを推奨設定で調べる | 最初はこれ |
 | 2 | 自分で指定したフォルダを調べる | 慣れてから |
-| 3 | package.json や lockfile など依存関係だけを調べる | 依存だけ見たい時 |
+| 3 | package.json、lockfile、明示されたNode.jsバージョンを調べる | 依存とNode.jsを見たい時 |
 | 4 | AI/MCP設定とIDE拡張だけを調べる | AIツール設定が心配な時 |
 | 5 | GitHub Actions や hooks だけを調べる | CI/CDだけ見たい時 |
 | 6 | npm global/cache を静的に調べる | 必要な時だけ。実行前に確認あり |
@@ -73,7 +73,8 @@
 %USERPROFILE%\dev
 %USERPROFILE%\workspace
 %USERPROFILE%\Documents\GitHub
-VS Code / Cursor / Windsurf などの拡張機能
+VS Code / Cursor / Windsurf などの拡張機能と、ユーザー領域のJetBrainsプラグイン
+既知の配置にあるNode.js実行ファイルのバージョン情報
 Claude / Cursor / Codex などのAIエージェント設定
 認証ファイルの存在確認
 ```
@@ -98,18 +99,23 @@ C:\Users\yourname\Projects\my-project
 
 パスが分からない場合は、まず対象フォルダをエクスプローラーで開いて、アドレスバーの内容をコピーしてください。
 
+パス入力後は、通常の `Recommended` と `Deep` を選べます。最初は `Recommended` を選んでください。`Deep` は通常除外する `node_modules`、`.venv`、`vendor`、build、cacheの内部まで入るため時間とレポート量が増え、実行前に `YES` が必要です。Deepでもファイルは実行せず、認証ファイル本文、VCS、junction/reparse point、このツール自身のreportsは保護されます。
+
+親フォルダを指定した場合は、深さ4まで（Deepは深さ8まで）の子プロジェクトを安全な上限内で探し、それぞれのnpm、Python、Composer依存環境へ限定検査を行います。依存検査が `MaxFiles` を使い切らないよう、通常ソース、CI/CD、AI設定用に少なくとも半分の枠を残します。
+
 ## 6. 検査種類を選びたい場合
 
 v0.1.9 以降は、リスク別に検査を選べます。
 
 | 表示 | 主な対象 |
 |---|---|
-| Recommended | 通常のおすすめ。プロジェクト内の依存関係、Unicode、CI/CD、AI/MCP、IDE、hooks、認証ファイル存在確認 |
+| Recommended | 通常のおすすめ。プロジェクト内の依存関係、明示Node.jsバージョン、Unicode、CI/CD、AI/MCP、IDE、hooks、認証ファイル存在確認 |
 | Packages | package.json、lockfile、既知パッケージIOC、最近のインシデント名の参考情報 |
-| LifecycleScripts | install script、.pth、setup.py など、インストール時や読み込み時に動く可能性がある静的テキスト |
+| LifecycleScripts | install script、packageのmain/exports/bin、.pth、setup.py など、インストール時や読み込み時に動く可能性がある静的テキスト |
+| NodeRuntime | `.nvmrc`、Volta、Docker、setup-nodeなどの明示バージョンと、主要モードでは既知配置の`node.exe`メタデータ。Node.js自体は実行しない |
 | CiCd | GitHub Actions などの workflow |
 | AiMcp | Codex、Claude、Cursor、Windsurf、MCP などのAI/agent設定 |
-| IdeExtensions | VS Code互換拡張の metadata や実行ファイル候補 |
+| IdeExtensions | VS Code互換拡張とJetBrainsプラグインの metadata、限定スクリプト、native artifact候補 |
 | NpmGlobal | npm global package の候補パスを静的に読む。`npm root -g` は実行しない |
 | NpmCache | npm cache metadata の候補パスを静的に読む。`npm cache ls` は実行しない。cache blob は読まない |
 
@@ -163,6 +169,8 @@ OK:     1
 
 `DANGER` は「感染確定」ではありません。ただし、優先して確認すべきサインです。特に `RiskType` が `known-ioc` や `active-exfil` の場合は、既知の危険な目印、または秘密情報を外へ送るように見える強い候補です。
 
+Node.jsの脆弱性では、公式情報の `Critical` / `High` と、このツールの判定 `WARN` / `INFO` を分けています。バージョンが対象範囲に入るだけでは実際に攻撃可能とは限らないため、インストール済みメタデータや明示pinは`WARN`、`engines.node`のconstraintは`INFO`です。レポートの`NODE RUNTIME SUMMARY`で検出バージョン、CVE、修正版候補を確認してください。
+
 `WARN` は調査候補です。例えば「外部APIを使える」「危険なコマンド例が文書に書かれている」「C2に似た文字列がある」などでも出ます。`WARN` だけで感染したとは判断しないでください。
 
 ## 9. `tests/samples` の警告について
@@ -197,7 +205,7 @@ OK:     1
 | SourceContext | `synthetic-sample` は検証用サンプル、`cache` はキャッシュ、`dependency-metadata` は依存関係の説明メタデータ、`active-ai-config` は実行設定、`executable-tooling` は実行用スクリプト、`reference-text` / `session-log` / `cache-data` は低優先の文書・ログ・キャッシュ系です |
 | RiskType | `known-ioc` や `active-exfil` は優先確認、`capability` は「外部通信やインストール機能を持つ」という注意情報です |
 | Confidence | `high`、`medium`、`low` の順で確度が高いです |
-| Check | どの検査種類で見つかったか。例: `Packages`、`AiMcp`、`NpmCache` |
+| Check | どの検査種類で見つかったか。例: `Packages`、`NodeRuntime`、`AiMcp`、`NpmCache` |
 | DetectionMethod | `static-file`、`static-path`、`metadata`、`inventory`、`telemetry-opt-in` のような検出方法 |
 
 例えば `dependency-metadata` にある絵文字用の不可視文字は、危険とは限りません。
@@ -268,6 +276,14 @@ AI skill や README の中に危険なコマンド例が書かれている場合
 ```bat
 run-checker.bat current C:\Path\To\Project
 ```
+
+依存・build・cache内部まで明示的に確認する場合:
+
+```bat
+run-checker.bat deep C:\Path\To\Project
+```
+
+Deepは `--no-pause` を受け付けず、`YES` 確認が必要です。PC全体、npm global/cache、ユーザープロファイル、端末ログを自動追加する機能ではありません。
 
 主要箇所だけを調べる場合:
 
