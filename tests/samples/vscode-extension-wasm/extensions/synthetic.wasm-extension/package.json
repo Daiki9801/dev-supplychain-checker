@@ -1,0 +1,6 @@
+{
+  "publisher": "synthetic",
+  "name": "wasm-extension",
+  "version": "1.0.0",
+  "main": "loader.js"
+}

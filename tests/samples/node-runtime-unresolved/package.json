@@ -1,0 +1,7 @@
+{
+  "name": "synthetic-node-runtime-unresolved",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}

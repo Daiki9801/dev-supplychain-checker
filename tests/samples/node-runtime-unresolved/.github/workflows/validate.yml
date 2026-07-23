@@ -1,0 +1,12 @@
+name: Synthetic unresolved Node runtime
+on: workflow_dispatch
+jobs:
+  validate:
+    strategy:
+      matrix:
+        node: [lts/*]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-node@0000000000000000000000000000000000000000
+        with:
+          node-version: ${{ matrix.node }}

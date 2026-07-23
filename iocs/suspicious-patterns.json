@@ -1,10 +1,11 @@
 {
-  "schemaVersion": "0.1.7",
-  "lastUpdated": "2026-06-24",
-  "sourceSet": "manual-public-advisory-review-20260624",
+  "schemaVersion": "0.1.12",
+  "lastUpdated": "2026-07-15",
+  "sourceSet": "manual-public-advisory-review-20260715",
   "expiresAfterDays": 30,
   "domains": [
-    "sfrclak.com"
+    "sfrclak.com",
+    "dodod.lat"
   ],
   "patterns": [
     {
@@ -26,6 +27,19 @@
       "severity": "WARN",
       "title": "GlassWorm-style DHT or Google Calendar C2 marker appears in executable context",
       "notes": "DHT or Google Calendar C2-like marker appeared in executable context. Values redacted.",
+      "contexts": [
+        "code",
+        "execution-config",
+        "active-ai-config",
+        "executable-tooling"
+      ]
+    },
+    {
+      "id": "glasswasm_campaign_wallet_marker",
+      "regex": "6ExrZayPZzMMSnszc42cH81DpuKT8FhCX9H6Sesn6rpz",
+      "severity": "WARN",
+      "title": "GlassWASM campaign wallet identifier appears in executable context",
+      "notes": "Exact campaign wallet identifier matched. The identifier alone is not proof of execution.",
       "contexts": [
         "code",
         "execution-config",

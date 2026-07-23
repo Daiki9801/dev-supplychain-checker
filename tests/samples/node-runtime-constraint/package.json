@@ -1,0 +1,7 @@
+{
+  "name": "synthetic-node-runtime-constraint",
+  "private": true,
+  "engines": {
+    "node": "22.22.1"
+  }
+}

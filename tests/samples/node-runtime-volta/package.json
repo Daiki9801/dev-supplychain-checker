@@ -1,0 +1,10 @@
+{
+  "name": "synthetic-node-runtime-volta",
+  "private": true,
+  "volta": {
+    "node": "20.19.3"
+  },
+  "engines": {
+    "node": "^20.0.0"
+  }
+}

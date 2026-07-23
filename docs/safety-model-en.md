@@ -76,6 +76,8 @@ The scanner:
 - continues on access denied;
 - avoids broad dependency directory recursion where targeted metadata is safer.
 
+`NodeRuntime` does not launch Node.js. It reads explicit project version declarations and, only in broader host scopes, Windows file-version metadata from bounded known locations. Upstream `Critical`/`High` labels remain separate from scanner `WARN`/`INFO` severity.
+
 ## Scanner Artifacts
 
 The checker treats its own generated artifacts specially.

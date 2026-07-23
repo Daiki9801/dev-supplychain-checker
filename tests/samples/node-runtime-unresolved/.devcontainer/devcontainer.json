@@ -1,0 +1,4 @@
+{
+  "name": "Synthetic Unresolved Node Runtime",
+  "image": "node:${localEnv:NODE_VERSION}"
+}

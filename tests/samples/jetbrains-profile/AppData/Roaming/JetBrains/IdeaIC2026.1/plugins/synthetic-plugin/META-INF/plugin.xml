@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<idea-plugin>
+  <id>invalid.synthetic.plugin</id>
+  <name>Synthetic Safe Plugin Fixture</name>
+  <version>1.0.0</version>
+  <vendor>Fixture Author</vendor>
+  <depends>com.intellij.modules.platform</depends>
+</idea-plugin>

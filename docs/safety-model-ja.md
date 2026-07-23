@@ -116,10 +116,12 @@ BAT ランチャーでは、これらのモードを実行する前に確認文�
 
 v0.1.9 以降は、`-Checks` で検査種類を選べます。
 
-- `Recommended`: 通常利用向け。npm global/cache は読みません。
-- `MajorRecommended`: `Recommended` に静的 npm global 検査を加えます。
+- `Recommended`: 通常利用向け。プロジェクトに明記されたNode.jsバージョンを含みますが、npm global/cacheやホストのNode.js配置は探索しません。
+- `MajorRecommended`: `Recommended` に静的 npm global 検査と、既知配置のNode.js実行ファイルメタデータ検査を加えます。
 - `AllSafe`: EndpointTelemetry 以外の静的検査をまとめて実行します。
-- 個別指定: `Packages`、`LifecycleScripts`、`InvisibleUnicode`、`CiCd`、`AiMcp`、`IdeExtensions`、`HooksAndTasks`、`SecretsInventory`、`NpmGlobal`、`NpmCache`、`ScannerSelf`。
+- 個別指定: `Packages`、`LifecycleScripts`、`NodeRuntime`、`InvisibleUnicode`、`CiCd`、`AiMcp`、`IdeExtensions`、`HooksAndTasks`、`SecretsInventory`、`NpmGlobal`、`NpmCache`、`ScannerSelf`。
+
+`NodeRuntime`はNode.jsを起動しません。`.nvmrc`、Volta、container、CIなどの明示バージョンと、許可された範囲で列挙された`node.exe`のWindowsバージョン情報だけを読みます。公式の`Critical`/`High`は上流の深刻度であり、本ツールでは静的なバージョン一致を`WARN`または`INFO`として報告します。
 
 `UserProfile` と `EndpointTelemetry` は `-Checks` ではなく、明示的なモード指定です。
 

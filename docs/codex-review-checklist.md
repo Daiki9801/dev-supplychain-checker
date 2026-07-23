@@ -11,8 +11,10 @@ Review the implementation for the following before using it on real projects.
 - `run-checker.bat major`, `run-checker.bat userprofile`, and `run-checker.bat full` require explicit confirmation.
 - `run-checker.bat npmstatic` requires explicit confirmation and only passes `-Checks NpmGlobal,NpmCache`.
 - Confirmation-required launcher modes reject `--no-pause` instead of waiting for input in non-interactive use.
+- Menu item 2 keeps its number and offers Recommended or Deep after path entry; direct `run-checker.bat deep <path>` requires `YES` and rejects `--no-pause`.
+- Deep passes only `-Deep -Checks Recommended`; it does not imply npm global/cache, UserProfile, MajorLocations, or EndpointTelemetry.
 - `-Checks` validation rejects unknown names before scanning and defaults to `Recommended`.
-- `Recommended` does not read npm global/cache. `MajorRecommended` adds static npm global, and `AllSafe` adds static npm global/cache without enabling endpoint telemetry.
+- `Recommended` does not read npm global/cache or discover host Node.js locations. `MajorRecommended` adds static npm global and bounded known-path Node.js metadata, and `AllSafe` adds static npm global/cache without enabling endpoint telemetry.
 - UserProfile and EndpointTelemetry remain explicit mode switches, not `-Checks` aliases.
 - PowerShell remains compatible with Windows PowerShell 5.1.
 - TXT and JSON reports are UTF-8 with BOM.
@@ -30,6 +32,22 @@ Review the implementation for the following before using it on real projects.
 - Synthetic validation may use `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS` and `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS`; those overrides only accept paths under this repository's `tests/samples`.
 - Cache-only IOC or watchlist matches are not `DANGER` unless paired with installed metadata or executable behavior.
 - Broad campaign package families are INFO watchlist context unless exact bad versions are verified.
+- Exact installed/lockfile/manifest package evidence can be DANGER, while range and fallback text evidence is capped at WARN.
+- Targeted `node_modules` scanning resolves only bounded in-package `main`/`module`/`browser`/`bin`/`exports`/lifecycle entrypoints and rejects traversal or reparse paths.
+- `NodeRuntime` never executes Node.js. Project declarations are static-file evidence; host candidates are bounded known paths and accepted only when `node.exe` identity metadata indicates Node.js.
+- Node runtime Critical/High is upstream advisory severity, while scanner severity is WARN for installed metadata/explicit pins and INFO for manifest constraints; version evidence alone is not DANGER.
+- Built-in and shipped `known-node-runtimes.json` advisory fingerprints match; malformed, missing, stale, or conflicting local data cannot replace the built-in baseline.
+- Node runtime priority candidates share the run-wide `MaxFiles` budget, use the documented 5%/1,000 cap when combined with other checks, and do not fill more than three priority findings.
+- Child project discovery is deterministic, bounded by depth/root/directory limits, always excludes VCS/dependency/build/cache directories, and continues normal scanning after partial failures.
+- `MaxFiles` applies to the run-wide `uniqueFilesQueued` set. Targeted dependency files are capped at 50%/50,000 and cannot starve ordinary source, CI/CD, or AI config scanning.
+- Deep-only directory/file counters represent entries that a normal traversal would have skipped; verified fixture, own report, auth-content, VCS, and reparse protections remain active.
+- Known compromised GitHub Action commits are DANGER; historical and mutable refs are WARN/INFO according to confidence.
+- WebAssembly presence or remote loading alone is not DANGER; exact hashes and strong execution/exfiltration compounds remain high priority.
+- Cross-registry extension identity collisions are not classified as known-bad using ID/version alone.
+- Extension IOC matching includes `platform`; missing platform defaults to `vscode`, and JetBrains metadata uses `platform=jetbrains` without cross-platform ID collision.
+- JetBrains profile roots are scanned only under explicit UserProfile/MajorLocations modes, while Program Files and Toolbox bundled plugins require explicit `-Path`.
+- JetBrains ZIP/JAR inspection is read-only and bounded; unsafe entries, DTD/external entities, oversized/nested limits, and malformed archives are skipped and aggregated.
+- JetBrains native artifacts alone are INFO capability context; fetch/process compounds are WARN, secret harvesting plus external send is DANGER, and `.class` decompilation is not implemented.
 - `known-files.json` and `suspicious-patterns.json` entries are actually loaded and malformed regex/JSON data is reported without stopping scans.
 - GlassWorm-style C2 markers are lower severity alone and become high priority only when paired with execution, decoding, invisible Unicode, or credential access/send behavior.
 - GlassWorm-style C2 plus execution text inside `.codex` reference text, session logs, or cache data is aggregated and does not become `DANGER`.

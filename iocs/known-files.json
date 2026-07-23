@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "0.1.7",
-  "lastUpdated": "2026-06-24",
-  "sourceSet": "manual-public-advisory-review-20260624",
+  "schemaVersion": "0.1.12",
+  "lastUpdated": "2026-07-15",
+  "sourceSet": "manual-public-advisory-review-20260715",
   "expiresAfterDays": 30,
   "files": [
     {
@@ -9,6 +9,16 @@
       "pathPattern": "\\\\programdata\\\\wt\\.exe$",
       "severity": "DANGER",
       "notes": "Reported persistence filename associated with the Axios/plain-crypto-js compromise campaign."
-    }
+    },
+    { "pathPattern": "\\\\extensions\\\\.*\\.wasm$", "sha256": "558b4f1d9a263c13756ab0126c09dd080c85ba405b29488e1c4e6aa68b554f1f", "severity": "DANGER", "notes": "GlassWASM malicious module hash." },
+    { "pathPattern": "\\\\extensions\\\\.*\\.vsix$", "sha256": "3aa31999398e7f80231c03d7137ffdb554a84b83dbcffc59ce16c9a65f9e5d58", "severity": "DANGER", "notes": "GlassWASM flint-debug VSIX hash." },
+    { "pathPattern": "\\\\extensions\\\\.*\\.vsix$", "sha256": "97c275e3406ad6576529f41604ad138c5bdc4297d195bf61b049e14f6b30adfd", "severity": "DANGER", "notes": "GlassWorm downloaded VSIX hash." },
+    { "pathPattern": "\\\\extensions\\\\.*\\.(exe|dll|node|so|dylib)$", "sha256": "1b62b7c2ed7cc296ce821f977ef7b22bae59ef1dcdb9a34ae19467ee39bcf168", "severity": "DANGER", "notes": "GlassWorm native installer hash." },
+    { "pathPattern": "\\\\extensions\\\\.*\\.(exe|dll|node|so|dylib)$", "sha256": "4ebfe8f66ca7e9751060b3301b5e8838d6017593cdae748541de83bfa28183bd", "severity": "DANGER", "notes": "GlassWorm native installer hash." },
+    { "pathPattern": "\\\\node_modules\\\\jscrambler\\\\setup\\.js$", "sha256": "a742de963f14a92d24ebcbc7b44ac867e23a20d31d1b0094a13a4f83287f4e60", "severity": "DANGER", "notes": "Jscrambler malicious setup.js hash." },
+    { "pathPattern": "\\\\node_modules\\\\jscrambler\\\\intro\\.js$", "sha256": "a41a523ef9517aab37ed6eea0ec881821bdcb7aefcb5c5f603adc7907f868c86", "severity": "DANGER", "notes": "Jscrambler malicious intro.js hash." },
+    { "pathPattern": "\\\\node_modules\\\\jscrambler\\\\package\\.json$", "sha256": "bba32ddeab075a5e5015eec50f5d2af364c95b848732c714aea6b6baf78f49f0", "severity": "DANGER", "notes": "Jscrambler malicious package.json hash." },
+    { "pathPattern": "\\\\node_modules\\\\jscrambler\\\\.*\\.(exe|dll|node)$", "sha256": "b7ca95d1b23c8e67416a25cedf741de0917c2096bbc9d24649eea7853d054903", "severity": "DANGER", "notes": "Jscrambler malicious Windows payload hash." },
+    { "pathPattern": "\\\\\\.github\\\\actions\\\\.*\\.(js|cjs|mjs)$", "sha256": "9f93d77d32833a515bc406c46da477142bb1ac2babeecb6aa42f98669a6db015", "severity": "DANGER", "notes": "Vendored codfish semantic-release action payload hash." }
   ]
 }

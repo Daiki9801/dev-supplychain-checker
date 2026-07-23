@@ -1,0 +1,4 @@
+{
+  "name": "Synthetic Node Runtime Surface",
+  "image": "node:24.16.0-bookworm"
+}

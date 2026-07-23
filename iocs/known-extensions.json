@@ -1,7 +1,8 @@
 {
-  "schemaVersion": "0.1.7",
-  "lastUpdated": "2026-06-24",
-  "sourceSet": "manual-public-advisory-review-20260624",
+  "schemaVersion": "0.1.13",
+  "defaultPlatform": "vscode",
+  "lastUpdated": "2026-07-15",
+  "sourceSet": "manual-public-advisory-review-20260715",
   "expiresAfterDays": 30,
   "extensions": [
     {
@@ -67,6 +68,12 @@
       ],
       "severity": "DANGER",
       "notes": "GlassWorm/OpenVSX compromised extension version."
-    }
+    },
+    { "id": "outsidestormcommand.monochromator-theme", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." },
+    { "id": "keyacrosslaud.auto-loop-for-antigravity", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." },
+    { "id": "krundoven.ironplc-fast-hub", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." },
+    { "id": "boulderzitunnel.vscode-buddies", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." },
+    { "id": "cubedivervolt.html-code-validate", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." },
+    { "id": "winnerdomain17.version-lens-tool", "versions": ["*"], "severity": "WARN", "confidence": "medium", "matchType": "id-watchlist", "notes": "Confirmed malicious extension ID; exact affected version was not independently established." }
   ]
 }

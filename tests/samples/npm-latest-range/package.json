@@ -1,0 +1,7 @@
+{
+  "name": "synthetic-range-reference",
+  "version": "1.0.0",
+  "dependencies": {
+    "@asyncapi/generator": "^3.3.1"
+  }
+}

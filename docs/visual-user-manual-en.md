@@ -13,9 +13,10 @@ Japanese visual manuals:
 1. Start `run-checker.bat` from the extracted checker folder.
 2. Choose `Recommended project scan` first.
 3. Use selected checks only when you know which risk area to review.
-4. Use major/full PC modes only after reading the confirmation prompt.
-5. Open the TXT report under `reports`.
-6. Review `DANGER` first, then `WARN`, then `INFO`.
+4. Menu item `2` can optionally use confirmed Deep traversal; use it only for dependency/build/cache internals.
+5. Use major/full PC modes only after reading the confirmation prompt.
+6. Open the TXT report under `reports`.
+7. Review `DANGER` first, then `WARN`, then `INFO`.
 
 ## Safety Summary
 
@@ -25,6 +26,9 @@ Japanese visual manuals:
 - No remediation or deletion.
 - No secret values in reports.
 - UserProfile and EndpointTelemetry modes are opt-in.
+- Deep does not add UserProfile, EndpointTelemetry, or npm global/cache and still protects VCS, reparse points, auth contents, and scanner reports.
+- `IdeExtensions` includes bounded JetBrains plugin inspection; user-profile roots remain opt-in.
+- `Recommended` statically checks explicit project Node.js versions; broader host scopes add bounded known-path `node.exe` metadata without executing Node.js.
 
 ## Result Summary
 
@@ -35,5 +39,6 @@ Japanese visual manuals:
 | `INFO` | Context, inventory, or scanner limitation. |
 | `OK` | Scan completed or no candidate for that check. |
 
-Generated `reports*/` folders are not source files and should not be committed or distributed as source.
+Node.js upstream `Critical`/`High` version matches are scanner `WARN` (or `INFO` for manifest constraints), not `DANGER` from version evidence alone.
 
+Generated `reports*/` folders are not source files and should not be committed or distributed as source.
