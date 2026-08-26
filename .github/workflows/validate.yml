@@ -241,6 +241,7 @@ jobs:
           if ($knownTextMatches.Count -ne 2) {
             throw 'Complete large-text/UTF-16 scan or binary text-skip regression.'
           }
+          exit 0
 
       - name: Check v0.1.13 traversal and JetBrains regressions
         shell: powershell
@@ -898,6 +899,7 @@ jobs:
           foreach ($forbidden in @('Start-Process\s+.*-Verb\s+RunAs', '\btakeown\b', '\bicacls\b', '\bSet-Acl\b')) {
             if ($sourceText -match $forbidden) { throw ("Forbidden privilege-changing implementation detected: {0}" -f $forbidden) }
           }
+          exit 0
 
       - name: Check v0.1.16 GlassWorm Variation Selector regressions
         shell: powershell
@@ -1056,6 +1058,7 @@ jobs:
           if (@($externalWorkflow.findings | Where-Object { $_.severity -eq 'DANGER' }).Count -gt 0) {
             throw 'Decoder without an observed Variation Selector payload produced DANGER.'
           }
+          exit 0
 
       - name: Check v0.1.17 scope, lockfile, and IOC freshness regressions
         shell: powershell
@@ -1233,6 +1236,7 @@ jobs:
           $fullBlock = [regex]::Match($launcherText, '(?ims)^:ScanFull[ \t]*\r?$.*?(?=^:ValidateTarget[ \t]*\r?$)').Value
           if ($fullBlock -notmatch '-MajorLocations' -or $fullBlock -notmatch '-UserProfile' -or $fullBlock -notmatch '-EndpointTelemetry') { throw 'Full launcher scope regression.' }
           if ($launcherText -notmatch 'not a full-disk scan' -or $launcherText -notmatch 'Deep dependency/build/cache recursion remains disabled') { throw 'Full launcher limitation summary regression.' }
+          exit 0
 
       - name: Check report output and launcher safety regressions
         shell: powershell
@@ -1307,6 +1311,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or @($emptyCustomOutput | Where-Object { [string]$_ -match 'Cancelled\.' }).Count -lt 1) {
             throw 'Empty custom-check input did not cancel safely.'
           }
+          exit 0
 
       - name: Check v0.1.18 precision and progress regressions
         shell: powershell
@@ -1392,6 +1397,7 @@ jobs:
           if (@($verboseOutput | Where-Object { [string]$_ -match 'progress:.*current=' }).Count -lt 1) {
             throw 'Verbose progress did not retain detailed current-path diagnostics.'
           }
+          exit 0
 
       - name: Check v0.1.20-v0.1.21 triage, Node summaries, and coverage summaries
         shell: powershell
@@ -1520,6 +1526,7 @@ jobs:
             Remove-Item Env:DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS -ErrorAction SilentlyContinue
           }
           if ($rejectedRootExit -ne 3) { throw 'An out-of-distribution synthetic root did not fail closed.' }
+          exit 0
 
       - name: Check publication placeholders
         shell: powershell
