@@ -32,6 +32,7 @@ User-visible changes are documented here beginning with version 0.1.15. Earlier 
 
 ### Fixed
 
+- Stores the intentionally vulnerable Pipfile lock data under a non-manifest fixture name and materializes `Pipfile.lock` only in an ephemeral CI directory, preventing GitHub's dependency graph from reporting scanner test data as a real vulnerable dependency. Dependabot version updates also exclude synthetic sample paths.
 - Reports selector/regex and other traversal limits as `partial-non-critical` when the affected candidate is explicitly non-critical; critical candidates and run-wide `MaxFiles` exhaustion remain `incomplete-critical` unknown-scope failures.
 - Prevents independent sibling functions with static PowerShell regex tables from producing `PACKAGE_CODE_EXTERNAL_EXECUTION` solely because command names and regex alternation appear together inside quoted Pattern definitions, while preserving findings for dynamic-scope helpers, wrappers, `.Values`, `.Clone()`, indexers, reflection, parse errors, and loop-item escape.
 
