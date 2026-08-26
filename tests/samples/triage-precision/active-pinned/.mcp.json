@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "synthetic": {
+      "command": "npx",
+      "args": ["synthetic-mcp@1.2.3"]
+    }
+  }
+}

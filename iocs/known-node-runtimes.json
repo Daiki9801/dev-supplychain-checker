@@ -1,6 +1,6 @@
 {
   "schemaVersion": "0.1.14",
-  "lastUpdated": "2026-07-15",
+  "lastUpdated": "2026-08-14",
   "expiresAfterDays": 30,
   "highRetentionDays": 365,
   "advisories": [
@@ -48,32 +48,6 @@
         { "major": 15, "version": "15.10.0" }
       ],
       "conditions": ["http2-server", "unknownProtocol"]
-    },
-    {
-      "id": "CVE-2025-27210",
-      "upstreamSeverity": "HIGH",
-      "published": "2025-07-15",
-      "source": "https://nodejs.org/en/blog/vulnerability/july-2025-security-releases",
-      "affectedRanges": [
-        { "minInclusive": "20.0.0", "maxExclusive": "20.19.4" },
-        { "minInclusive": "22.0.0", "maxExclusive": "22.17.1" },
-        { "minInclusive": "24.0.0", "maxExclusive": "24.4.1" }
-      ],
-      "fixedVersions": [
-        { "major": 20, "version": "20.19.4" },
-        { "major": 22, "version": "22.17.1" },
-        { "major": 24, "version": "24.4.1" }
-      ],
-      "conditions": ["windows", "path.join"]
-    },
-    {
-      "id": "CVE-2025-27209",
-      "upstreamSeverity": "HIGH",
-      "published": "2025-07-15",
-      "source": "https://nodejs.org/en/blog/vulnerability/july-2025-security-releases",
-      "affectedRanges": [{ "minInclusive": "24.0.0", "maxExclusive": "24.4.1" }],
-      "fixedVersions": [{ "major": 24, "version": "24.4.1" }],
-      "conditions": ["attacker-controlled-strings"]
     },
     {
       "id": "CVE-2025-55131",
@@ -203,6 +177,55 @@
         { "major": 26, "version": "26.3.1" }
       ],
       "conditions": ["tls-client", "unicode-hostname"]
+    },
+    {
+      "id": "CVE-2026-56846",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-07-29",
+      "source": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.2" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.18.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.2" },
+        { "major": 24, "version": "24.18.1" }
+      ],
+      "conditions": ["http2-server", "memory-exhaustion"]
+    },
+    {
+      "id": "CVE-2026-56848",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-07-29",
+      "source": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.2" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.18.1" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.5.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.2" },
+        { "major": 24, "version": "24.18.1" },
+        { "major": 26, "version": "26.5.1" }
+      ],
+      "conditions": ["http2-server", "use-after-free"]
+    },
+    {
+      "id": "CVE-2026-58043",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-07-29",
+      "source": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.2" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.18.1" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.5.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.2" },
+        { "major": 24, "version": "24.18.1" },
+        { "major": 26, "version": "26.5.1" }
+      ],
+      "conditions": ["permission-model", "path-prefix"]
     }
   ]
 }

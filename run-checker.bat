@@ -1,25 +1,46 @@
 @echo off
 setlocal
 
+rem Test-only host-root overrides are never inherited by distributed launcher runs.
+set "DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS="
+set "DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS="
+set "DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS="
+
 set "BASE=%~dp0"
+set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 set "SCRIPT=%BASE%Scan-DevSupplyChain.ps1"
 set "REPORTS=%BASE%reports"
 set "MANIFEST=%BASE%tests\samples\manifest.json"
 set "IOCDIR=%BASE%iocs"
+set "CAMPAIGNIOC=%IOCDIR%\campaign-keyv-chaindrop-20260806.json"
 set "MODE=%~1"
 set "TARGET=%~2"
+set "ARG3=%~3"
+set "ARG4=%~4"
 set "CHECKS=Recommended"
 set "NO_PAUSE="
 
-if /I "%~1"=="--no-pause" (
+if not exist "%POWERSHELL_EXE%" (
+  echo ERROR: Windows PowerShell 5.1 was not found at the expected system path.
+  exit /b 3
+)
+
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('help','/?','-h','--help','current','path','deep','packages','ai','cicd','npmstatic','major','userprofile','full','--no-pause'); if((-not [string]::IsNullOrEmpty($env:MODE) -and $allowed -inotcontains $env:MODE) -or (-not [string]::IsNullOrEmpty($env:ARG3) -and $env:ARG3 -ine '--no-pause') -or (-not [string]::IsNullOrEmpty($env:ARG4)) -or (-not [string]::IsNullOrEmpty($env:TARGET) -and $env:TARGET.IndexOf([char]34) -ge 0)){exit 4}"
+if errorlevel 1 (
+  echo ERROR: Unsupported mode, extra argument, or quoted target path.
+  exit /b 4
+)
+
+if /I "%MODE%"=="--no-pause" (
   set "NO_PAUSE=1"
   set "MODE="
 )
-if /I "%~2"=="--no-pause" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:TARGET -ieq '--no-pause'){exit 0}else{exit 1}"
+if not errorlevel 1 (
   set "NO_PAUSE=1"
   set "TARGET="
 )
-if /I "%~3"=="--no-pause" (
+if /I "%ARG3%"=="--no-pause" (
   set "NO_PAUSE=1"
 )
 
@@ -30,7 +51,7 @@ if /I "%MODE%"=="--help" goto Usage
 
 if not exist "%SCRIPT%" (
   echo ERROR: Scanner script was not found.
-  echo Expected: %SCRIPT%
+  echo Expected: "%SCRIPT%"
   exit /b 4
 )
 
@@ -38,14 +59,16 @@ set "DIST_WARN="
 if not exist "%BASE%README.md" set "DIST_WARN=1"
 if not exist "%MANIFEST%" set "DIST_WARN=1"
 if not exist "%IOCDIR%\" set "DIST_WARN=1"
+if not exist "%CAMPAIGNIOC%" set "DIST_WARN=1"
 
 if defined DIST_WARN (
   echo WARNING: This checker folder looks incomplete.
   echo.
-  echo Expected scanner path: %SCRIPT%
-  echo Expected README: %BASE%README.md
-  echo Expected IOC folder: %IOCDIR%
-  echo Expected sample manifest: %MANIFEST%
+  echo Expected scanner path: "%SCRIPT%"
+  echo Expected README: "%BASE%README.md"
+  echo Expected IOC folder: "%IOCDIR%"
+  echo Expected campaign IOC: "%CAMPAIGNIOC%"
+  echo Expected sample manifest: "%MANIFEST%"
   echo.
   echo Use the extracted release folder and run this run-checker.bat for distributed use.
   echo A script-only copy can still run, but sample-skip and IOC context may be less clear.
@@ -54,8 +77,10 @@ if defined DIST_WARN (
     echo Non-interactive execution requires a complete distribution.
     exit /b 4
   )
+  set "DIST_CONFIRM="
   set /p DIST_CONFIRM=Type YES to continue anyway:
-  if /I not "%DIST_CONFIRM%"=="YES" (
+  "%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:DIST_CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+  if errorlevel 1 (
     echo Cancelled.
     exit /b 4
   )
@@ -83,10 +108,16 @@ echo 5. CI/CD and hooks risks only
 echo 6. npm global/cache static check
 echo 7. Major PC locations scan
 echo 8. Custom checks for current folder
-echo 9. Full scan current folder + user profile + endpoint telemetry
+echo 9. Comprehensive bounded scan ^(target + major locations + profile + endpoint^)
 echo 10. Exit
 echo.
+set "MODE="
 set /p MODE=Select mode: 
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('1','2','3','4','5','6','7','8','9','10'); if($allowed -notcontains $env:MODE){exit 4}"
+if errorlevel 1 (
+  echo Unknown selection.
+  goto Menu
+)
 
 if "%MODE%"=="1" goto ScanCurrent
 if "%MODE%"=="2" goto PromptPath
@@ -114,7 +145,7 @@ echo   run-checker.bat cicd [path] [--no-pause]
 echo   run-checker.bat npmstatic
 echo   run-checker.bat major
 echo   run-checker.bat userprofile
-echo   run-checker.bat full [path]
+echo   run-checker.bat full [path]  ^(bounded comprehensive scan; not full-disk or Deep^)
 echo.
 echo deep, npmstatic, major, userprofile, and full modes require typing YES and do not support --no-pause.
 exit /b 0
@@ -122,39 +153,47 @@ exit /b 0
 :PromptPath
 set "TARGET="
 set /p TARGET=Path to scan: 
-if "%TARGET%"=="" (
+if not defined TARGET (
   echo Cancelled.
   exit /b 0
 )
 echo.
 echo 1. Recommended traversal
 echo 2. Deep traversal ^(dependencies, build, and cache; higher load^)
+set "TRAVERSAL="
 set /p TRAVERSAL=Traversal mode [1]:
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if(@('','1','2') -notcontains $env:TRAVERSAL){exit 4}"
+if errorlevel 1 (
+  echo ERROR: Unsupported traversal selection.
+  exit /b 4
+)
 if "%TRAVERSAL%"=="2" goto ConfirmDeep
 goto RunPath
 
 :ScanCurrent
-if "%TARGET%"=="" (
+if not defined TARGET (
   set "TARGET=%CD%"
 )
 goto RunPath
 
 :ScanPath
-if "%TARGET%"=="" (
+if not defined TARGET (
   echo Path mode requires a target path.
   exit /b 4
 )
 goto RunPath
 
 :RunPath
-if "%CHECKS%"=="" set "CHECKS=Recommended"
+if not defined CHECKS set "CHECKS=Recommended"
+call :ValidateTarget
+if errorlevel 1 exit /b 4
 echo.
-echo Scanner path: %SCRIPT%
-echo Target path: %TARGET%
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Scanner path: "%SCRIPT%"
+echo Target path: "%TARGET%"
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo.
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -Path "%TARGET%" ^
   -Checks "%CHECKS%" ^
@@ -163,12 +202,12 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
 goto Finish
 
 :ScanPackages
-set "CHECKS=Packages,LifecycleScripts,NodeRuntime,ScannerSelf"
-if "%TARGET%"=="" set "TARGET=%CD%"
+set "CHECKS=Packages,LifecycleScripts,NodeRuntime,InvisibleUnicode,ScannerSelf"
+if not defined TARGET set "TARGET=%CD%"
 goto RunPath
 
 :ScanDeep
-if "%TARGET%"=="" (
+if not defined TARGET (
   echo Deep mode requires a target path.
   exit /b 4
 )
@@ -176,32 +215,36 @@ goto ConfirmDeep
 
 :ConfirmDeep
 set "CHECKS=Recommended"
+call :ValidateTarget
+if errorlevel 1 exit /b 4
 if defined NO_PAUSE (
   echo Non-interactive execution is not allowed for Deep traversal.
   exit /b 4
 )
 if not exist "%TARGET%" (
-  echo ERROR: Deep target path was not found: %TARGET%
+  echo ERROR: Deep target path was not found: "%TARGET%"
   exit /b 4
 )
 echo.
 echo Deep traversal enters dependency, build, and cache directories that a recommended scan skips.
 echo It remains read-only and does not add npm global/cache, user profile, or endpoint telemetry.
-echo Scanner path: %SCRIPT%
-echo Target path: %TARGET%
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Scanner path: "%SCRIPT%"
+echo Target path: "%TARGET%"
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo MaxFiles: 200000
 echo.
+set "CONFIRM="
 set /p CONFIRM=Type YES to continue:
-if /I not "%CONFIRM%"=="YES" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 (
   echo Cancelled.
   exit /b 0
 )
 goto RunDeep
 
 :RunDeep
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -Path "%TARGET%" ^
   -Deep ^
@@ -211,26 +254,33 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
 goto Finish
 
 :ScanAi
-set "CHECKS=AiMcp,IdeExtensions,SecretsInventory,ScannerSelf"
-if "%TARGET%"=="" set "TARGET=%CD%"
+set "CHECKS=AiMcp,IdeExtensions,InvisibleUnicode,SecretsInventory,ScannerSelf"
+if not defined TARGET set "TARGET=%CD%"
 goto RunPath
 
 :ScanCiCd
-set "CHECKS=CiCd,HooksAndTasks,ScannerSelf"
-if "%TARGET%"=="" set "TARGET=%CD%"
+set "CHECKS=CiCd,HooksAndTasks,InvisibleUnicode,ScannerSelf"
+if not defined TARGET set "TARGET=%CD%"
 goto RunPath
 
 :PromptCustomChecks
 echo.
 echo Available checks:
-echo   Packages,LifecycleScripts,NodeRuntime,InvisibleUnicode,CiCd,AiMcp,IdeExtensions,HooksAndTasks,SecretsInventory,NpmGlobal,NpmCache,ScannerSelf
+echo   Packages,LifecycleScripts,NodeRuntime,InvisibleUnicode,CiCd,AiMcp,IdeExtensions,HooksAndTasks,SecretsInventory,ScannerSelf
+echo Host-scoped npm checks are available only through confirmed modes 6, 7, and 9.
 echo Example:
 echo   Packages,AiMcp,CiCd
 echo.
+set "CHECKS="
 set /p CHECKS=Checks to run:
-if "%CHECKS%"=="" (
+if not defined CHECKS (
   echo Cancelled.
   exit /b 0
+)
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('Packages','LifecycleScripts','NodeRuntime','InvisibleUnicode','CiCd','AiMcp','IdeExtensions','HooksAndTasks','SecretsInventory','ScannerSelf','Recommended'); foreach($item in @($env:CHECKS -split ',')){if($allowed -notcontains $item.Trim()){exit 4}}"
+if errorlevel 1 (
+  echo ERROR: Unsupported or unsafe check list.
+  exit /b 4
 )
 set "TARGET=%CD%"
 goto RunPath
@@ -241,22 +291,24 @@ echo This mode statically inspects common npm global and npm cache metadata path
 echo It does not execute npm root -g or npm cache ls.
 echo Cache findings are weak context unless paired with installed package or executable findings.
 echo.
-echo Scanner path: %SCRIPT%
+echo Scanner path: "%SCRIPT%"
 echo Target path: npm global/cache static paths
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo.
 if defined NO_PAUSE (
   echo Non-interactive execution is not allowed for npm global/cache static checks.
   exit /b 4
 )
+set "CONFIRM="
 set /p CONFIRM=Type YES to continue:
-if /I not "%CONFIRM%"=="YES" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 (
   echo Cancelled.
   exit /b 0
 )
 
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -Checks "%CHECKS%" ^
   -ReportDir "%REPORTS%" ^
@@ -266,25 +318,28 @@ goto Finish
 :ScanMajor
 set "CHECKS=MajorRecommended"
 echo This mode scans common developer folders plus user profile IDE and AI-agent metadata.
+echo It also inspects static npm global metadata and bounded Program Files/PATH/version-manager Node.js file metadata.
 echo It does not scan the whole C: drive and does not read endpoint telemetry.
-echo Secret values are not read or printed, but paths and findings may be reported.
+echo Known credential files are inventory-only and are not read. Other configuration text is statically read; secret-like report evidence is redacted.
 echo.
-echo Scanner path: %SCRIPT%
+echo Scanner path: "%SCRIPT%"
 echo Target path: Major PC locations
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo.
 if defined NO_PAUSE (
   echo Non-interactive execution is not allowed for Major PC locations scan.
   exit /b 4
 )
+set "CONFIRM="
 set /p CONFIRM=Type YES to continue: 
-if /I not "%CONFIRM%"=="YES" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 (
   echo Cancelled.
   exit /b 0
 )
 
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -MajorLocations ^
   -Checks "%CHECKS%" ^
@@ -295,24 +350,27 @@ goto Finish
 :ScanUserProfile
 set "CHECKS=Recommended"
 echo This mode scans your real user profile metadata and credential-file inventory.
-echo Secret values are not read or printed, but paths and findings may be reported.
+echo It also inspects bounded Program Files/PATH/version-manager Node.js file metadata.
+echo Known credential files are inventory-only and are not read. Other configuration text is statically read; secret-like report evidence is redacted.
 echo.
-echo Scanner path: %SCRIPT%
-echo Target path: %USERPROFILE%
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Scanner path: "%SCRIPT%"
+echo Target path: "%USERPROFILE%"
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo.
 if defined NO_PAUSE (
   echo Non-interactive execution is not allowed for user profile scan.
   exit /b 4
 )
+set "CONFIRM="
 set /p CONFIRM=Type YES to continue: 
-if /I not "%CONFIRM%"=="YES" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 (
   echo Cancelled.
   exit /b 0
 )
 
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -UserProfile ^
   -Checks "%CHECKS%" ^
@@ -322,32 +380,41 @@ goto Finish
 
 :ScanFull
 set "CHECKS=AllSafe"
-if "%TARGET%"=="" (
+if not defined TARGET (
   set "TARGET=%CD%"
 )
 
-echo Full mode scans the target path, your real user profile, and endpoint telemetry.
+call :ValidateTarget
+if errorlevel 1 exit /b 4
+
+echo Comprehensive mode scans the target path, common developer locations, your real user profile, and endpoint telemetry.
+echo It also performs static npm global/cache checks and bounded known-path/PATH Node.js metadata checks.
 echo Endpoint telemetry may read DNS cache, event logs, startup entries, and scheduled task metadata.
-echo Secret values are not read or printed, but paths and findings may be reported.
+echo This is not a full-disk scan. Deep dependency/build/cache recursion remains disabled.
+echo Use the separate Deep mode on a trusted project when recursive dependency content is required.
+echo Known credential files are inventory-only and are not read. Other configuration text is statically read; secret-like report evidence is redacted.
 echo.
-echo Scanner path: %SCRIPT%
-echo Target path: %TARGET%
-echo Report dir: %REPORTS%
-echo Checks: %CHECKS%
+echo Scanner path: "%SCRIPT%"
+echo Target path: "%TARGET%"
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
 echo.
 if defined NO_PAUSE (
   echo Non-interactive execution is not allowed for full scan.
   exit /b 4
 )
+set "CONFIRM="
 set /p CONFIRM=Type YES to continue: 
-if /I not "%CONFIRM%"=="YES" (
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 (
   echo Cancelled.
   exit /b 0
 )
 
-powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -File "%SCRIPT%" ^
   -Path "%TARGET%" ^
+  -MajorLocations ^
   -UserProfile ^
   -EndpointTelemetry ^
   -Checks "%CHECKS%" ^
@@ -355,11 +422,17 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
   -LauncherPath "%~f0"
 goto Finish
 
+:ValidateTarget
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if([string]::IsNullOrWhiteSpace($env:TARGET) -or $env:TARGET.IndexOf([char]34) -ge 0){exit 4}"
+set "VALIDATION_EXIT=%ERRORLEVEL%"
+if not "%VALIDATION_EXIT%"=="0" echo ERROR: Target path is empty or contains an invalid quote character.
+exit /b %VALIDATION_EXIT%
+
 :Finish
 set "EXITCODE=%ERRORLEVEL%"
 echo.
 echo Scan finished with exit code %EXITCODE%.
-echo Reports are under: %REPORTS%
+echo Reports are under: "%REPORTS%"
 echo.
 if not defined NO_PAUSE pause
 exit /b %EXITCODE%

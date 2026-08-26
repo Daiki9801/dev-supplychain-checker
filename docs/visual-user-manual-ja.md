@@ -1,13 +1,32 @@
 # 図解マニュアル: Dev Supply Chain IOC Checker
 
 対象: Windowsで開発用フォルダや主要な開発環境を安全に確認したい人
-更新日: 2026-07-15
+更新日: 2026-08-26
 
-まずは下のPNGを見てください。この1枚で、特徴、使い方、検査モード、結果の見方、安全上の注意が分かるようにしています。v0.1.14でもメニュー番号は変わりません。`2. Scan selected path` のパス入力後に、通常の `Recommended` または確認必須の `Deep` を選べます。`IdeExtensions` はVS Code互換拡張に加えてJetBrainsプラグインも対象にし、`Recommended`はプロジェクトに明記されたNode.jsバージョンも静的に確認します。
+まずは下のPNGを見てください。この1枚で、特徴、使い方、検査モード、結果の見方、安全上の注意が分かるようにしています。現行v0.1.22でもメニュー番号は変わりません。`2. Scan selected path` のパス入力後に、通常の `Recommended` または確認必須の `Deep` を選べます。`IdeExtensions` はVS Code互換拡張に加えてJetBrainsプラグインも対象にし、`Recommended`はプロジェクトに明記されたNode.jsバージョンも静的に確認します。v0.1.22ではWindows PowerShell 5.1の起動先と環境変数由来の自動探索範囲を安全側に固定し、v0.1.21のNode.js別表示と `PARTIAL (non-critical)` も維持します。
 
 ![Dev Supply Chain IOC Checker 図解使い方マニュアル](assets/dev-supplychain-checker-manual-ja-20260629.png)
 
+注: 上記PNGはv0.1.22以前に作成されたため、旧4段階表記、旧完了表示、旧自動探索範囲が残っている場合があります。現在の正式な重要度、完了状態、範囲は、このページ下部の表とMermaid図です。
+
 安全性の説明だけを配布先へ渡したい場合は、[安全性と設計上の約束](safety-model-ja.md)も参照してください。
+
+現在の処理の流れは次の通りです。
+
+```mermaid
+flowchart TD
+    A["ローカルフォルダを選ぶ"] --> B["オフラインで静的検査"]
+    B --> C["package / lockfile"]
+    B --> D["CI/CD / hooks / AI設定"]
+    B --> E["IDE / Node.jsメタデータ"]
+    C --> F["秘密値を伏せたTXT・JSONレポート"]
+    D --> F
+    E --> F
+    F --> G{"completionStatus"}
+    G -->|complete| H["DANGER → WARN → CAUTION → INFO の順に確認"]
+    G -->|partial-non-critical| I["非重大の未検査範囲を確認"]
+    G -->|incomplete-critical / error| J["完了した陰性結果として扱わない"]
+```
 
 ## 1. このツールでできること
 
@@ -37,7 +56,7 @@
 6. npm global/cache static check
 7. Major PC locations scan
 8. Custom checks for current folder
-9. Full scan current folder + user profile + endpoint telemetry
+9. Comprehensive bounded scan (target + major locations + profile + endpoint)
 10. Exit
 ```
 
@@ -47,12 +66,12 @@
 |---|---:|---|
 | 今開いているプロジェクトだけ確認したい | 1 | 最初はこれがおすすめ |
 | 別のフォルダを指定して確認したい | 2 | パスを入力します |
-| 依存関係とNode.jsを確認したい | 3 | package.json、lockfile、明示バージョン中心 |
-| AI/MCP/IDE設定だけ確認したい | 4 | agent 設定や VS Code 互換拡張 |
-| CI/CDやhooksだけ確認したい | 5 | GitHub Actions や hooks |
+| 依存関係とNode.jsを確認したい | 3 | package.json、lockfile、明示バージョン＋不可視Unicode |
+| AI/MCP/IDE設定だけ確認したい | 4 | agent 設定や VS Code 互換拡張＋不可視Unicode |
+| CI/CDやhooksだけ確認したい | 5 | GitHub Actions や hooks＋不可視Unicode |
 | npm global/cache を静的に確認したい | 6 | 実行前に `YES` 確認があります |
 | PC内の主要な開発場所だけ広めに確認したい | 7 | 実行前に `YES` 確認があります |
-| 自分でチェックを組み合わせたい | 8 | 詳しい人向け |
+| 現在フォルダ用のチェックを組み合わせたい | 8 | 実PC範囲は追加しません |
 | 端末ログやDNSキャッシュなども含めたい | 9 | 詳しい人や管理者と一緒に使うのがおすすめ |
 
 通常は、まず `1` か `2` で対象プロジェクトだけを確認してください。
@@ -71,27 +90,42 @@
 レポート例:
 
 ```text
-OverallResult: WARN
+OverallResult: CAUTION
+Completion: COMPLETE; ScanComplete=True
+Node.js installed: inspected=1; evaluated=1; vulnerable=0; notAffected=1; readFailures=0
+Node.js project refs: observed=1; evaluated=1; vulnerable=1; notAffected=0; unresolved=0
 
 [SUMMARY]
 DANGER: 0
-WARN:   1
+WARN:   0
+CAUTION: 1
 INFO:   3
 OK:     1
 ```
 
 ## 4. レポートの見方
 
-重要度は次の4種類です。
+重要度は次の5種類です。
 
 | 表示 | 意味 | 最初にすること |
 |---|---|---|
 | `DANGER` | 強く確認すべき候補 | 削除せず、内容と場所を確認 |
-| `WARN` | 注意して確認すべき候補 | なぜ出たかを読む |
+| `WARN` | より強い不審パターン、既知リスク、弱い設定 | 優先して理由を読む |
+| `CAUTION` | 単独では低信号の存在・能力・設定 | 時間のある時に内容を読む |
 | `INFO` | 参考情報 | 必要に応じて確認 |
 | `OK` | スキャン完了や問題なし | 通常は対応不要 |
 
 `DANGER` は「感染確定」ではありません。ただし、優先して確認すべきサインです。
+
+### 完了状態と見えない範囲
+
+| `completionStatus` | 受け止め方 |
+|---|---|
+| `complete` | 選択した境界内の予定検査が完了。PC全体が安全という意味ではありません。 |
+| `partial-non-critical` | 非重大とした処理または境界内解析の一部が未完了。`coverage.summary` を確認します。 |
+| `incomplete-critical` / `error` | 完了した陰性結果として扱いません。記録された不足を確認し、対象を狭めて再実行します。 |
+
+本文の各正規表現処理は2秒で打ち切ります。`REGEX_SCAN_TIMEOUT` ではそのファイルの該当処理だけを飛ばして残りを続けますが、結果は `complete` になりません。対象が非重大候補なら `partial-non-critical`、重大候補なら `incomplete-critical` です。このツールはディスク全体、メモリ、実行中process、実通信、全依存関係・全CVE、オンラインでの発行元・真正性を検査せず、感染も安全も確定しません。
 
 ## 5. まず見るべき場所
 
@@ -163,14 +197,14 @@ TXTレポートでは、次の順に見ると分かりやすいです。
 
 `WARN` は「すぐ危険確定」ではありません。
 
-Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、このツールでは原則`WARN`です。これは上流の脆弱性深刻度と、実際にそのPC/プロジェクトで悪用可能かという判断を混同しないためです。
+Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、このツールでは原則`WARN`です。これは上流の脆弱性深刻度と、実際にそのPC/プロジェクトで悪用可能かという判断を混同しないためです。`Node.js installed` はグローバル／既知配置のバイナリ、`Node.js project refs` はDockerfileや`.nvmrc`などの指定です。後者の警告だけなら、インストール済みNode.jsが古いという意味ではありません。`notAffected` は同梱オフライン基準に一致しなかったという限定的な結果です。
 
 よくある `WARN` の例:
 
 - MCPやAIエージェント設定で `npx` が未固定
 - GitHub Actions の権限が広い
-- skill や plugin が外部APIへ書き込める機能を持つ
-- 実行スクリプトに外部取得やインストール機能がある
+- C2やdecoderに似た文字列が実行文脈にある
+- 変更可能な外部参照や実行フックに具体的なリスクがある
 
 確認ポイント:
 
@@ -179,7 +213,20 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - バージョン固定されているか
 - 外部送信先が自分の想定どおりか
 
-## 9. INFO が出た時
+## 9. CAUTION が出た時
+
+`CAUTION` は確認を勧める低信号の候補です。単独では感染や悪用を示しません。
+
+よくある例:
+
+- package.json にライフサイクルスクリプトがある
+- 単独の不可視Unicode文字がある
+- 悪性複合条件のないWASMリモート読込機能がある
+- IDE拡張にWASMやnative artifactがある
+
+`WARN` と `CAUTION` はどちらも終了コード `1` ですが、確認順は `WARN` が先です。
+
+## 10. INFO が出た時
 
 `INFO` は参考情報です。
 
@@ -192,7 +239,7 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 
 `INFO` だけなら、通常は慌てる必要はありません。
 
-## 10. `tests/samples` について
+## 11. `tests/samples` について
 
 このリポジトリには `tests/samples` という検証用フォルダがあります。
 
@@ -201,7 +248,7 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - 実マルウェアではありません。
 - 外部から危険ファイルをダウンロードしたものではありません。
 - 偽のURLや偽のトークン表現が含まれます。
-- 直接スキャンすると `DANGER` や `WARN` が出るのは正常です。
+- 直接スキャンすると `DANGER`、`WARN`、`CAUTION` が出るのは正常です。
 
 親フォルダや Major PC locations scan では、このツール自身の manifest で確認できた既知sampleだけをスキップします。
 
@@ -210,7 +257,7 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - 他のプロジェクトの `tests/samples` は自動的に信用しません。
 - 未知ファイルや改変されたsampleはスキップせず通常スキャンします。
 
-## 11. Major PC locations scan の意味
+## 12. Major PC locations scan の意味
 
 `7. Major PC locations scan` は、PC全体を総当たりする機能ではありません。
 
@@ -223,9 +270,15 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - `dev`
 - `workspace`
 - `Documents\GitHub`
+- `Desktop\GitHub` / `Desktop\Projects` / `Desktop\repos`
+- `IdeaProjects` / `PyCharmProjects` / `AndroidStudioProjects` など主要IDEの既定プロジェクトフォルダ
+- OneDrive / OneDriveCommercial / OneDriveConsumer 配下の限定プロジェクトサブフォルダ
 - VS Code / Cursor / Windsurf などの拡張機能
 - ユーザー領域のJetBrainsプラグイン（Major/UserProfileを明示した場合）
 - Claude / Cursor / Codex などのAIエージェント設定
+- Codex の agents / rules / skills / 導入済みプラグインの実行コード
+- npm global package の静的メタデータ
+- Program Files / PATH / version manager 上の限定Node.jsメタデータ
 - 認証ファイルの存在確認
 
 見ないもの:
@@ -233,11 +286,14 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - `C:\` 全体
 - `C:\Windows` 全体
 - `Program Files` 全体
+- `.codex\sessions`、Codex の実行時cache、履歴データ
 - 端末ログ、DNSキャッシュ、イベントログ
 
-端末ログやDNSキャッシュまで見る場合は `9. Full scan` ですが、初心者は詳しい人と一緒に使うのがおすすめです。
+端末ログやDNSキャッシュまで見る場合は `9. Comprehensive bounded scan` ですが、初心者は詳しい人と一緒に使うのがおすすめです。9番は7番の主要開発場所も含みますが、ディスク全体やDeep対象を再帰走査する機能ではありません。
 
-## 12. コマンドで使う場合
+レポートの `scanRoots` にはモード7で実際に存在した設定・拡張機能・ツールのルートだけが入り、ユーザープロファイル全体を意味する `~` は入りません。`scanScope` には実際に含んだ範囲と除外範囲、`iocData` には各IOCファイルの更新日・期限・公開可否が入ります。`iocData.releaseReady=false` の場合、スキャンは続行できますが、公開版のIOCデータは再確認が必要です。
+
+## 13. コマンドで使う場合
 
 通常はBATメニューで十分です。
 
@@ -265,7 +321,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupply
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupplyChain.ps1 -Path C:\Path\To\Project -Checks Packages,AiMcp,CiCd -ReportDir .\reports
 ```
 
-## 13. GitHubリポジトリを確認したい場合
+## 14. GitHubリポジトリを確認したい場合
 
 このツールはオフライン専用です。GitHubへ直接アクセスしてダウンロードする機能はありません。`git clone`、`git archive`、GitHub API 取得機能も実装していません。
 
@@ -277,12 +333,13 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupply
 run-checker.bat current C:\Users\yourname\Documents\GitHub\some-repo
 ```
 
-## 14. 最後の判断
+## 15. 最後の判断
 
 このツールの結果は、次のように受け止めてください。
 
 - `DANGER`: 優先して確認する候補
-- `WARN`: 設定や機能を確認する候補
+- `WARN`: より強い不審パターンや既知リスクを確認する候補
+- `CAUTION`: 低信号の存在・能力・設定を確認する候補
 - `INFO`: 状況理解のための補足
 - `OK`: スキャン完了または問題候補なし
 

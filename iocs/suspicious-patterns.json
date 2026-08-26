@@ -1,11 +1,18 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-07-15",
-  "sourceSet": "manual-public-advisory-review-20260715",
+  "lastUpdated": "2026-08-14",
+  "sourceSet": "curated-aikido-afine-campaign-technique-review-20260814",
+  "sourceUrls": [
+    "https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
+    "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
+    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads"
+  ],
+  "scope": "Bounded campaign domains and compound executable-context markers; shared infrastructure is not treated as malicious by hostname alone.",
   "expiresAfterDays": 30,
   "domains": [
     "sfrclak.com",
-    "dodod.lat"
+    "dodod.lat",
+    "npm-cache.com"
   ],
   "patterns": [
     {
@@ -40,6 +47,19 @@
       "severity": "WARN",
       "title": "GlassWASM campaign wallet identifier appears in executable context",
       "notes": "Exact campaign wallet identifier matched. The identifier alone is not proof of execution.",
+      "contexts": [
+        "code",
+        "execution-config",
+        "active-ai-config",
+        "executable-tooling"
+      ]
+    },
+    {
+      "id": "keyv_chaindrop_nodereal_contract_marker",
+      "regex": "(eth-mainnet\\.nodereal\\.io[\\s\\S]{0,800}0xE1f239A659B4512059A66a3616A7d1093F783562|0xE1f239A659B4512059A66a3616A7d1093F783562[\\s\\S]{0,800}eth-mainnet\\.nodereal\\.io)",
+      "severity": "WARN",
+      "title": "Keyv ChainDrop NodeReal endpoint appears near the reported contract marker",
+      "notes": "The reported shared RPC endpoint and campaign-specific contract marker appeared together in executable context. Values redacted.",
       "contexts": [
         "code",
         "execution-config",

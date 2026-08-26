@@ -15,7 +15,7 @@ Security reports should focus on issues that could weaken those guarantees, incl
 
 ## Reporting A Vulnerability
 
-After this repository is published on GitHub, prefer GitHub Security Advisories for private vulnerability reports when available.
+Use a [private GitHub Security Advisory](https://github.com/Daiki9801/dev-supplychain-checker/security/advisories/new) for vulnerability reports that could contain sensitive details.
 
 If private advisories are not available on the repository, open a public issue only with non-sensitive reproduction steps and synthetic samples. Do not include host-specific evidence in a public issue.
 

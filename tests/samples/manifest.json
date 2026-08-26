@@ -238,6 +238,22 @@
       "skipInParentScan": true
     },
     {
+      "relativePath": "glassworm-variation-selector-decoder/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "1c2a0aa18968b2b3f601b9770626754a572af6bffc2593d80ce8367f85f403ec",
+      "expectedCategories": [
+        "GLASSWORM_VARIATION_SELECTOR_DECODER_COMPOUND"
+      ],
+      "skipInParentScan": true
+    },
+    {
+      "relativePath": "glassworm-decoder-bundle-negative/sample.js",
+      "hashMode": "text-lf-sha256",
+      "sha256": "08c2acbac357bc64b035326606eb7f2bb86f22ab5092387fbe4e932bef7895a4",
+      "expectedCategories": [],
+      "skipInParentScan": true
+    },
+    {
       "relativePath": "invisible-unicode-eval/sample.js",
       "hashMode": "text-lf-sha256",
       "sha256": "e3eab8c99ca5de486e3d133178a50d3c42df003efc4ef80fd3264dde78c4704d",
@@ -418,7 +434,7 @@
     {
       "relativePath": "README.md",
       "hashMode": "text-lf-sha256",
-      "sha256": "6795531f260bc7028147c55988276ee7cdf4a59fd793500d4f32ba7753e4559f",
+      "sha256": "d38b7a8542c9fdb7e9a5e661c88741fa2c38d39db4117697a77755badde776b0",
       "expectedCategories": [],
       "skipInParentScan": true
     },
@@ -541,7 +557,7 @@
     { "relativePath": "project-discovery-depth/one/two/three/four/five/package.json", "hashMode": "text-lf-sha256", "sha256": "984463be61c439f65798bc599bab6ad426aa2dacccf9296700008f9794e33ba9", "expectedCategories": [], "skipInParentScan": true },
     { "relativePath": "node-runtime-critical-pin/.nvmrc", "hashMode": "text-lf-sha256", "sha256": "fc827efc0e3940fe4db6b96829aa2b4a3aa1eab568eea10cfe140bad5247b46e", "expectedCategories": ["NODE_RUNTIME_VULNERABILITY_VERSION"], "skipInParentScan": true },
     { "relativePath": "node-runtime-high-pin/.node-version", "hashMode": "text-lf-sha256", "sha256": "b2aec884ec0d77122defe641079e30dedc8ffbe11edd5ec299e768d1c6b0dadc", "expectedCategories": ["NODE_RUNTIME_VULNERABILITY_VERSION"], "skipInParentScan": true },
-    { "relativePath": "node-runtime-safe/.nvmrc", "hashMode": "text-lf-sha256", "sha256": "834bb700cb13e9b597367731f0678cc9e8174cf623251938ac59f690d5a5e89f", "expectedCategories": [], "skipInParentScan": true },
+    { "relativePath": "node-runtime-safe/.nvmrc", "hashMode": "text-lf-sha256", "sha256": "08062faf0d7a2d22f5d7933c50e975dd1527034275597be7c1b3b9fd2b9d079a", "expectedCategories": [], "skipInParentScan": true },
     { "relativePath": "node-runtime-constraint/package.json", "hashMode": "text-lf-sha256", "sha256": "3da64f940e1380c01f4a7b4ef38a7a0476553e24a44e7f0d75fede6307cc76d8", "expectedCategories": ["NODE_RUNTIME_VULNERABILITY_CONSTRAINT"], "skipInParentScan": true },
     { "relativePath": "node-runtime-surfaces/.tool-versions", "hashMode": "text-lf-sha256", "sha256": "1e720d49e4ffecc9781a11867e28c661c2164865ae34f7cbcdd64f85f37c7e98", "expectedCategories": ["NODE_RUNTIME_VULNERABILITY_VERSION"], "skipInParentScan": true },
     { "relativePath": "node-runtime-surfaces/.mise.toml", "hashMode": "text-lf-sha256", "sha256": "5c0b12eba4182edeb706159286c6839c63f50336a2466eb28f79fa8b0a0885cc", "expectedCategories": ["NODE_RUNTIME_VULNERABILITY_VERSION"], "skipInParentScan": true },
@@ -555,6 +571,44 @@
     { "relativePath": "node-runtime-unresolved/package.json", "hashMode": "text-lf-sha256", "sha256": "597ed9e9b8e9275b5c12a95ba00de90942bfa704cac80c9d94644260848b61bf", "expectedCategories": [], "skipInParentScan": true },
     { "relativePath": "node-runtime-unresolved/Dockerfile", "hashMode": "text-lf-sha256", "sha256": "77ade1a00627872e3a2d1be14ec6e8c1d62a8a4119c295e79c96c3d1b22119f2", "expectedCategories": [], "skipInParentScan": true },
     { "relativePath": "node-runtime-unresolved/.devcontainer/devcontainer.json", "hashMode": "text-lf-sha256", "sha256": "54664b5baf583ebc0f4245aeb6463fa2b9ece3c1cb8baece7d3ae5182827649a", "expectedCategories": [], "skipInParentScan": true },
-    { "relativePath": "node-runtime-unresolved/.github/workflows/validate.yml", "hashMode": "text-lf-sha256", "sha256": "d62c295e600a467d6ef33c668ff132e2abc8fe8fcd183684e6bcabdc6b02959f", "expectedCategories": [], "skipInParentScan": true }
+    { "relativePath": "node-runtime-unresolved/.github/workflows/validate.yml", "hashMode": "text-lf-sha256", "sha256": "d62c295e600a467d6ef33c668ff132e2abc8fe8fcd183684e6bcabdc6b02959f", "expectedCategories": [], "skipInParentScan": true },
+    {"relativePath":"npm-keyv-installed/node_modules/keyv/package.json","hashMode":"text-lf-sha256","sha256":"af7f70949abe8eaa3db7ddd723a51b62972cd62e8af5fe9f8807228db8ea335f","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-package-lock-v1/package-lock.json","hashMode":"text-lf-sha256","sha256":"ade21ec3fc1db7b141cb7550d29533c9ce806f53765da2dc60c79bec4c430940","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-package-lock-v3/package-lock.json","hashMode":"text-lf-sha256","sha256":"fa19aba118803331ec8df86e0d594b2c5022014de38bc3e0e1bc638901f0eeba","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-pnpm-lock/pnpm-lock.yaml","hashMode":"text-lf-sha256","sha256":"69255dac04aa0fe5b6d56db303776b309e8922d982292b4d02d7a1c156b562d3","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-yarn-lock/yarn.lock","hashMode":"text-lf-sha256","sha256":"d7f75a5b9f5e3044ade4a5bc5a3bef0b9e15f9a423836e073d7df477c5a5319d","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"npm-chaindrop-exfil/setup.mjs","hashMode":"text-lf-sha256","sha256":"75ae4fbc2239e2c0b5c5ad5d7ef0eda4494b7c8e512db18797fea8343ee13eb6","expectedCategories":["PACKAGE_CODE_SECRET_EXFIL_PATTERN"],"skipInParentScan":true},
+    {"relativePath":"npm-chaindrop-propagation/setup.mjs","hashMode":"text-lf-sha256","sha256":"f8bb994db7511e533dc8661cc0c62315d40bd6ddec01781e0906b808d023b402","expectedCategories":["NPM_CHAINDROP_PROPAGATION_CHAIN"],"skipInParentScan":true},
+    {"relativePath":"vscode-chaindrop-folderopen/.vscode/tasks.json","hashMode":"text-lf-sha256","sha256":"8e7966dcb69e8491e41ef3bd39ac820e4742b94d1bce991c66199e5608c7e6c1","expectedCategories":["NPM_CHAINDROP_VSCODE_FOLDEROPEN_PERSISTENCE"],"skipInParentScan":true},
+    {"relativePath":"vscode-chaindrop-folderopen/.vscode/setup.mjs","hashMode":"text-lf-sha256","sha256":"6a30aef9159495ad3d34513ccdfb177404d1b7d22878e494566e36eb272fbacb","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"claude-chaindrop-sessionstart/.claude/settings.json","hashMode":"text-lf-sha256","sha256":"8e3a49e6fa96ff76fb35faaa03733bdfc20fff6e966dc7a7e9200209345920d0","expectedCategories":["NPM_CHAINDROP_CLAUDE_SESSIONSTART_PERSISTENCE"],"skipInParentScan":true},
+    {"relativePath":"claude-chaindrop-sessionstart/.claude/setup.mjs","hashMode":"text-lf-sha256","sha256":"6a30aef9159495ad3d34513ccdfb177404d1b7d22878e494566e36eb272fbacb","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"github-actions-chaindrop/.github/workflows/codeql_analysis.yml","hashMode":"text-lf-sha256","sha256":"90c75b0ba00e4f62601800fe786d3b76b6c96048109aa9eb0decbf3f1a688cb6","expectedCategories":["GITHUB_ACTIONS_SECRETS_ARTIFACT_EXFIL_PATTERN"],"skipInParentScan":true},
+    {"relativePath":"npm-benign-esbuild-installer/install.js","hashMode":"text-lf-sha256","sha256":"48dae90b428f71cd68be8d6ed5ccf1c60827489c150e089f1f2b5930fe811185","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-benign-sharp-installer/install.js","hashMode":"text-lf-sha256","sha256":"5187c75d92787dff2b11863b654a8a984f38c7030aa1d00ece6eb62c27f655ca","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-benign-qwen-native-build/install.js","hashMode":"text-lf-sha256","sha256":"e2922c68dfb461dfcd978bb0dd911bed4751f5cdd316c7d9b7e94975f99f404a","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-benign-vsce-sign-postinstall/postinstall.js","hashMode":"text-lf-sha256","sha256":"1a29daf7d18244e57cd9b59d2a927a48b49a9729b1d8d2aabada87ed9a84174b","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-benign-release-publish/release.js","hashMode":"text-lf-sha256","sha256":"51ab1f01df52e72f1035528023e6dff86d6a11c14c6e5d0acbcb18a612b450bf","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-benign-process-env-registry-child-process/index.js","hashMode":"text-lf-sha256","sha256":"d932eb71b9ad294f201dda0b497d3563f7b134c96c949ad33a2b6d00332edece","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"vscode-benign-folderopen/.vscode/tasks.json","hashMode":"text-lf-sha256","sha256":"87dcf6aa29314014154fd4f90a21bad9b33f556bb5ea41dd1b24b1297d7aa4e8","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"vscode-benign-folderopen/scripts/build.js","hashMode":"text-lf-sha256","sha256":"17a62cf940accae4b1c3771f79f92ed8c74260c3d0f54189033389465aa34837","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"claude-benign-sessionstart/.claude/settings.json","hashMode":"text-lf-sha256","sha256":"cef55aa4295382cdba6a2bc23807b77ece62dbce2a3f6205a7ac5bfd103b5b4a","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"claude-benign-sessionstart/scripts/session-note.js","hashMode":"text-lf-sha256","sha256":"66dd089e5f99334651e5c96e7f41a1e2857c1275791a10f55a378b3e74f4eeb9","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-safe-version/node_modules/keyv/package.json","hashMode":"text-lf-sha256","sha256":"78e2a1346560944c2ec5839e457039e4135a41eeaf47b8f498ecfd07a986ba45","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"package-lock-object-boundary-negative/package-lock.json","hashMode":"text-lf-sha256","sha256":"1ca7833120c5447542843116bee2db3b4241cbdfbd42c2d46bf562867bc31a88","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"reference-keyv-report/README.md","hashMode":"text-lf-sha256","sha256":"fa0063d2c7c22eb5bcbc49c79fc7517238fff2e9716d19a7ae203a6d80acbf76","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"npm-keyv-package-lock-v2/package-lock.json","hashMode":"text-lf-sha256","sha256":"5f3d1bfd5871508486295055774800096c8ee5dd805decd1edb0b47bc2383e00","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"lockfile-scope/npm-shrinkwrap.json","hashMode":"text-lf-sha256","sha256":"af8a91d33e484cad5d8cc0ea3b09c5c79497c3d56a0233c18bd2222063d8665e","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"lockfile-scope/Pipfile.lock","hashMode":"text-lf-sha256","sha256":"b4df42f11ef4200f2050cc274fec12cee065cf7a2dc29a078597bc4f050514f0","expectedCategories":["KNOWN_COMPROMISED_PACKAGE"],"skipInParentScan":true},
+    {"relativePath":"keyv-network-ioc/loader.js","hashMode":"text-lf-sha256","sha256":"daffd26a6c4f95b94233a8b79584ca800c58e39dd92cecf0582d93bdb5596d12","expectedCategories":["KNOWN_IOC_TEXT_PATTERN","KEYV_CHAINDROP_NODEREAL_CONTRACT_MARKER"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/.github/workflows/manual-only.yml","hashMode":"text-lf-sha256","sha256":"6eb36fa286ec351ded4d05743be1d57f0838c2ca7a067124772c3f0d1918c1e7","expectedCategories":["GITHUB_ACTIONS_MANUAL_TRIGGER"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/.github/workflows/manual-elevated.yml","hashMode":"text-lf-sha256","sha256":"60761148ec0ec5539654904ac501f7f5a4f68ecdfc85d1b0a75a18c1371b55ff","expectedCategories":["GITHUB_ACTIONS_MANUAL_TRIGGER","GITHUB_ACTIONS_CONTENTS_WRITE"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/.codex/skills/synthetic/references/risky-example.md","hashMode":"text-lf-sha256","sha256":"e426df60c2b8c308c9897007b6201e3d4783a452e0ca5099304ee3f1832dea4e","expectedCategories":["AI_REFERENCE_TEXT_EXECUTABLE_SAMPLE_RISK_AGGREGATED"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/.codex/plugins/cache/synthetic/tool/1.0.0/scripts/unpinned.ps1","hashMode":"text-lf-sha256","sha256":"daea1d9f3526da5ee74cb61455571d1aed399054ce68f357e22a35f802e7f1e7","expectedCategories":["AI_TOOLING_UNPINNED_NPX"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/.codex/plugins/cache/synthetic/tool/1.0.0/scripts/external-capability.ps1","hashMode":"text-lf-sha256","sha256":"591c0358009d1ae127aacf6cc060a79b12f175abf49ddb63defed21d32c23c9f","expectedCategories":["AI_TOOLING_EXTERNAL_EXECUTION_CAPABILITY"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/active-unpinned/.mcp.json","hashMode":"text-lf-sha256","sha256":"c0b1ddb45dca7630e83444cfd72ef144242c529889d8d29ee6e8b6ca70be18a8","expectedCategories":["MCP_UNPINNED_NPX"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/active-pinned/.mcp.json","hashMode":"text-lf-sha256","sha256":"a59ea8dfe98c51b206e63c923bb61812465769f276c5392bc5c7187060e06bcd","expectedCategories":[],"skipInParentScan":true},
+    {"relativePath":"triage-precision/active-fetch-execute/.mcp.json","hashMode":"text-lf-sha256","sha256":"3a6975dc6a6f2a0cd1de7b60ebbb38798d9e01b508c1255749bab73cd3dc0a23","expectedCategories":["MCP_AGENT_EXTERNAL_EXECUTION"],"skipInParentScan":true},
+    {"relativePath":"triage-precision/Keyv-ChainDrop-NonDestructive-Check-v0.0.0.bat","hashMode":"text-lf-sha256","sha256":"a2b9686d6410853def1cbc626d3dbb9f575f37e32eeaed978cf172fc8eb3c29d","expectedCategories":["PACKAGE_CODE_SECRET_EXFIL_PATTERN"],"skipInParentScan":true}
   ]
 }

