@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "synthetic folder startup",
+      "type": "shell",
+      "command": "node",
+      "args": [".vscode/setup.mjs"],
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+name: Synthetic elevated manual workflow
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  inspect:
+    runs-on: windows-latest
+    steps:
+      - run: echo "synthetic elevated manual workflow"

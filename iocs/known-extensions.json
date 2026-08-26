@@ -1,8 +1,13 @@
 {
   "schemaVersion": "0.1.13",
   "defaultPlatform": "vscode",
-  "lastUpdated": "2026-07-15",
-  "sourceSet": "manual-public-advisory-review-20260715",
+  "lastUpdated": "2026-08-14",
+  "sourceSet": "curated-aikido-afine-glassworm-review-20260814",
+  "sourceUrls": [
+    "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
+    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads"
+  ],
+  "scope": "Curated platform-qualified exact versions and separately identified malicious-extension watch IDs; not a registry-wide inventory.",
   "expiresAfterDays": 30,
   "extensions": [
     {

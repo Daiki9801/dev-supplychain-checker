@@ -1,0 +1,4 @@
+lockfileVersion: '9.0'
+packages:
+  keyv@6.0.0:
+    resolution: {integrity: sha512-synthetic}

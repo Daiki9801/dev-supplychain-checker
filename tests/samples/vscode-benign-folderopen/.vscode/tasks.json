@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "local build",
+      "type": "shell",
+      "command": "node",
+      "args": ["scripts/build.js"],
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}

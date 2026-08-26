@@ -1,7 +1,15 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-07-15",
-  "sourceSet": "manual-public-advisory-review-20260715",
+  "lastUpdated": "2026-08-14",
+  "sourceSet": "curated-existing-indicator-osv-github-npm-review-20260814",
+  "sourceUrls": [
+    "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip",
+    "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip",
+    "https://api.github.com/advisories",
+    "https://registry.npmjs.org/"
+  ],
+  "scope": "Curated exact indicators for the documented incident families; not a complete ecosystem malware feed.",
+  "reviewNotes": "The 2026-08-14 review revalidated 48 of 106 exact pairs directly in OSV snapshots; incident-specific reporting and public npm unpublished metadata were used for retained pairs not present in those snapshots. GitHub malware-advisory cursor review was bounded by the unauthenticated public API rate limit and was not treated as an exhaustive feed import.",
   "expiresAfterDays": 30,
   "packages": [
     {

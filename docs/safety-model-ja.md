@@ -50,9 +50,11 @@ IOC は、同梱されたローカル JSON とスクリプト内の静的ルー�
 
 検出結果は、TXT と JSON のレポートとして `reports` フォルダへ保存します。
 
-v0.1.11 以降は、実行中のスキャナー配布フォルダ直下にある `reports*` フォルダを通常スキャンから除外します。過去レポートや検証artifactに含まれるIOC文字列を、現在の実ファイルリスクとして再検出しないためです。明示的に `-Path` で指定した場合は、調査目的としてスキャンできます。
+既存ファイルは上書きしません。明示した `-TextOut` / `-JsonOut` が既存項目または同一パスを指す場合は検査前に停止し、自動名が同一秒内で重なった場合は未使用のsuffixを選びます。
 
-`reports*/` はGit管理からも除外し、commit や push に含めません。
+設定されたレポート出力先（既定は `reports/`）と現在のTXT/JSON出力ファイルは通常スキャンから除外します。現在のレポートを実ファイルリスクとして再検出せず、`reports-service` のような無関係なソースフォルダは隠しません。明示的に `-Path` で指定した場合は、調査目的としてスキャンできます。
+
+Gitが既定で除外するのはリポジトリ直下の `/reports/` だけです。独自名や過去のレポートフォルダはcommit前に明示的に確認し、ソースや配布物へ含めないでください。
 
 ## 秘密情報を出さない
 
@@ -70,7 +72,7 @@ v0.1.11 以降は、実行中のスキャナー配布フォルダ直下にある
 
 これらは、原則として「存在確認」のみを行います。中身やトークン値は読みません。
 
-検出器が証拠文字列を出す場合も、中央の redaction 処理を通して値を伏せます。
+それ以外の検査対象設定テキストは静的マッチングのために読みます。検出器が証拠文字列や例外文を出す場合は、中央の redaction 処理を通して値を伏せます。
 
 ## 実行しない静的検査
 
@@ -94,11 +96,16 @@ v0.1.11 以降は、実行中のスキャナー配布フォルダ直下にある
 
 次の範囲は、明示的に選んだ時だけ動きます。
 
+- MajorLocations scan
 - UserProfile scan
 - EndpointTelemetry scan
-- Full scan
+- Comprehensive bounded scan（旧称/コマンド名: `full`）
 
 BAT ランチャーでは、これらのモードを実行する前に確認文を表示し、`YES` 入力を要求します。
+
+`full` は指定パス、MajorLocations、UserProfile、npm global/cache、既知配置/PATH上のNode.jsメタデータ、EndpointTelemetryをまとめます。ただし、全ディスク走査でもDeep走査でもありません。実際の含有・除外範囲はレポートの `scanScope` に記録されます。
+
+MajorLocations 単独では、Codex の有効な設定、agents、rules、skills、導入済みプラグインの実行コードだけを選択し、`.codex\sessions`、実行時cache、履歴データは読みません。UserProfile または `full` を選んだ場合は、セッションやcacheの文字列も実行せず低優先の集約情報として扱います。環境変数から自動検出するCodex、Claude、OneDriveのルートは、`USERPROFILE` 配下の絶対パスかつ非reparseの子ディレクトリだけを受け入れ、範囲外の配置は `-Path` で明示的に検査します。
 
 ## ファイル列挙の安全策
 
@@ -121,9 +128,11 @@ v0.1.9 以降は、`-Checks` で検査種類を選べます。
 - `AllSafe`: EndpointTelemetry 以外の静的検査をまとめて実行します。
 - 個別指定: `Packages`、`LifecycleScripts`、`NodeRuntime`、`InvisibleUnicode`、`CiCd`、`AiMcp`、`IdeExtensions`、`HooksAndTasks`、`SecretsInventory`、`NpmGlobal`、`NpmCache`、`ScannerSelf`。
 
-`NodeRuntime`はNode.jsを起動しません。`.nvmrc`、Volta、container、CIなどの明示バージョンと、許可された範囲で列挙された`node.exe`のWindowsバージョン情報だけを読みます。公式の`Critical`/`High`は上流の深刻度であり、本ツールでは静的なバージョン一致を`WARN`または`INFO`として報告します。
+`NodeRuntime`はNode.jsを起動しません。`.nvmrc`、Volta、container、CIなどの明示バージョンと、許可された範囲で列挙された`node.exe`のWindowsバージョン情報だけを読みます。公式の`Critical`/`High`は上流の深刻度であり、本ツールでは静的なバージョン一致を`WARN`または`INFO`として報告します。`nodeRuntimeAssessment`はインストール済みバイナリとプロジェクト内の指定を分離し、正確に評価できたバージョンを秘匿済みパスで最大100件記録します。`notAffected`は同梱オフライン基準に一致しなかったという限定的な結果で、完全なCVE・EOL・署名・発行元検証ではありません。
 
 `UserProfile` と `EndpointTelemetry` は `-Checks` ではなく、明示的なモード指定です。
+
+同梱IOCの鮮度は `iocData` にファイル単位で記録されます。期限超過・欠落・不正が1つでもある場合は `releaseReady=false` となり、公開前の手動再確認が必要です。期限超過だけを理由に過去の厳密IOCを無効化することはありません。
 
 ## 配布物の自己確認
 
@@ -151,7 +160,7 @@ v0.1.9 以降は、`-Checks` で検査種類を選べます。
 
 - 実マルウェアではありません。
 - 外部から危険ファイルをダウンロードしたものではありません。
-- 直接スキャンすると `DANGER` や `WARN` が出るのは正常です。
+- 直接スキャンすると `DANGER`、`WARN`、`CAUTION` が出るのは正常です。
 
 親フォルダや Major PC locations scan では、現在実行中の正規 manifest と hash が一致した既知 fixture だけをスキップします。
 
@@ -166,15 +175,24 @@ v0.1.9 以降は、`-Checks` で検査種類を選べます。
 | 表示 | 意味 |
 |---|---|
 | `DANGER` | 既知 IOC や実行文脈の強い指標。優先して確認する候補 |
-| `WARN` | 設定、機能、文脈上の注意候補 |
+| `WARN` | より強い不審パターン、既知リスク、またはセキュリティ上の弱点 |
+| `CAUTION` | 強い悪性複合条件を伴わない、存在・機能・設定上の低信号な確認候補 |
 | `INFO` | 存在確認、制限、集約、参考情報 |
 | `OK` | スキャン完了、または問題候補なし |
+
+`WARN` と `CAUTION` はどちらも終了コード `1` です。既存自動化との互換性を維持しながら、人が確認する優先順位を分けます。
+
+手動実行だけのGitHub Actions、受動的なAI補助スクリプト、参考文書中の実行例は原則 `CAUTION` です。秘密情報・書き込み権限・入力を使う手動workflowや、実際に読み込まれる未固定MCPコマンドは `WARN`、アクティブな外部取得＋実行や秘密情報送信の強い複合は `DANGER` のままです。
 
 `DANGER` でも感染確定ではありません。削除や実行をせず、レポートの `Path`、`RiskType`、`Confidence`、`Evidence` を確認してください。
 
 npm cache は弱い証拠として扱います。cache metadata に既知パッケージ名やversionがあっても、インストールや実行の証明ではありません。対応は、同じパッケージが project-local または npm global の installed metadata にも存在するか、実行・漏えいの挙動が近くにあるかで判断します。
 
 ## 限界
+
+`completionStatus=complete` は、選択した境界内の予定検査が完了したという意味だけです。ディスク全体、全依存物、全archive、全binary、全脆弱性を漏れなく確認したという意味ではありません。`partial-non-critical` は明示的に非重大とした未完了範囲を示し、`incomplete-critical` と `error` は完了した陰性結果として扱えません。
+
+本文に対する各正規表現処理は2秒で打ち切ります。`REGEX_SCAN_TIMEOUT` では、そのファイルの該当処理だけを飛ばして残りを続けますが、結果は `complete` になりません。非重大候補なら `partial-non-critical`、lockfileや有効な設定などの重大候補なら `incomplete-critical` です。これは高負荷な入力でCPUを長時間占有しないための安全策である一方、対象を狭めた再検査または手動確認が必要な未検査範囲でもあります。
 
 このツールは次の代替にはなりません。
 
@@ -185,5 +203,7 @@ npm cache は弱い証拠として扱います。cache metadata に既知パッ�
 - package manager のオンライン audit
 - registry の人気度・所有者・存在確認
 - 完全な YAML / TOML semantic parser
+
+また、ディスク全体、メモリ、実行中process、実通信、任意のbinary内部、全依存関係・全CVE、オンラインの評判・署名・発行元・provenanceは検査しません。感染を確定することも、侵害が存在しないことを保証することもできません。
 
 大量侵害キャンペーンや新しい IOC は、手動で確認したうえでローカル IOC を更新する必要があります。

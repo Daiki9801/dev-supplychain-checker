@@ -1,12 +1,22 @@
 # Keep GitHub-generated source archives suitable for non-technical users.
 # The source repository keeps synthetic fixtures for maintainer validation, but
 # end-user archives should not ship files that intentionally trigger findings.
-reports*/** export-ignore
+reports/** export-ignore
 other/** export-ignore
 token.txt export-ignore
 *.token export-ignore
 .env export-ignore
 .env.* export-ignore
+*.pem export-ignore
+*.key export-ignore
+*.pfx export-ignore
+*.p12 export-ignore
+id_rsa* export-ignore
+id_ed25519* export-ignore
+credentials.json export-ignore
+auth.json export-ignore
+.npmrc export-ignore
+.pypirc export-ignore
 tests/samples/** export-ignore
 tests/samples/manifest.json -export-ignore
 tests/samples/README.md -export-ignore

@@ -1,7 +1,14 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-07-15",
-  "sourceSet": "manual-public-advisory-review-20260715",
+  "lastUpdated": "2026-08-14",
+  "sourceSet": "curated-osv-aikido-incident-hash-review-20260814",
+  "sourceUrls": [
+    "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip",
+    "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip",
+    "https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
+    "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode"
+  ],
+  "scope": "Curated exact hashes and bounded path indicators for the documented incident families; not a general file-reputation database.",
   "expiresAfterDays": 30,
   "files": [
     {

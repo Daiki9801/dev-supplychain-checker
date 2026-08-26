@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "hash": {
+      "sha256": "synthetic"
+    },
+    "pipfile-spec": 6
+  },
+  "default": {
+    "litellm": {
+      "version": "==1.82.7"
+    }
+  },
+  "develop": {}
+}

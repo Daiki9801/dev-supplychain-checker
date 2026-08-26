@@ -9,6 +9,7 @@ Review the implementation for the following before using it on real projects.
 - The single BAT launcher is thin and uses `-NoProfile`.
 - The launcher passes `-LauncherPath`, shows scanner/target/report paths before scans, and warns before continuing from an incomplete distribution.
 - `run-checker.bat major`, `run-checker.bat userprofile`, and `run-checker.bat full` require explicit confirmation.
+- `run-checker.bat full` passes `-MajorLocations -UserProfile -EndpointTelemetry -Checks AllSafe`, states that it is bounded/not full-disk/not Deep, and does not silently enable recursive dependency/build/cache traversal.
 - `run-checker.bat npmstatic` requires explicit confirmation and only passes `-Checks NpmGlobal,NpmCache`.
 - Confirmation-required launcher modes reject `--no-pause` instead of waiting for input in non-interactive use.
 - Menu item 2 keeps its number and offers Recommended or Deep after path entry; direct `run-checker.bat deep <path>` requires `YES` and rejects `--no-pause`.
@@ -23,41 +24,51 @@ Review the implementation for the following before using it on real projects.
 - `.codex` reference text, session logs, cache data, and plugin metadata without command fields do not produce DANGER by text-only examples.
 - Active AI configs, executable tooling, and plugin metadata command fields still detect external execution and token exfil patterns.
 - GitHub API clients using `GITHUB_TOKEN` for allowed read endpoints are not reported as `DANGER`.
-- Token or auth-file data sent to untrusted endpoints is still reported as `DANGER` with `riskType=active-exfil`; allowed GitHub write/install capability is `WARN` unless auth-file contents are read or sent.
-- Capability-only findings do not fill `priorityFindings`; `known-ioc`, `active-exfil`, and active config fetch-execute remain prioritized.
+- Token or auth-file data sent to untrusted endpoints is still reported as `DANGER` with `riskType=active-exfil`; allowed GitHub write/install capability without a malicious compound is `CAUTION` unless auth-file contents are read or sent.
+- Capability-only findings do not fill `priorityFindings`; `known-ioc`, `active-exfil`, active config fetch-execute, and explicit project/container Node.js `Critical`/`High` matches remain prioritized.
 - Local IOC JSON files are manually curated, offline-only, and do not trigger network refresh.
+- Reports inventory every shipped IOC dataset under `iocData`; stale, missing, or invalid data makes `iocData.releaseReady=false` while retaining historical exact indicators where available.
 - The scanner never executes `npm root -g`, `npm cache ls`, `git clone`, `git archive`, node, python, or package scripts.
 - Static npm global scanning reads bounded candidate `node_modules` roots and package metadata only.
 - Static npm cache scanning reads bounded `_cacache\index-v5|v6|v7` metadata only and never decodes `_cacache\content-v2` blobs.
-- Synthetic validation may use `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS` and `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS`; those overrides only accept paths under this repository's `tests/samples`.
+- Synthetic host-root validation requires the explicit `-SyntheticValidation` switch. `DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS`, `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS`, and `DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS` must resolve to existing paths under this repository's `tests/samples` or `reports`; missing or rejected roots fail instead of falling back to the real host.
+- Normal scanner runs ignore ambient synthetic root variables, and `run-checker.bat` clears them before launching PowerShell.
 - Cache-only IOC or watchlist matches are not `DANGER` unless paired with installed metadata or executable behavior.
 - Broad campaign package families are INFO watchlist context unless exact bad versions are verified.
 - Exact installed/lockfile/manifest package evidence can be DANGER, while range and fallback text evidence is capped at WARN.
 - Targeted `node_modules` scanning resolves only bounded in-package `main`/`module`/`browser`/`bin`/`exports`/lifecycle entrypoints and rejects traversal or reparse paths.
 - `NodeRuntime` never executes Node.js. Project declarations are static-file evidence; host candidates are bounded known paths and accepted only when `node.exe` identity metadata indicates Node.js.
 - Node runtime Critical/High is upstream advisory severity, while scanner severity is WARN for installed metadata/explicit pins and INFO for manifest constraints; version evidence alone is not DANGER.
+- `nodeRuntimeAssessment` separates installed binaries from project references; baseline-not-affected inventory entries are bounded, path-redacted, and do not claim complete CVE, EOL, signature, or provenance coverage.
 - Built-in and shipped `known-node-runtimes.json` advisory fingerprints match; malformed, missing, stale, or conflicting local data cannot replace the built-in baseline.
 - Node runtime priority candidates share the run-wide `MaxFiles` budget, use the documented 5%/1,000 cap when combined with other checks, and do not fill more than three priority findings.
 - Child project discovery is deterministic, bounded by depth/root/directory limits, always excludes VCS/dependency/build/cache directories, and continues normal scanning after partial failures.
-- `MaxFiles` applies to the run-wide `uniqueFilesQueued` set. Targeted dependency files are capped at 50%/50,000 and cannot starve ordinary source, CI/CD, or AI config scanning.
+- Project discovery recognizes `npm-shrinkwrap.json`, `Pipfile.lock`, `uv.lock`, and `composer.lock`; npm shrinkwrap and Pipfile locks use structural JSON parsing and malformed locks make candidate coverage incomplete.
+- `MaxFiles` applies to the run-wide `uniqueFilesQueued` set. Targeted dependency files are capped at 50%/10,000, divided across discovered projects, and limited to at most 2,000 per project so they cannot starve ordinary source, CI/CD, or AI config scanning.
 - Deep-only directory/file counters represent entries that a normal traversal would have skipped; verified fixture, own report, auth-content, VCS, and reparse protections remain active.
 - Known compromised GitHub Action commits are DANGER; historical and mutable refs are WARN/INFO according to confidence.
-- WebAssembly presence or remote loading alone is not DANGER; exact hashes and strong execution/exfiltration compounds remain high priority.
+- WebAssembly presence or remote loading alone is `CAUTION`, not `DANGER`; exact hashes and strong execution/exfiltration compounds remain high priority.
 - Cross-registry extension identity collisions are not classified as known-bad using ID/version alone.
 - Extension IOC matching includes `platform`; missing platform defaults to `vscode`, and JetBrains metadata uses `platform=jetbrains` without cross-platform ID collision.
-- JetBrains profile roots are scanned only under explicit UserProfile/MajorLocations modes, while Program Files and Toolbox bundled plugins require explicit `-Path`.
+- JetBrains profile roots are scanned only under explicit UserProfile/MajorLocations modes, while Program Files and Toolbox bundled plugins require explicit `-Path`. UserProfile also includes common Continue, Gemini, OpenCode, editor `mcp.json`, custom Codex/Claude configuration roots, and known credential-file no-read protection.
 - JetBrains ZIP/JAR inspection is read-only and bounded; unsafe entries, DTD/external entities, oversized/nested limits, and malformed archives are skipped and aggregated.
 - JetBrains native artifacts alone are INFO capability context; fetch/process compounds are WARN, secret harvesting plus external send is DANGER, and `.class` decompilation is not implemented.
 - `known-files.json` and `suspicious-patterns.json` entries are actually loaded and malformed regex/JSON data is reported without stopping scans.
 - GlassWorm-style C2 markers are lower severity alone and become high priority only when paired with execution, decoding, invisible Unicode, or credential access/send behavior.
 - GlassWorm-style C2 plus execution text inside `.codex` reference text, session logs, or cache data is aggregated and does not become `DANGER`.
-- AI skill reference text can produce aggregated `WARN` for executable-looking dangerous samples, but documentation-only text does not become `DANGER`.
+- AI skill reference text produces aggregated `CAUTION` for executable-looking dangerous samples, but documentation-only text does not become `WARN` or `DANGER` by itself.
+- `workflow_dispatch` alone is `CAUTION`; secrets, write permissions, or command-consumed manual inputs raise the manual-trigger finding to `WARN` without weakening existing `DANGER` compounds.
+- `coverage.summary` separates critical/non-critical failures, dependency/cache coverage status, grouped reasons, and the next bounded action.
+- `completionStatus` distinguishes `complete`, `partial-non-critical`, `incomplete-critical`, and `error`; a fully completed bounded negative result requires both `scanComplete=true` and `completionStatus=complete`.
 - Registry existence, package popularity, provenance authenticity, and slopsquatting are documented as out of scope unless exact offline IOCs are provided.
 - Own synthetic samples are skipped only when listed in the currently running `tests/samples/manifest.json` and hash or presence checks pass; unknown or modified files are scanned.
 - External scanner artifact samples are skipped only when they match the currently running manifest by relative path and hash/presence rule; external manifests are not trusted.
 - Reports include `scanner.distributionStatus`, `scanner.distributionWarnings`, `scanner.launcherPathRedacted`, and scanner artifact skip counters.
 - Scanner self IOC strings from the running script and local IOC JSON are aggregated as scanner self-reference, while external scanner script/IOC copies are not automatically suppressed.
+- External files are never exempted from active IOC or exfiltration behavior checks based only on a legacy checker filename or embedded identity markers.
+- Own report exclusion is limited to the configured report directory and exact current output files; unrelated `reports-*` source paths remain in scope, and Git ignores only the default repository-root `/reports/` directory.
 - Reparse points are skipped by default.
 - `node_modules`, `.venv`, and `vendor` are targeted by default.
+- Broader NodeRuntime host scope inspects bounded known roots plus the top level of existing local process-PATH directories without executing `node.exe`, following reparse points, or accepting UNC roots.
 - Access denied and decode failures are reported without stopping the full scan.
 - `-UserProfile` and `-EndpointTelemetry` are never used in automated validation.

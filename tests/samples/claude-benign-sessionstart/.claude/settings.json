@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "command": "node scripts/session-note.js" }
+    ]
+  }
+}
