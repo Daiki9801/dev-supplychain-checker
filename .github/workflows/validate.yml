@@ -1054,7 +1054,7 @@ jobs:
           if ($externalFinding.evidence -notmatch 'variationSelectorCount=0' -or $externalFinding.evidence -notmatch 'decoderExecutionOrExfilNear=true') {
             throw 'Decoder-with-execution evidence regression.'
           }
-          if ([int]$externalFinding.line -ne 2) { throw 'Decoder finding did not identify the coupled codePointAt call.' }
+          if ([int]$externalFinding.line -ne 9) { throw 'Decoder finding did not identify the coupled codePointAt call in the original workflow.' }
           if (@($externalWorkflow.findings | Where-Object { $_.severity -eq 'DANGER' }).Count -gt 0) {
             throw 'Decoder without an observed Variation Selector payload produced DANGER.'
           }
