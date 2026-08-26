@@ -1084,7 +1084,15 @@ jobs:
             return (Get-Content -LiteralPath $output -Raw | ConvertFrom-Json)
           }
 
-          $lockReport = Invoke-V017Scan -Name 'lockfile-scope' -Target '.\tests\samples\lockfile-scope' -Checks @('Recommended')
+          # Keep the intentionally vulnerable Pipfile data out of GitHub's dependency
+          # graph. Materialize the canonical lockfile name only inside the ephemeral
+          # runner directory used by this regression.
+          $lockFixtureRoot = Join-Path $env:RUNNER_TEMP ('v017-lockfile-scope-' + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $lockFixtureRoot -Force | Out-Null
+          Copy-Item -LiteralPath '.\tests\samples\lockfile-scope\npm-shrinkwrap.json' -Destination (Join-Path $lockFixtureRoot 'npm-shrinkwrap.json')
+          Copy-Item -LiteralPath '.\tests\samples\lockfile-scope\Pipfile.lock.fixture.json' -Destination (Join-Path $lockFixtureRoot 'Pipfile.lock')
+
+          $lockReport = Invoke-V017Scan -Name 'lockfile-scope' -Target $lockFixtureRoot -Checks @('Recommended')
           $lockMatches = @($lockReport.findings | Where-Object { $_.category -eq 'KNOWN_COMPROMISED_PACKAGE' -and $_.severity -eq 'DANGER' })
           if (@($lockMatches | Where-Object { $_.path -match 'npm-shrinkwrap\.json$' }).Count -ne 1) { throw 'npm-shrinkwrap.json exact IOC regression.' }
           if (@($lockMatches | Where-Object { $_.path -match 'Pipfile\.lock$' }).Count -ne 1) { throw 'Pipfile.lock exact IOC regression.' }

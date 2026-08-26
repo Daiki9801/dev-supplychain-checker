@@ -9,7 +9,8 @@ updates:
       time: "09:00"
       timezone: Asia/Tokyo
     open-pull-requests-limit: 3
+    exclude-paths:
+      - tests/samples/**
     labels:
       - dependencies
       - github-actions
-
