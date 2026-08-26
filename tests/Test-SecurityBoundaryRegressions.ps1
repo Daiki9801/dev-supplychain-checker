@@ -37,7 +37,9 @@ function Invoke-SyntheticScan {
         [string[]]$Arguments
     )
     & $windowsPowerShell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $ScriptPath @Arguments | Out-Null
-    return $LASTEXITCODE
+    $exitCode = $LASTEXITCODE
+    $global:LASTEXITCODE = 0
+    return $exitCode
 }
 
 function Set-ProcessEnvironment {
