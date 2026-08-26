@@ -184,20 +184,18 @@ jobs:
       - name: Check bounded text probe and binary skip
         shell: powershell
         run: |
-          $timeoutProbeScript = @'
-          [AppDomain]::CurrentDomain.SetData('REGEX_DEFAULT_MATCH_TIMEOUT', [TimeSpan]::FromMilliseconds(200))
+          $timeoutProbeRegex = New-Object System.Text.RegularExpressions.Regex(
+            '^(a+)+$',
+            [System.Text.RegularExpressions.RegexOptions]::None,
+            [TimeSpan]::FromMilliseconds(200)
+          )
           $text = ('a' * 30000) + '!'
           try {
-            $null = ($text -match '^(a+)+$')
-            'not-timeout'
+            $null = $timeoutProbeRegex.IsMatch($text)
+            throw 'Explicit regular-expression timeout was not effective.'
           }
           catch [System.Text.RegularExpressions.RegexMatchTimeoutException] {
-            'timeout'
-          }
-          '@
-          $timeoutProbe = @(& powershell.exe -NoLogo -NoProfile -Command $timeoutProbeScript)
-          if (($timeoutProbe | Select-Object -Last 1) -ne 'timeout') {
-            throw 'Windows PowerShell default regular-expression timeout is not effective.'
+            # Expected: the scanner uses this explicit timeout form for full-text regex work.
           }
 
           $probeRoot = Join-Path $env:RUNNER_TEMP 'v017-bounded-text-probe'
