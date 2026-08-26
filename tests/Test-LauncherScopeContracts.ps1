@@ -45,8 +45,8 @@ Assert-Contract -Condition (-not [bool]($scanner -match "Join-Path \`$script:Bas
 Assert-Contract -Condition (-not [bool]($scanner -match "Join-Path \`$script:BaseDir 'tests\\Test-LauncherScopeContracts[.]ps1'")) -Message 'The active launcher contract is still trusted only by scanner-relative path.'
 Assert-Contract -Condition (-not [bool]($scanner -match '\^reports\.\*\$')) -Message 'The scanner still excludes every reports-prefixed directory.'
 Assert-Contract -Condition ([bool]($scanner -match 'reportPaths\.directory')) -Message 'Own report exclusion is not bound to the configured report directory.'
-Assert-Contract -Condition ([bool]($gitignore -match '(?m)^/reports/$')) -Message '.gitignore does not ignore the exact default report directory.'
-Assert-Contract -Condition (-not [bool]($gitignore -match '(?m)^reports\*/$')) -Message '.gitignore still hides arbitrary reports-prefixed source directories.'
+Assert-Contract -Condition ([bool]($gitignore -match '(?m)^/reports/\r?$')) -Message '.gitignore does not ignore the exact default report directory.'
+Assert-Contract -Condition (-not [bool]($gitignore -match '(?m)^reports\*/\r?$')) -Message '.gitignore still hides arbitrary reports-prefixed source directories.'
 Assert-Contract -Condition ([bool]($gitattributes -match '(?m)^reports/\*\*\s+export-ignore\r?$')) -Message '.gitattributes does not exclude the exact default report directory from source archives.'
 Assert-Contract -Condition (-not [bool]($gitattributes -match '(?m)^reports\*/\*\*\s+export-ignore\r?$')) -Message '.gitattributes still hides reports-prefixed source directories from source archives.'
 
