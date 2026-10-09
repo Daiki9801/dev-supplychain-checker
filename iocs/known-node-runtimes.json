@@ -1,6 +1,9 @@
 {
   "schemaVersion": "0.1.14",
-  "lastUpdated": "2026-08-14",
+  "lastUpdated": "2026-10-06",
+  "sourceSet": "official-nodejs-critical-history-and-recent-high-review-20261006",
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
+  "reviewNotes": "All 13 shipped advisories were compared with their seven official security-release pages. The official vulnerability index has no later security release than July 2026 as of review. High entries remain within the 365-day retention window; affected ranges and fixed versions are unchanged.",
   "expiresAfterDays": 30,
   "highRetentionDays": 365,
   "advisories": [

@@ -1,15 +1,24 @@
 {
   "schemaVersion": "0.1.13",
   "defaultPlatform": "vscode",
-  "lastUpdated": "2026-08-14",
-  "sourceSet": "curated-aikido-afine-glassworm-review-20260814",
+  "lastUpdated": "2026-10-06",
+  "sourceSet": "curated-platform-qualified-extension-and-historical-watch-review-20261006",
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
+  "reviewNotes": "All 16 shipped entries were compared with the registered incident corpus and approved historical baseline. Current reports corroborate the oorzc/quartz identities, the two theme watch identities, and AFINE retains the original WakaTime/AutoImport identifiers. Nx Console and six older ID watch entries remain historical; no registry-wide absence-of-malware or fresh exact-version artifact verification is asserted.",
   "sourceUrls": [
     "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
-    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads"
+    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads",
+    "https://raw.githubusercontent.com/afine-com/glassworm-hunter/main/data/ioc.json",
+    "https://socket.dev/blog/glassworm-loader-hits-open-vsx-via-suspected-developer-account-compromise",
+    "https://socket.dev/blog/glassworm-vscode-themes"
   ],
   "scope": "Curated platform-qualified exact versions and separately identified malicious-extension watch IDs; not a registry-wide inventory.",
+  "supplementLastReviewed": "2026-10-06",
+  "supplementScope": "Two informational S11 identity watch entries, included in the complete bounded dataset review recorded above; exact artifact hashes are separate.",
   "expiresAfterDays": 30,
   "extensions": [
+    {"id":"microsoftvs.microsoftvs","platform":"vscode","versions":["*"],"severity":"INFO","confidence":"low","matchType":"id-watchlist","sourceId":"S11","notes":"Identity appears in the reported Marketplace campaign; version and cross-registry identity alone do not establish that this local artifact is malicious."},
+    {"id":"cosmic-themes.theme-cosmic-nebula","platform":"vscode","versions":["*"],"severity":"INFO","confidence":"low","matchType":"id-watchlist","sourceId":"S11","notes":"Identity appears in the reported Marketplace campaign; version and cross-registry identity alone do not establish that this local artifact is malicious."},
     {
       "id": "nrwl.angular-console",
       "versions": [

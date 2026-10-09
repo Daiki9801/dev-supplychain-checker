@@ -53,6 +53,21 @@ jobs:
         run: |
           .\tests\Test-SecurityBoundaryRegressions.ps1
 
+      - name: Check October security update regressions
+        shell: powershell
+        run: |
+          .\tests\Test-SecurityUpdate20261006.ps1
+
+      - name: Check IOC freshness and fixture integrity regressions
+        shell: powershell
+        run: |
+          .\tests\Test-IocMaintenance.ps1
+
+      - name: Check Python metadata and binary classification regressions
+        shell: powershell
+        run: |
+          .\tests\Test-PythonMetadataRegressions.ps1
+
       - name: Validate local JSON data
         shell: powershell
         run: |

@@ -1,13 +1,21 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-08-14",
-  "sourceSet": "curated-aikido-afine-campaign-technique-review-20260814",
+  "lastUpdated": "2026-10-06",
+  "sourceSet": "curated-contextual-marker-and-historical-domain-review-20261006",
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
+  "reviewNotes": "Every domain and bounded contextual regex was compared with the registered incident corpus and historical baseline. The Keyv article's contract differs from the previously approved marker; both are explicitly bounded to the shared NodeReal endpoint and remain WARN context. Historical domain/wallet and older marker provenance is retained; generic Solana, DHT, Calendar, or shared RPC infrastructure alone is not compromise evidence.",
   "sourceUrls": [
     "https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
     "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
-    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads"
+    "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads",
+    "https://safedep.io/memtensor-sckit-worm-npm-pypi",
+    "https://www.aikido.dev/blog/shai-hulud-npm-resurfaces",
+    "https://github.com/advisories/GHSA-6j8f-g5mj-4wcj",
+    "https://socket.dev/blog/glassworm-vscode-themes"
   ],
   "scope": "Bounded campaign domains and compound executable-context markers; shared infrastructure is not treated as malicious by hostname alone.",
+  "supplementLastReviewed": "2026-10-06",
+  "supplementScope": "Four bounded executable-context endpoint markers, included in the complete bounded dataset review recorded above. No new host is added to the unconditional DANGER domain collection.",
   "expiresAfterDays": 30,
   "domains": [
     "sfrclak.com",
@@ -15,6 +23,10 @@
     "npm-cache.com"
   ],
   "patterns": [
+    {"id":"supplychain_local_campaign_host_marker","regex":"(?i)(?<![a-z0-9._-])(?:[a-z0-9-]+\\.)*skyleen\\.fr(?![a-z0-9._-])","sourceId":"S03","severity":"WARN","title":"Reported supplychain.local infrastructure marker","notes":"A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.","contexts":["code","execution-config","active-ai-config","executable-tooling"]},
+    {"id":"shai_hulud_september_host_marker","regex":"(?i)(?<![a-z0-9._-])t\\.m-kosche\\.com(?![a-z0-9._-])","sourceId":"S06","severity":"WARN","title":"Reported Shai-Hulud infrastructure marker","notes":"A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.","contexts":["code","execution-config","active-ai-config","executable-tooling"]},
+    {"id":"glassworm_theme_host_marker","regex":"(?i)(?<![a-z0-9._-])fingercakes4sale\\.store(?![a-z0-9._-])","sourceId":"S11","severity":"WARN","title":"Reported GlassWorm theme infrastructure marker","notes":"A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.","contexts":["code","execution-config","active-ai-config","executable-tooling"]},
+    {"id":"virgil_secondary_transfer_endpoint_marker","regex":"(?i)(?<![a-z0-9._-])api\\.nm-streetwear\\.space/vx/learn(?![a-z0-9_/-])","sourceId":"S08","severity":"WARN","title":"Reported conversation-forwarding endpoint marker","notes":"A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.","contexts":["code","execution-config","active-ai-config","executable-tooling"]},
     {
       "id": "glassworm_solana_c2_execution_marker",
       "regex": "(@solana/web3\\.js|mainnet-beta|api\\.mainnet-beta\\.solana\\.com|solana).{0,500}(eval\\s*\\(|Function\\s*\\(|Buffer\\.from|atob\\s*\\(|process\\.env|GITHUB_TOKEN|auth\\.json)",
@@ -56,10 +68,10 @@
     },
     {
       "id": "keyv_chaindrop_nodereal_contract_marker",
-      "regex": "(eth-mainnet\\.nodereal\\.io[\\s\\S]{0,800}0xE1f239A659B4512059A66a3616A7d1093F783562|0xE1f239A659B4512059A66a3616A7d1093F783562[\\s\\S]{0,800}eth-mainnet\\.nodereal\\.io)",
+      "regex": "(eth-mainnet\\.nodereal\\.io[\\s\\S]{0,800}(?:0xE1f239A659B4512059A66a3616A7d1093F783562|0xE1f2395ee43e45A1556EC6438a88c31B83493103)|(?:0xE1f239A659B4512059A66a3616A7d1093F783562|0xE1f2395ee43e45A1556EC6438a88c31B83493103)[\\s\\S]{0,800}eth-mainnet\\.nodereal\\.io)",
       "severity": "WARN",
       "title": "Keyv ChainDrop NodeReal endpoint appears near the reported contract marker",
-      "notes": "The reported shared RPC endpoint and campaign-specific contract marker appeared together in executable context. Values redacted.",
+      "notes": "The shared RPC endpoint and either the approved historical contract marker or the contract published in the Aikido report appeared together in executable context. Values redacted.",
       "contexts": [
         "code",
         "execution-config",

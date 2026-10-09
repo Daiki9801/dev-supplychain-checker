@@ -1,15 +1,28 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-08-14",
-  "sourceSet": "curated-existing-indicator-osv-github-npm-review-20260814",
+  "lastUpdated": "2026-10-06",
+  "sourceSet": "curated-osv-npm-metadata-and-incident-review-20261006",
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
   "sourceUrls": [
     "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip",
     "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip",
     "https://api.github.com/advisories",
-    "https://registry.npmjs.org/"
+    "https://registry.npmjs.org/",
+    "https://safedep.io/jscrambler-npm-supply-chain-compromise/",
+    "https://github.com/InjectiveLabs/injective-ts/issues/697",
+    "https://github.com/advisories/GHSA-rg27-qr39-ch6w",
+    "https://www.aikido.dev/blog/popular-code-generator-for-tanstack-query-hit-by-supply-chain-worm",
+    "https://safedep.io/memtensor-sckit-worm-npm-pypi",
+    "https://github.com/advisories/GHSA-mhjf-v53x-7p87",
+    "https://github.com/advisories/GHSA-hxf9-rvj5-h45h",
+    "https://www.aikido.dev/blog/shai-hulud-npm-resurfaces",
+    "https://github.com/advisories/GHSA-xxp4-7566-29xj",
+    "https://github.com/advisories/GHSA-6j8f-g5mj-4wcj"
   ],
   "scope": "Curated exact indicators for the documented incident families; not a complete ecosystem malware feed.",
-  "reviewNotes": "The 2026-08-14 review revalidated 48 of 106 exact pairs directly in OSV snapshots; incident-specific reporting and public npm unpublished metadata were used for retained pairs not present in those snapshots. GitHub malware-advisory cursor review was bounded by the unauthenticated public API rate limit and was not treated as an exhaustive feed import.",
+  "reviewNotes": "All 124 retained exact pairs were compared with current OSV malware snapshots and public npm metadata. 68 pairs occur in non-withdrawn OSV malware records, 15 Injective pairs have explicit publisher compromise deprecations, and 41 historical pairs are corroborated by incident-family records plus registry withdrawal/publication metadata, not by independent malware analysis of every artifact. Removed jscrambler-webpack-plugin 8.6.2 and grunt-jscrambler 8.5.2 after the SafeDep incident report explicitly excluded these wrappers. See the per-entry review record for the retained historical evidence limits.",
+  "supplementLastReviewed": "2026-10-06",
+  "supplementScope": "20 exact package/version pairs from S01-S08, included in the complete bounded dataset review recorded above.",
   "expiresAfterDays": 30,
   "packages": [
     {
@@ -68,9 +81,7 @@
     { "ecosystem": "npm", "name": "@asyncapi/generator", "versions": ["3.3.1"], "severity": "DANGER", "notes": "AsyncAPI compromise exact version." },
     { "ecosystem": "npm", "name": "@asyncapi/specs", "versions": ["6.11.2", "6.11.2-alpha.1"], "severity": "DANGER", "notes": "AsyncAPI compromise exact versions." },
     { "ecosystem": "npm", "name": "jscrambler", "versions": ["8.14.0", "8.16.0", "8.17.0", "8.18.0", "8.20.0"], "severity": "DANGER", "notes": "Jscrambler compromise exact versions." },
-    { "ecosystem": "npm", "name": "jscrambler-webpack-plugin", "versions": ["8.6.2"], "severity": "DANGER", "notes": "Jscrambler related compromise exact version." },
     { "ecosystem": "npm", "name": "gulp-jscrambler", "versions": ["8.6.2"], "severity": "DANGER", "notes": "Jscrambler related compromise exact version." },
-    { "ecosystem": "npm", "name": "grunt-jscrambler", "versions": ["8.5.2"], "severity": "DANGER", "notes": "Jscrambler related compromise exact version." },
     { "ecosystem": "npm", "name": "jscrambler-metro-plugin", "versions": ["9.0.2"], "severity": "DANGER", "notes": "Jscrambler related compromise exact version." },
     { "ecosystem": "npm", "name": "@injectivelabs/sdk-ts", "versions": ["1.20.21"], "severity": "DANGER", "notes": "Injective compromise exact version." },
     { "ecosystem": "npm", "name": "@injectivelabs/utils", "versions": ["1.20.21"], "severity": "DANGER", "notes": "Injective compromise exact version." },
@@ -113,6 +124,15 @@
     { "ecosystem": "python", "name": "paysafe-kyc", "versions": ["1.0.0"], "severity": "DANGER", "notes": "Python payment brand typosquat exact version." },
     { "ecosystem": "python", "name": "paysafe-payments", "versions": ["1.0.0"], "severity": "DANGER", "notes": "Python payment brand typosquat exact version." },
     { "ecosystem": "python", "name": "paysafe-sdk", "versions": ["1.0.0"], "severity": "DANGER", "notes": "Python payment brand typosquat exact version." },
-    { "ecosystem": "python", "name": "paysafe-api", "versions": ["1.0.0"], "severity": "DANGER", "notes": "Python payment brand typosquat exact version." }
+    { "ecosystem": "python", "name": "paysafe-api", "versions": ["1.0.0"], "severity": "DANGER", "notes": "Python payment brand typosquat exact version." },
+    {"ecosystem":"npm","name":"@7nohe/openapi-react-query-codegen","versions":["0.5.4","0.5.5","1.6.3","1.6.4","2.2.1","2.2.2","3.0.3","3.0.4","0.0.0-365d4eb738d3146583431948d3ba6e27a32556be","0.0.0-ec7876d6c917dad516ba69bbfafc948b834bf0ab"],"sourceId":"S01","notes":"Trinitite exact affected versions; no broader version range is asserted.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"@memtensor/memos-cloud-openclaw-plugin","versions":["0.1.21","0.1.23","0.1.25"],"sourceId":"S04","notes":"supplychain.local runtime worm; intervening 0.1.22 and 0.1.24 were reported clean.","severity":"DANGER"},
+    {"ecosystem":"python","name":"memoryos","versions":["2.0.34"],"sourceId":"S05","notes":"supplychain.local Python distribution; import package is memos.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"feishu-docx-mcp","versions":["0.3.2"],"sourceId":"S06","notes":"September 2026 Shai-Hulud recurrence; exact reported version.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"bmc-i18n-extract-cli","versions":["1.1.1"],"sourceId":"S06","notes":"September 2026 Shai-Hulud recurrence; exact reported version.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"blueai-cli","versions":["0.7.0"],"sourceId":"S06","notes":"September 2026 Shai-Hulud recurrence; exact reported version.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"bmc-translate-utils","versions":["1.1.1"],"sourceId":"S06","notes":"September 2026 Shai-Hulud recurrence; exact reported version.","severity":"DANGER"},
+    {"ecosystem":"python","name":"anthropic-sdk","versions":["0.1.0"],"sourceId":"S07","notes":"Malicious impersonation package; distinct from the legitimate anthropic distribution.","severity":"DANGER"},
+    {"ecosystem":"npm","name":"virgil-cli","versions":["0.1.4"],"sourceId":"S08","notes":"Reported undisclosed conversation and tool-result forwarding; credential theft is not asserted.","severity":"DANGER"}
   ]
 }

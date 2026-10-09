@@ -1,6 +1,6 @@
 # Push前のPCテスト手順
 
-- 対象バージョン: **0.1.22**
+- 対象バージョン: **0.1.23**
 - 対象OS: Windows 10 / 11
 - 実行環境: Windows PowerShell 5.1
 
@@ -25,6 +25,14 @@ git rev-parse HEAD
 - 意図しない変更や未知の未追跡ファイルがない。
 - `.env`、秘密鍵、実レポート、認証ファイルをGitへ追加しない。
 
+PowerShell 7を開いている場合も、次のようにWindows PowerShell 5.1を明示して回帰テストを実行できます。`pwsh.exe` のバージョンと、BATが使う `powershell.exe` のバージョンは別です。
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+  -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File .\tests\Test-PythonMetadataRegressions.ps1
+```
+
 ## 2. 構文・JSON・差分検証
 
 ```powershell
@@ -47,7 +55,10 @@ foreach ($file in $jsonFiles) {
 }
 
 .\tests\Test-LauncherScopeContracts.ps1
-.\tests\Test-SecurityBoundaryRegressions.ps1
+.\tests\Test-SecurityBoundaryRegressions.ps1 -KeepArtifacts
+.\tests\Test-SecurityUpdate20261006.ps1
+.\tests\Test-IocMaintenance.ps1
+.\tests\Test-PythonMetadataRegressions.ps1
 
 git diff --check
 ```
@@ -57,6 +68,7 @@ git diff --check
 - parser errorが0件。
 - 全JSONが例外なく読み込める。
 - launcher scope契約と、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
+- Python短縮バージョン、PEP 440の同一性、METADATAヘッダー境界、ロックファイルの対応関係、OCR/署名バイナリとハッシュ検査の合成回帰が合格する。
 - `git diff --check` にエラーがない。改行コードの変換予告だけなら失敗ではありません。
 
 ## 3. 全合成回帰テスト
@@ -151,7 +163,7 @@ if (@($safeNodeReport.nodeRuntimeAssessment.inventory.entries | Where-Object { $
 
 合成サンプルには意図的なDANGERが含まれるため、終了コード `2` は正常です。件数は検出追加により変わり得るので、固定件数ではなく完了性・安全契約・必須カテゴリを確認します。
 
-静的IOC 5ファイルとNode.jsベースラインは2026-08-14に、Keyvキャンペーンスナップショットは2026-08-12に再確認済みです。いずれも有効期間は30日で、期限内かつ欠落・不正がなければ `iocData.releaseReady` は `true` になります。これは文書化された限定的な curated baseline の鮮度判定であり、全公開マルウェアIOCの網羅性を保証しません。警告を消す目的だけで `lastUpdated` や有効期限を変更しないでください。
+全7 IOC データセットは2026-10-06に出典台帳と照合済みです。[レビュー記録](ioc-maintenance-20261006-ja.md)と[項目別の確認根拠](ioc-maintenance-20261006-evidence.json)には、直接再確認できた値と保持した歴史的出典の制限を記録しています。いずれも有効期間は30日のままで、期限内かつ欠落・不正がなければ `iocData.releaseReady` は `true` になります。これは限定的な curated baseline 全体のレビュー・整合性判定で、全公開IOCの網羅性や各歴史的 artifact の独立再検証を保証しません。未来の日付、空 section、不正 entry、Node.js の競合・重複は公開判定を止めます。警告を消す目的だけで日付や期限を変更しないでください。
 
 ```powershell
 if ($null -eq $syntheticReport.iocData) { throw 'iocData summary is missing.' }

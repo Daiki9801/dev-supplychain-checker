@@ -2,6 +2,37 @@
 
 User-visible changes are documented here beginning with version 0.1.15. Earlier development history remains available in the Git commit history.
 
+## [0.1.23] - 2026-10-06
+
+### Added
+
+- Adds the reviewed October supplement: 20 exact npm/Python package-version pairs, 16 artifact SHA-256 indicators, Mini Shai-Hulud Action references, a separate conflibot CVE reference advisory, two INFO theme ID watchlists, and four contextual endpoint markers.
+- Adds bounded npm native-build/runtime, Python distribution-header/RECORD, IDE payload, and local CI BASH_ENV bridge candidates with merged owner, selection, and critical-coverage metadata.
+- Adds static GYP sandbox-escape/process compounds, credential-to-encoded-DNS flows, sckit/stage0 loader compounds, and conversation/tool-result secondary-transfer checks. Target code, expressions, imports, payloads, and network queries are never executed.
+- Adds optional finding provenance fields to TXT/JSON and selection, limit, hash, and Python-header counters.
+- Adds a Windows PowerShell 5.1 synthetic regression runner for the new IOC/rule/selection/report contracts. Artifacts stay under the repository reports directory. The existing boundary runner supports `-KeepArtifacts` for validation without cleanup.
+
+### Changed
+
+- Python distribution identities use normalized case and punctuation; installed METADATA is parsed only through a bounded header reader and description text is not scanned as installed-package evidence.
+- Known-hash candidates remain inspectable with their owning check, including Packages-only Python binaries and IdeExtensions-only explicit VSIX/ZIP files. Multiple hash indicators for one inspected file share one calculation.
+- Action advisory body validation cannot be overwritten by a fresh header. Historical Action entries and the built-in advisory survive an invalid or old-schema local section.
+
+### Publication status
+
+- All seven bounded datasets were compared with their source registers on 2026-10-06, keeping 30-day expiry contracts. The evidence record distinguishes direct corroboration from retained historical provenance. All 443 Keyv names and 2,235 pairs were independently corroborated in OSV malware records without changing the approved snapshot digest or original source statuses.
+
+### Fixed
+
+- Accepts Python PEP 440 short releases such as `pycparser 3.0` and `pip 24.0`; preserves epoch and local/pre/post/dev identity during IOC matching instead of extracting a partial npm-style version. Equivalent release padding and spellings normalize consistently in installed metadata and local IOC data.
+- Rejects folded/duplicate identity and malformed METADATA headers, and matches Poetry/uv package identities within one literal package block. Python version/name suffixes and unrelated lock entries no longer provide false exact IOC evidence. A focused Windows PowerShell 5.1 regression suite covers these contracts.
+- Treats OCR `.traineddata` and CMS signature `.p7s` as binary artifacts after hash checks, avoiding text size/encoding warnings. Required oversize hash candidates still retain critical incomplete coverage.
+- Repairs the pre-existing sample README hash in the fixture trust manifest; all 158 fixture entries are validated by a dedicated maintenance regression suite.
+- Rejects future review dates, missing/empty required sections, and malformed entries. Node.js conflicts, invalid or duplicate advisories, and missing built-in entries block readiness; built-in staleness cannot mask a missing/invalid local dataset.
+- Removes the two Jscrambler wrapper pairs explicitly excluded by the trusted report and includes the reported `dist/` directory in setup/intro hash selectors. Adds the public Keyv contract alongside the approved historical marker, with shared-RPC proximity still required.
+- Creates future security-boundary artifacts under `reports/` so retained synthetic fixtures do not enter ordinary source traversal. Existing retained directories are preserved.
+- Bounds CI workflow bridge selection at 2,048 lines while keeping the 128 KiB byte cap; late bridge detection and explicit critical coverage failure on over-limit workflows have synthetic regression coverage.
+
 ## [0.1.22] - 2026-08-26
 
 ### Added

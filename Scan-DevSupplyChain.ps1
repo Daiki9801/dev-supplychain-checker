@@ -25,7 +25,7 @@ param(
 )
 
 $script:ScannerName = 'Dev Supply Chain IOC Checker'
-$script:ScannerVersion = '0.1.22'
+$script:ScannerVersion = '0.1.23'
 $script:KeyvChainDropApprovedPackageHash = '7da86fddcb4bc5c4352d3f2120903a07314ae2ce3071d980061862bcbc8aa497'
 $script:Context = $null
 $script:WarnedMaxFiles = $false
@@ -61,8 +61,8 @@ $script:LikelyBinaryExtensions = @{
     '.eot'=$true; '.exe'=$true; '.flac'=$true; '.gif'=$true; '.gz'=$true; '.ico'=$true
     '.iso'=$true; '.jar'=$true; '.jpeg'=$true; '.jpg'=$true; '.lib'=$true; '.mov'=$true
     '.mp3'=$true; '.mp4'=$true; '.msi'=$true; '.node'=$true; '.ogg'=$true; '.otf'=$true
-    '.pdb'=$true; '.pdf'=$true; '.png'=$true; '.pyc'=$true; '.pyo'=$true; '.so'=$true
-    '.sqlite'=$true; '.sqlite3'=$true; '.tar'=$true; '.tgz'=$true; '.ttf'=$true
+    '.p7s'=$true; '.pdb'=$true; '.pdf'=$true; '.png'=$true; '.pyc'=$true; '.pyo'=$true; '.so'=$true
+    '.sqlite'=$true; '.sqlite3'=$true; '.tar'=$true; '.tgz'=$true; '.traineddata'=$true; '.ttf'=$true
     '.vsix'=$true; '.wasm'=$true; '.wav'=$true; '.webm'=$true; '.webp'=$true
     '.woff'=$true; '.woff2'=$true; '.xz'=$true; '.zip'=$true
 }
@@ -806,6 +806,9 @@ function Test-IsTargetedScanPath {
     }
     try { $key = [System.IO.Path]::GetFullPath($CandidatePath).ToLowerInvariant() }
     catch { return $false }
+    if ($null -ne $script:Context.securityCandidateMetadata -and $script:Context.securityCandidateMetadata.ContainsKey($key)) {
+        return [bool]$script:Context.securityCandidateMetadata[$key].selected
+    }
     return $script:Context.targetedFilePaths.ContainsKey($key)
 }
 
@@ -1168,6 +1171,11 @@ function Add-ScanStat {
         'packageLockEntriesEvaluated',
         'packageLockFallbacks',
         'incidentHashCandidates',
+        'securityUpdateCandidatesQueued',
+        'securityUpdateCandidatesAnalyzed',
+        'securityUpdateAnalysisLimits',
+        'fileHashComputations',
+        'pythonDistributionHeadersRead',
         'incidentScriptReferencesResolved',
         'criticalCandidateFailures',
         'nonCriticalCandidateFailures',
@@ -1292,7 +1300,10 @@ function Add-Finding {
         [string]$Confidence,
         [string]$Check,
         [string]$DetectionMethod,
-        $Vulnerability
+        $Vulnerability,
+        [string]$RuleId,
+        [string]$SourceId,
+        [string]$UpstreamSeverity
     )
 
     if ($null -eq $script:Context) {
@@ -1396,6 +1407,9 @@ function Add-Finding {
         evidence = $redactedEvidence
         recommendation = $redactedRecommendation
     }
+    if ($RuleId -match '^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$') { $finding['ruleId'] = $RuleId }
+    if ($SourceId -cmatch '^S[0-9]{2}$') { $finding['sourceId'] = $SourceId }
+    if ($UpstreamSeverity -in @('CRITICAL','HIGH','MODERATE','MEDIUM','LOW')) { $finding['upstreamSeverity'] = $UpstreamSeverity.ToUpperInvariant() }
     if ($null -ne $Line) {
         try {
             $lineValue = [int]$Line
@@ -1683,6 +1697,7 @@ function Set-IocDataSetStatus {
     if (-not [string]::IsNullOrWhiteSpace($LastUpdated)) {
         try {
             $parsedUpdated = [DateTime]::ParseExact($LastUpdated, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+            if ($parsedUpdated.Date -gt (Get-Date).Date -and $Status -in @('current','stale')) { $Status = 'invalid' }
             $ageDays = [Math]::Max(0, [int][Math]::Floor(((Get-Date) - $parsedUpdated).TotalDays))
             if ($ExpiresAfterDays -gt 0) {
                 $expiry = $parsedUpdated.AddDays($ExpiresAfterDays)
@@ -1799,6 +1814,8 @@ function Initialize-ScannerContext {
         iocDataSets = @{}
         queuedFilePaths = @{}
         targetedFilePaths = @{}
+        securityCandidateMetadata = @{}
+        pythonDistributionHeaders = @{}
         targetedDependencyLimitWarned = $false
         jetBrainsRootsSeen = @{}
         jetBrainsNativeRoots = @{}
@@ -1809,7 +1826,7 @@ function Initialize-ScannerContext {
         nodeRuntimeUnresolvedPaths = New-ArrayList
         nodeRuntimeInventory = New-ArrayList
         nodeRuntimeInventoryKeys = @{}
-        nodeRuntimeDataLastUpdated = '2026-08-14'
+        nodeRuntimeDataLastUpdated = '2026-10-06'
         nodeRuntimeLocalDataStatus = 'builtin-only'
         campaignIocData = [ordered]@{
             campaignId = 'keyv-chaindrop-2026-08'
@@ -1915,6 +1932,11 @@ function Initialize-ScannerContext {
             packageLockEntriesEvaluated = 0
             packageLockFallbacks = 0
             incidentHashCandidates = 0
+            securityUpdateCandidatesQueued = 0
+            securityUpdateCandidatesAnalyzed = 0
+            securityUpdateAnalysisLimits = 0
+            fileHashComputations = 0
+            pythonDistributionHeadersRead = 0
             incidentScriptReferencesResolved = 0
             criticalCandidateFailures = 0
             nonCriticalCandidateFailures = 0
@@ -2034,6 +2056,11 @@ function Get-ScanStatsForReport {
         packageLockEntriesEvaluated = [int]$script:Context.scanStats.packageLockEntriesEvaluated
         packageLockFallbacks = [int]$script:Context.scanStats.packageLockFallbacks
         incidentHashCandidates = [int]$script:Context.scanStats.incidentHashCandidates
+        securityUpdateCandidatesQueued = [int]$script:Context.scanStats.securityUpdateCandidatesQueued
+        securityUpdateCandidatesAnalyzed = [int]$script:Context.scanStats.securityUpdateCandidatesAnalyzed
+        securityUpdateAnalysisLimits = [int]$script:Context.scanStats.securityUpdateAnalysisLimits
+        fileHashComputations = [int]$script:Context.scanStats.fileHashComputations
+        pythonDistributionHeadersRead = [int]$script:Context.scanStats.pythonDistributionHeadersRead
         incidentScriptReferencesResolved = [int]$script:Context.scanStats.incidentScriptReferencesResolved
         criticalCandidateFailures = [int]$script:Context.scanStats.criticalCandidateFailures
         nonCriticalCandidateFailures = [int]$script:Context.scanStats.nonCriticalCandidateFailures
@@ -2739,6 +2766,11 @@ function Write-Reports {
     Add-ListItem $lines ("PackageLockEntriesEvaluated: {0}" -f $scanStats.packageLockEntriesEvaluated)
     Add-ListItem $lines ("PackageLockFallbacks: {0}" -f $scanStats.packageLockFallbacks)
     Add-ListItem $lines ("IncidentHashCandidates: {0}" -f $scanStats.incidentHashCandidates)
+    Add-ListItem $lines ("SecurityUpdateCandidatesQueued: {0}" -f $scanStats.securityUpdateCandidatesQueued)
+    Add-ListItem $lines ("SecurityUpdateCandidatesAnalyzed: {0}" -f $scanStats.securityUpdateCandidatesAnalyzed)
+    Add-ListItem $lines ("SecurityUpdateAnalysisLimits: {0}" -f $scanStats.securityUpdateAnalysisLimits)
+    Add-ListItem $lines ("FileHashComputations: {0}" -f $scanStats.fileHashComputations)
+    Add-ListItem $lines ("PythonDistributionHeadersRead: {0}" -f $scanStats.pythonDistributionHeadersRead)
     Add-ListItem $lines ("IncidentScriptReferencesResolved: {0}" -f $scanStats.incidentScriptReferencesResolved)
     Add-ListItem $lines ("CriticalCandidateFailures: {0}" -f $scanStats.criticalCandidateFailures)
     Add-ListItem $lines ("NonCriticalCandidateFailures: {0}" -f $scanStats.nonCriticalCandidateFailures)
@@ -2823,6 +2855,10 @@ function Write-Reports {
         }
         if (-not [string]::IsNullOrEmpty($finding.confidence)) {
             Add-ListItem $lines ("Confidence: {0}" -f $finding.confidence)
+        }
+        foreach ($field in @('ruleId','sourceId','upstreamSeverity')) {
+            $value = [string](Get-PropertyValue $finding $field)
+            if (-not [string]::IsNullOrEmpty($value)) { Add-ListItem $lines ("{0}: {1}" -f $field,$value) }
         }
         if ($null -ne $finding.vulnerability) {
             Add-ListItem $lines ("UpstreamSeverity: {0}" -f $finding.vulnerability.upstreamSeverity)
@@ -2960,10 +2996,61 @@ function Load-BuiltinNodeRuntimeIocs {
 
     return [ordered]@{
         schemaVersion = '0.1.14'
-        lastUpdated = '2026-08-14'
+        lastUpdated = '2026-10-06'
         expiresAfterDays = 30
         highRetentionDays = 365
         advisories = $items
+    }
+}
+
+function Get-SecurityUpdate20261006Iocs {
+    # Curated public-report supplement. Loading it does not renew older dataset freshness.
+    return [ordered]@{
+        packages = @(
+            [ordered]@{ ecosystem='npm'; name='@7nohe/openapi-react-query-codegen'; versions=@('0.5.4','0.5.5','1.6.3','1.6.4','2.2.1','2.2.2','3.0.3','3.0.4','0.0.0-365d4eb738d3146583431948d3ba6e27a32556be','0.0.0-ec7876d6c917dad516ba69bbfafc948b834bf0ab'); sourceId='S01'; notes='Trinitite exact affected versions; no broader version range is asserted.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='@memtensor/memos-cloud-openclaw-plugin'; versions=@('0.1.21','0.1.23','0.1.25'); sourceId='S04'; notes='supplychain.local runtime worm; intervening 0.1.22 and 0.1.24 were reported clean.'; severity='DANGER' },
+            [ordered]@{ ecosystem='python'; name='memoryos'; versions=@('2.0.34'); sourceId='S05'; notes='supplychain.local Python distribution; import package is memos.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='feishu-docx-mcp'; versions=@('0.3.2'); sourceId='S06'; notes='September 2026 Shai-Hulud recurrence; exact reported version.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='bmc-i18n-extract-cli'; versions=@('1.1.1'); sourceId='S06'; notes='September 2026 Shai-Hulud recurrence; exact reported version.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='blueai-cli'; versions=@('0.7.0'); sourceId='S06'; notes='September 2026 Shai-Hulud recurrence; exact reported version.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='bmc-translate-utils'; versions=@('1.1.1'); sourceId='S06'; notes='September 2026 Shai-Hulud recurrence; exact reported version.'; severity='DANGER' },
+            [ordered]@{ ecosystem='python'; name='anthropic-sdk'; versions=@('0.1.0'); sourceId='S07'; notes='Malicious impersonation package; distinct from the legitimate anthropic distribution.'; severity='DANGER' },
+            [ordered]@{ ecosystem='npm'; name='virgil-cli'; versions=@('0.1.4'); sourceId='S08'; notes='Reported undisclosed conversation and tool-result forwarding; credential theft is not asserted.'; severity='DANGER' }
+        )
+        files = @(
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='8e5d1af68ca340ae0c6e8132cb00c686ec2d60502c1994d94ce353d1472ad5a3'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h01'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='b49afb7dba04cd99b357ce7c652c823a3707f28e130bd5c6645851a7adc030d6'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h02'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='59370c67b54a0ccaedd265e2356f04540b2fba1e1845300ef6de4d5437d99380'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h03'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='778d6f0058045d6a2ab9a7e1d3e3be8e7e6b4d9cc217d13949bf1dfbab759a7c'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h04'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='b24d121667f21f492cb9db34fbfd515d5922a8dd30b9c45215c7220abbb10ca8'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h05'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='e1f1162ece9a6e6ea21a20399cbf31c563a8149d433a68711f4223870c203d5a'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h06'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='b6012b2ff87f08f93ee53921c48db907ddbcf5461b03bb988083b01a36886237'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h07'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])(?:3FWCvzduYZg|nu|is_it_this_simple|index)\.js$'; sha256='709af2fdeb50324229e94c44c679a0fab18bd8e17d3864405989c526cbb63ad8'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S02'; ruleId='security-20261006-h08'; notes='Trinitite reported payload hash; individual version-to-hash correspondence is not asserted.' },
+            [ordered]@{ pathPattern='(?i)[\\/]\.sckit[\\/]windows-(?:amd64|arm64)[\\/]sckit\.exe$'; sha256='56cd3416d2ec2aa7e7cec2a06010cf0b58eb09c0a5486809df52afeaca8f14be'; severity='DANGER'; ownerCheck='Packages'; artifactRole='package-runtime-binary'; sourceId='S03'; ruleId='security-20261006-h09'; notes='supplychain.local Windows sckit implant hash.' },
+            [ordered]@{ pathPattern='(?i)[\\/]\.sckit[\\/]windows-(?:amd64|arm64)[\\/]sckit\.exe$'; sha256='d6b3e77c36ee8017c9bf30d1da7218ec0ea843768d313eb8e35845c8a9b38a26'; severity='DANGER'; ownerCheck='Packages'; artifactRole='package-runtime-binary'; sourceId='S03'; ruleId='security-20261006-h10'; notes='supplychain.local Windows sckit implant hash.' },
+            [ordered]@{ pathPattern='(?i)[\\/]\.sckit[\\/]windows-(?:amd64|arm64)[\\/]sckit\.exe$'; sha256='16de381deb978744535b10f68fe15165251374b86eef18ffc2c47f61ea673047'; severity='DANGER'; ownerCheck='Packages'; artifactRole='package-runtime-binary'; sourceId='S03'; ruleId='security-20261006-h11'; notes='supplychain.local Windows sckit implant hash.' },
+            [ordered]@{ pathPattern='(?i)[\\/]\.sckit[\\/]windows-(?:amd64|arm64)[\\/]sckit\.exe$'; sha256='f7c4014e284f3d56c452b8b222a287c54f73dc4a40a7e022e765ac8376362947'; severity='DANGER'; ownerCheck='Packages'; artifactRole='package-runtime-binary'; sourceId='S03'; ruleId='security-20261006-h12'; notes='supplychain.local Windows sckit implant hash.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])index\.js$'; sha256='e37e3ddeeaaa9e0c4fdbcb829b4895a6521031c80053fc436625b61e6ee5b1a6'; severity='DANGER'; ownerCheck='Packages'; artifactRole='npm-runtime'; sourceId='S06'; ruleId='security-20261006-h13'; notes='September Shai-Hulud root index.js payload hash.' },
+            [ordered]@{ pathPattern='(?i)\.(?:vsix|zip)$'; sha256='a276b76d3b00f302bb4dfb3690125c85ff472b16049c3c37476ac5e51096df07'; severity='DANGER'; ownerCheck='IdeExtensions'; artifactRole='ide-archive'; sourceId='S11'; ruleId='security-20261006-h14'; notes='Confirmed malicious Marketplace artifact hash; extension identity alone is not sufficient.' },
+            [ordered]@{ pathPattern='(?i)[\\/]out[\\/]extension\.js$'; sha256='5e68ca8c2097caccdb74d2752b85b85595a4bf646b442b8431a2416e87dbf268'; severity='DANGER'; ownerCheck='IdeExtensions'; artifactRole='ide-payload'; sourceId='S11'; ruleId='security-20261006-h15'; notes='Confirmed malicious Marketplace artifact hash; extension identity alone is not sufficient.' },
+            [ordered]@{ pathPattern='(?i)(?:^|[\\/])app\.js$'; sha256='684c877a52d226d50584cb886ca8ec5bec6355d4de853f406734c79d5b387804'; severity='DANGER'; ownerCheck='IdeExtensions'; artifactRole='ide-payload'; sourceId='S11'; ruleId='security-20261006-h16'; notes='Confirmed malicious Marketplace artifact hash; extension identity alone is not sufficient.' }
+        )
+        actions = @(
+            [ordered]@{ repository='actions-cool/issues-helper'; compromisedCommits=@('a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d'); compromisedRefs=@('v2.2.1'); sourceId='S09'; notes='Mini Shai-Hulud: reported malicious immutable commit and historical ref. Re-enabled September 16 and disabled again September 25; current availability is not asserted.' }
+        )
+        advisories = @(
+            [ordered]@{ id='CVE-2026-55158'; repository='wktk/conflibot'; upstreamSeverity='CRITICAL'; published='2026-08-17'; sourceUrl='https://github.com/advisories/GHSA-2qvg-qr73-mqxp'; sourceId='S10'; affectedRanges=@([ordered]@{ maxExclusive='1.2.1' }); fixedVersions=@('1.2.1','2.0.0'); conditions=@('pull_request_target','attacker-controlled-head-ref') }
+        )
+        extensions = @(
+            [ordered]@{ id='microsoftvs.microsoftvs'; platform='vscode'; versions=@('*'); severity='INFO'; confidence='low'; matchType='id-watchlist'; sourceId='S11'; notes='Identity appears in the reported Marketplace campaign; version and cross-registry identity alone do not establish that this local artifact is malicious.'; allowNameFallback=$false },
+            [ordered]@{ id='cosmic-themes.theme-cosmic-nebula'; platform='vscode'; versions=@('*'); severity='INFO'; confidence='low'; matchType='id-watchlist'; sourceId='S11'; notes='Identity appears in the reported Marketplace campaign; version and cross-registry identity alone do not establish that this local artifact is malicious.'; allowNameFallback=$false }
+        )
+        patterns = @(
+            [ordered]@{ id='supplychain_local_campaign_host_marker'; regex='(?i)(?<![a-z0-9._-])(?:[a-z0-9-]+\.)*skyleen\.fr(?![a-z0-9._-])'; sourceId='S03'; severity='WARN'; title='Reported supplychain.local infrastructure marker'; notes='A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.'; contexts=@('code','execution-config','active-ai-config','executable-tooling') },
+            [ordered]@{ id='shai_hulud_september_host_marker'; regex='(?i)(?<![a-z0-9._-])t\.m-kosche\.com(?![a-z0-9._-])'; sourceId='S06'; severity='WARN'; title='Reported Shai-Hulud infrastructure marker'; notes='A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.'; contexts=@('code','execution-config','active-ai-config','executable-tooling') },
+            [ordered]@{ id='glassworm_theme_host_marker'; regex='(?i)(?<![a-z0-9._-])fingercakes4sale\.store(?![a-z0-9._-])'; sourceId='S11'; severity='WARN'; title='Reported GlassWorm theme infrastructure marker'; notes='A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.'; contexts=@('code','execution-config','active-ai-config','executable-tooling') },
+            [ordered]@{ id='virgil_secondary_transfer_endpoint_marker'; regex='(?i)(?<![a-z0-9._-])api\.nm-streetwear\.space/vx/learn(?![a-z0-9_/-])'; sourceId='S08'; severity='WARN'; title='Reported conversation-forwarding endpoint marker'; notes='A bounded reported endpoint marker appears in executable context. The marker alone does not establish execution or compromise. Values redacted.'; contexts=@('code','execution-config','active-ai-config','executable-tooling') }
+        )
     }
 }
 
@@ -2987,9 +3074,7 @@ function Load-BuiltinIocs {
     Add-BuiltinPackageIoc $packages 'npm' '@asyncapi/generator' @('3.3.1') 'AsyncAPI compromise exact version'
     Add-BuiltinPackageIoc $packages 'npm' '@asyncapi/specs' @('6.11.2','6.11.2-alpha.1') 'AsyncAPI compromise exact versions'
     Add-BuiltinPackageIoc $packages 'npm' 'jscrambler' @('8.14.0','8.16.0','8.17.0','8.18.0','8.20.0') 'Jscrambler compromise exact versions'
-    Add-BuiltinPackageIoc $packages 'npm' 'jscrambler-webpack-plugin' @('8.6.2') 'Jscrambler related compromise exact version'
     Add-BuiltinPackageIoc $packages 'npm' 'gulp-jscrambler' @('8.6.2') 'Jscrambler related compromise exact version'
-    Add-BuiltinPackageIoc $packages 'npm' 'grunt-jscrambler' @('8.5.2') 'Jscrambler related compromise exact version'
     Add-BuiltinPackageIoc $packages 'npm' 'jscrambler-metro-plugin' @('9.0.2') 'Jscrambler related compromise exact version'
     foreach ($injectiveName in @(
         '@injectivelabs/sdk-ts','@injectivelabs/utils','@injectivelabs/networks','@injectivelabs/ts-types',
@@ -3040,8 +3125,8 @@ function Load-BuiltinIocs {
     Add-BuiltinFileHashIoc $files '\\extensions\\.*\.vsix$' '97c275e3406ad6576529f41604ad138c5bdc4297d195bf61b049e14f6b30adfd' 'GlassWorm downloaded VSIX hash'
     Add-BuiltinFileHashIoc $files '\\extensions\\.*\.(exe|dll|node|so|dylib)$' '1b62b7c2ed7cc296ce821f977ef7b22bae59ef1dcdb9a34ae19467ee39bcf168' 'GlassWorm native installer hash'
     Add-BuiltinFileHashIoc $files '\\extensions\\.*\.(exe|dll|node|so|dylib)$' '4ebfe8f66ca7e9751060b3301b5e8838d6017593cdae748541de83bfa28183bd' 'GlassWorm native installer hash'
-    Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\setup\.js$' 'a742de963f14a92d24ebcbc7b44ac867e23a20d31d1b0094a13a4f83287f4e60' 'Jscrambler malicious setup.js hash'
-    Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\intro\.js$' 'a41a523ef9517aab37ed6eea0ec881821bdcb7aefcb5c5f603adc7907f868c86' 'Jscrambler malicious intro.js hash'
+    Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\(?:dist\\)?setup\.js$' 'a742de963f14a92d24ebcbc7b44ac867e23a20d31d1b0094a13a4f83287f4e60' 'Jscrambler malicious setup.js hash'
+    Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\(?:dist\\)?intro\.js$' 'a41a523ef9517aab37ed6eea0ec881821bdcb7aefcb5c5f603adc7907f868c86' 'Jscrambler malicious intro.js hash'
     Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\package\.json$' 'bba32ddeab075a5e5015eec50f5d2af364c95b848732c714aea6b6baf78f49f0' 'Jscrambler malicious package.json hash'
     Add-BuiltinFileHashIoc $files '\\node_modules\\jscrambler\\.*\.(exe|dll|node)$' 'b7ca95d1b23c8e67416a25cedf741de0917c2096bbc9d24649eea7853d054903' 'Jscrambler malicious Windows payload hash'
     Add-BuiltinFileHashIoc $files '\\\.github\\actions\\.*\.(js|cjs|mjs)$' '9f93d77d32833a515bc406c46da477142bb1ac2babeecb6aa42f98669a6db015' 'Vendored codfish semantic-release action payload hash'
@@ -3068,11 +3153,19 @@ function Load-BuiltinIocs {
     $ips = New-ArrayList
     Add-ListItem $ips '164.92.88.210'
 
+    $securityUpdate = Get-SecurityUpdate20261006Iocs
+    foreach ($entry in @($securityUpdate.packages)) { Add-ListItem $packages $entry }
+    foreach ($entry in @($securityUpdate.files)) { Add-ListItem $files $entry }
+    foreach ($entry in @($securityUpdate.actions)) { Add-ListItem $actions $entry }
+    foreach ($entry in @($securityUpdate.extensions)) { Add-ListItem $extensions $entry }
+    foreach ($entry in @($securityUpdate.patterns)) { Add-ListItem $patterns $entry }
+
     return [ordered]@{
         packages = $packages
         extensions = $extensions
         files = $files
         actions = $actions
+        actionAdvisories = @($securityUpdate.advisories)
         patterns = $patterns
         domains = $domains
         ips = $ips
@@ -3097,6 +3190,83 @@ function Get-ExtensionIocPlatform {
     $platform = [string](Get-PropertyValue $Ioc 'platform')
     if ([string]::IsNullOrWhiteSpace($platform)) { return 'vscode' }
     return $platform.ToLowerInvariant()
+}
+
+function Test-ActionAdvisoryData {
+    param($Advisory)
+    if ($null -eq $Advisory) { return $false }
+    $id = [string](Get-PropertyValue $Advisory 'id')
+    $repository = [string](Get-PropertyValue $Advisory 'repository')
+    $source = [string](Get-PropertyValue $Advisory 'sourceUrl')
+    if ($id -cnotmatch '^CVE-[0-9]{4}-[0-9]{4,8}$' -or $repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { return $false }
+    if ($source -cnotmatch '^https://github\.com/advisories/GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$') { return $false }
+    if ([string](Get-PropertyValue $Advisory 'upstreamSeverity') -notin @('CRITICAL','HIGH','MODERATE','MEDIUM','LOW')) { return $false }
+    try { $published=[DateTime]::ParseExact([string](Get-PropertyValue $Advisory 'published'), 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture); if ($published.Date -gt [DateTime]::UtcNow.Date) { return $false } }
+    catch { return $false }
+    $ranges = @((Get-PropertyValue $Advisory 'affectedRanges'))
+    $fixed = @((Get-PropertyValue $Advisory 'fixedVersions'))
+    if ($ranges.Count -lt 1 -or $ranges.Count -gt 4 -or $fixed.Count -lt 1 -or $fixed.Count -gt 8) { return $false }
+    foreach ($range in $ranges) {
+        $maximum = [string](Get-PropertyValue $range 'maxExclusive')
+        if ($maximum -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $null -eq (ConvertTo-NodeRuntimeVersion $maximum)) { return $false }
+        $minimum = [string](Get-PropertyValue $range 'minInclusive')
+        if (-not [string]::IsNullOrEmpty($minimum) -and ($minimum -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $null -eq (ConvertTo-NodeRuntimeVersion $minimum))) { return $false }
+        if (-not [string]::IsNullOrEmpty($minimum) -and (Compare-NodeRuntimeVersion -Left (ConvertTo-NodeRuntimeVersion $minimum) -Right (ConvertTo-NodeRuntimeVersion $maximum)) -ge 0) { return $false }
+    }
+    foreach ($version in $fixed) {
+        if ([string]$version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $null -eq (ConvertTo-NodeRuntimeVersion ([string]$version))) { return $false }
+    }
+    if ([string](Get-PropertyValue $Advisory 'sourceId') -cnotmatch '^S[0-9]{2}$') { return $false }
+    $conditions=@((Get-PropertyValue $Advisory 'conditions'))
+    if ($conditions.Count -lt 1 -or $conditions.Count -gt 8) { return $false }
+    foreach ($condition in $conditions) { if ([string]$condition -notmatch '^[a-z][a-z0-9_-]{0,79}$') { return $false } }
+    return $true
+}
+
+function Test-LocalIocEntry {
+    param($Entry, [string]$Section)
+    if ($null -eq $Entry -or $Entry -is [string]) { return $false }
+    if ($Section -in @('packages','extensions')) {
+        $versions = @((Get-PropertyValue $Entry 'versions'))
+        if ($versions.Count -eq 0) { return $false }
+        foreach ($version in $versions) {
+            if ($Section -eq 'extensions' -and [string]$version -eq '*') { continue }
+            $ecosystem = if ($Section -eq 'packages') { [string](Get-PropertyValue $Entry 'ecosystem') } else { 'npm' }
+            if (-not (Test-IsExactPackageVersionText -Version ([string]$version) -Ecosystem $ecosystem)) { return $false }
+        }
+        if ($Section -eq 'packages') {
+            $packageName = [string](Get-PropertyValue $Entry 'name')
+            if ([string](Get-PropertyValue $Entry 'ecosystem') -ieq 'python') {
+                return ($packageName.Length -le 128 -and $packageName -match '\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\z')
+            }
+            return ([string](Get-PropertyValue $Entry 'ecosystem') -in @('npm','python') -and
+                [string](Get-PropertyValue $Entry 'name') -match '^(?:@[a-z0-9._-]+/)?[a-z0-9._-]+$')
+        }
+        return (-not [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $Entry 'id')))
+    }
+    if ($Section -eq 'actions') {
+        if ([string](Get-PropertyValue $Entry 'repository') -notmatch '^[a-z0-9_.-]+/[a-z0-9_.-]+$') { return $false }
+        $commits = @((Get-PropertyValue $Entry 'compromisedCommits') | Where-Object {$null -ne $_})
+        $refs = @((Get-PropertyValue $Entry 'compromisedRefs') | Where-Object {-not [string]::IsNullOrWhiteSpace([string]$_)})
+        foreach ($commit in $commits) { if ([string]$commit -notmatch '^[0-9a-f]{40}$') { return $false } }
+        return (($commits.Count + $refs.Count) -gt 0)
+    }
+    if ($Section -eq 'files') {
+        $hash = [string](Get-PropertyValue $Entry 'sha256')
+        if (-not [string]::IsNullOrEmpty($hash) -and $hash -notmatch '^[0-9a-f]{64}$') { return $false }
+        $hasSelector = (-not [string]::IsNullOrEmpty($hash))
+        foreach ($field in @('path','pathPattern','fileName','pathContains')) {
+            if (-not [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $Entry $field))) { $hasSelector = $true }
+        }
+        if (-not $hasSelector) { return $false }
+    }
+    $pattern = [string](Get-PropertyValue $Entry $(if ($Section -eq 'patterns') { 'regex' } else { 'pathPattern' }))
+    if ($Section -eq 'patterns' -and ([string]::IsNullOrWhiteSpace($pattern) -or [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $Entry 'id')))) { return $false }
+    if (-not [string]::IsNullOrEmpty($pattern)) {
+        try { $null = New-Object Text.RegularExpressions.Regex($pattern, [Text.RegularExpressions.RegexOptions]::None, [TimeSpan]::FromSeconds(2)) }
+        catch { return $false }
+    }
+    return $true
 }
 
 function Load-LocalIocs {
@@ -3139,21 +3309,59 @@ function Load-LocalIocs {
             $sourceSet = [string](Get-PropertyValue $json 'sourceSet')
             $expires = 0
             $updatedDate = $null
+            $datasetStatus = 'invalid'
             try {
                 $expires = [int](Get-PropertyValue $json 'expiresAfterDays')
                 $updatedDate = [DateTime]::ParseExact($lastUpdated, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
             }
             catch { }
-            if ($null -eq $updatedDate -or $expires -lt 1 -or $expires -gt 365 -or [string]::IsNullOrWhiteSpace($sourceSet)) {
-                Set-IocDataSetStatus -Name $name -FilePath $file -Status 'invalid' -LastUpdated $lastUpdated -ExpiresAfterDays $expires
+            if ($null -eq $updatedDate -or $updatedDate.Date -gt (Get-Date).Date -or $expires -lt 1 -or $expires -gt 365 -or [string]::IsNullOrWhiteSpace($sourceSet)) {
+                $datasetStatus = 'invalid'
                 Add-Finding -Severity 'WARN' -Category 'IOC_DATA_HEADER_INVALID' -Title 'Local IOC file freshness metadata is invalid' -Path $file -Evidence 'lastUpdated, sourceSet, or expiresAfterDays failed validation; IOC entries are still loaded as historical indicators.' -Recommendation 'Repair the metadata from a documented manual review before publishing a release.' -RiskType 'limitation' -Confidence 'high' -Check 'ScannerSelf' -DetectionMethod 'metadata'
             }
             elseif ($updatedDate.AddDays($expires) -lt (Get-Date)) {
-                Set-IocDataSetStatus -Name $name -FilePath $file -Status 'stale' -LastUpdated $lastUpdated -ExpiresAfterDays $expires
+                $datasetStatus = 'stale'
                 Add-Finding -Severity 'WARN' -Category 'IOC_DATA_STALE' -Title 'Local IOC file is stale' -Path $file -Evidence ("lastUpdated={0}; expiresAfterDays={1}; historical exact indicators remain enabled." -f $lastUpdated,$expires) -Recommendation 'Manually review and update local IOC JSON from trusted sources before publishing a release.' -RiskType 'limitation' -Confidence 'high' -Check 'ScannerSelf' -DetectionMethod 'metadata'
             }
             else {
-                Set-IocDataSetStatus -Name $name -FilePath $file -Status 'current' -LastUpdated $lastUpdated -ExpiresAfterDays $expires
+                $datasetStatus = 'current'
+            }
+
+            $requiredSection = @{
+                'known-packages.json'='packages'; 'known-files.json'='files'; 'known-extensions.json'='extensions'
+                'known-actions.json'='actions'; 'suspicious-patterns.json'='patterns'
+            }[$name]
+            $sectionProperty = $json.PSObject.Properties[$requiredSection]
+            $sectionValid = ($null -ne $sectionProperty -and $sectionProperty.Value -is [Array] -and @($sectionProperty.Value).Count -gt 0)
+            if ($sectionValid) {
+                foreach ($entry in $sectionProperty.Value) {
+                    if (-not (Test-LocalIocEntry $entry $requiredSection)) { $sectionValid = $false; break }
+                }
+            }
+            if (-not $sectionValid) {
+                $datasetStatus = 'invalid'
+                Add-Finding -Severity 'WARN' -Category 'IOC_DATA_SECTION_INVALID' -Title 'A required local IOC section is missing or invalid' -Path $file -Evidence ("Required nonempty array with valid entries: {0}; historical built-in indicators remain enabled." -f $requiredSection) -Recommendation 'Restore the complete reviewed IOC dataset before publication.' -RiskType 'limitation' -Confidence 'high' -Check 'ScannerSelf' -DetectionMethod 'metadata'
+            }
+
+            if ($name -eq 'known-actions.json') {
+                $advisories = @((Get-PropertyValue $json 'advisories'))
+                $advisoriesValid = ([string](Get-PropertyValue $json 'schemaVersion') -eq '0.1.23' -and $advisories.Count -ge 1 -and $advisories.Count -le 128)
+                foreach ($advisory in @($advisories | Select-Object -First 128)) {
+                    if (-not (Test-ActionAdvisoryData $advisory)) { $advisoriesValid = $false }
+                }
+                if ($advisoriesValid) {
+                    foreach ($advisory in $advisories) {
+                        $exists = $false
+                        foreach ($existingAdvisory in @($script:Context.iocs.actionAdvisories)) {
+                            if ([string](Get-PropertyValue $existingAdvisory 'id') -eq [string](Get-PropertyValue $advisory 'id') -and [string](Get-PropertyValue $existingAdvisory 'repository') -ieq [string](Get-PropertyValue $advisory 'repository')) { $exists = $true; break }
+                        }
+                        if (-not $exists) { $script:Context.iocs.actionAdvisories += $advisory }
+                    }
+                }
+                if (-not $advisoriesValid) {
+                    $datasetStatus = 'invalid'
+                    Add-Finding -Severity 'WARN' -Category 'ACTION_ADVISORY_DATA_INVALID' -Title 'Action advisory section is missing or invalid' -Path $file -Evidence 'Historical action indicators and the limited built-in advisory remain available; this dataset is not release-ready.' -Recommendation 'Restore the reviewed 0.1.23 advisory section without renewing unreviewed historical data.' -RiskType 'limitation' -Confidence 'high' -Check 'ScannerSelf' -DetectionMethod 'metadata'
+                }
             }
 
             $packages = Get-PropertyValue $json 'packages'
@@ -3165,6 +3373,7 @@ function Load-LocalIocs {
                         versions = @((Get-PropertyValue $package 'versions'))
                         severity = [string](Get-PropertyValue $package 'severity')
                         notes = [string](Get-PropertyValue $package 'notes')
+                        sourceId = [string](Get-PropertyValue $package 'sourceId')
                     })
                 }
             }
@@ -3185,6 +3394,7 @@ function Load-LocalIocs {
                         name = [string](Get-PropertyValue $extension 'name')
                         allowNameFallback = [bool](Get-PropertyValue $extension 'allowNameFallback')
                         notes = [string](Get-PropertyValue $extension 'notes')
+                        sourceId = [string](Get-PropertyValue $extension 'sourceId')
                     })
                 }
             }
@@ -3197,6 +3407,7 @@ function Load-LocalIocs {
                         compromisedCommits = @((Get-PropertyValue $action 'compromisedCommits'))
                         compromisedRefs = @((Get-PropertyValue $action 'compromisedRefs'))
                         notes = [string](Get-PropertyValue $action 'notes')
+                        sourceId = [string](Get-PropertyValue $action 'sourceId')
                     })
                 }
             }
@@ -3212,6 +3423,10 @@ function Load-LocalIocs {
                         sha256 = ([string](Get-PropertyValue $knownFile 'sha256')).ToLowerInvariant()
                         severity = [string](Get-PropertyValue $knownFile 'severity')
                         notes = [string](Get-PropertyValue $knownFile 'notes')
+                        ownerCheck = [string](Get-PropertyValue $knownFile 'ownerCheck')
+                        artifactRole = [string](Get-PropertyValue $knownFile 'artifactRole')
+                        sourceId = [string](Get-PropertyValue $knownFile 'sourceId')
+                        ruleId = [string](Get-PropertyValue $knownFile 'ruleId')
                     })
                 }
             }
@@ -3252,9 +3467,11 @@ function Load-LocalIocs {
                         title = [string](Get-PropertyValue $pattern 'title')
                         notes = [string](Get-PropertyValue $pattern 'notes')
                         contexts = @((Get-PropertyValue $pattern 'contexts'))
+                        sourceId = [string](Get-PropertyValue $pattern 'sourceId')
                     })
                 }
             }
+            Set-IocDataSetStatus -Name $name -FilePath $file -Status $datasetStatus -LastUpdated $lastUpdated -ExpiresAfterDays $expires
         }
         catch {
             Set-IocDataSetStatus -Name $name -FilePath $file -Status 'invalid'
@@ -3371,6 +3588,7 @@ function Load-KeyvChainDropCampaignIocs {
 
         $lastReviewed = [string](Get-PropertyValue $json 'lastReviewed')
         $reviewDate = [DateTime]::ParseExact($lastReviewed, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+        if ($reviewDate.Date -gt (Get-Date).Date) { throw 'campaign review date is in the future' }
         $reviewAfterDays = [int](Get-PropertyValue $json 'reviewAfterDays')
         if ($reviewAfterDays -lt 1 -or $reviewAfterDays -gt 3650) { throw 'invalid review period' }
         $isStale = $reviewDate.AddDays($reviewAfterDays) -lt (Get-Date)
@@ -3423,15 +3641,16 @@ function Get-IocSeverityRank {
 }
 
 function Finalize-IocIndexes {
+    $script:Context.knownFileIocCandidates = $null
     $packageIndex = @{}
     $fileHashIndex = @{}
     $conflicts = 0
     foreach ($ioc in @($script:Context.iocs.packages)) {
         $ecosystem = ([string](Get-PropertyValue $ioc 'ecosystem')).Trim().ToLowerInvariant()
-        $name = ([string](Get-PropertyValue $ioc 'name')).Trim().ToLowerInvariant()
+        $name = ConvertTo-PackageIocName -Ecosystem $ecosystem -Name ([string](Get-PropertyValue $ioc 'name'))
         if ([string]::IsNullOrWhiteSpace($ecosystem) -or [string]::IsNullOrWhiteSpace($name)) { continue }
         foreach ($versionEntry in @((Get-PropertyValue $ioc 'versions'))) {
-            $version = Normalize-Version ([string]$versionEntry)
+            $version = ConvertTo-PackageIocVersion -Ecosystem $ecosystem -Version ([string]$versionEntry)
             if ([string]::IsNullOrWhiteSpace($version)) { continue }
             $key = $ecosystem + '|' + $name + '|' + $version.ToLowerInvariant()
             if ($packageIndex.ContainsKey($key)) {
@@ -3456,11 +3675,18 @@ function Finalize-IocIndexes {
     $script:Context.scanStats.packageIocDuplicatesMerged = $conflicts
 }
 
+function ConvertTo-PackageIocName {
+    param([string]$Ecosystem, [string]$Name)
+    $normalized = $Name.Trim().ToLowerInvariant()
+    if ($Ecosystem -ieq 'python') { $normalized = [regex]::Replace($normalized, '[-_.]+', '-') }
+    return $normalized
+}
+
 function Get-ExactPackageIocMatch {
     param([string]$Ecosystem, [string]$Name, [string]$Version)
     if ($null -eq $script:Context -or $null -eq $script:Context.iocIndexes) { return $null }
-    $normalizedName = $Name.Trim().ToLowerInvariant()
-    $normalizedVersion = Normalize-Version $Version
+    $normalizedName = ConvertTo-PackageIocName -Ecosystem $Ecosystem -Name $Name
+    $normalizedVersion = ConvertTo-PackageIocVersion -Ecosystem $Ecosystem -Version $Version
     if ([string]::IsNullOrWhiteSpace($normalizedName) -or [string]::IsNullOrWhiteSpace($normalizedVersion)) { return $null }
     $key = $Ecosystem.Trim().ToLowerInvariant() + '|' + $normalizedName + '|' + $normalizedVersion.ToLowerInvariant()
     if ($script:Context.iocIndexes.packages.ContainsKey($key)) { return $script:Context.iocIndexes.packages[$key] }
@@ -3550,7 +3776,10 @@ function Normalize-NodeRuntimeAdvisory {
     $published = [string](Get-PropertyValue $Advisory 'published')
     $source = [string](Get-PropertyValue $Advisory 'source')
     if ($id -notmatch '^CVE-[0-9]{4}-[0-9]{4,7}$' -or $severity -notin @('CRITICAL','HIGH') -or $source -notmatch '^https://nodejs\.org/') { return $null }
-    try { [void][DateTime]::ParseExact($published, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) }
+    try {
+        $publishedDate = [DateTime]::ParseExact($published, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+        if ($publishedDate.Date -gt (Get-Date).Date) { return $null }
+    }
     catch { return $null }
 
     $ranges = New-ArrayList
@@ -3626,7 +3855,7 @@ function Load-LocalNodeRuntimeIocs {
         }
         catch { }
         if ($schemaVersion -ne '0.1.14' -or $expiresAfterDays -ne 30 -or $highRetentionDays -ne 365 -or
-            $null -eq $parsedUpdated -or $parsedUpdated.Date -gt (Get-Date).Date.AddDays(1)) {
+            $null -eq $parsedUpdated -or $parsedUpdated.Date -gt (Get-Date).Date) {
             Set-IocDataSetStatus -Name 'known-node-runtimes.json' -FilePath $file -Status 'invalid' -LastUpdated $lastUpdated -ExpiresAfterDays $expiresAfterDays
             Add-Finding -Severity 'WARN' -Category 'NODE_RUNTIME_IOC_HEADER_INVALID' -Title 'Local Node.js runtime IOC header is invalid' -Path $file -Evidence 'The local Node.js IOC header failed schema, retention, date, or expiry validation; the built-in baseline remains active.' -Recommendation 'Restore a schemaVersion 0.1.14 file with expiresAfterDays=30, highRetentionDays=365, and a valid review date.' -RiskType 'limitation' -Confidence 'high' -Check 'NodeRuntime' -DetectionMethod 'metadata'
             $script:Context.nodeRuntimeLocalDataStatus = 'invalid-builtin-active'
@@ -3639,15 +3868,24 @@ function Load-LocalNodeRuntimeIocs {
             if ($null -ne $normalizedExisting) { $existingById[[string]$normalizedExisting.id] = $normalizedExisting }
         }
         $seenBaseline = @{}
+        $seenLocalIds = @{}
         $accepted = 0
         $conflicts = 0
+        $invalidEntries = 0
         foreach ($entry in $localAdvisories) {
             $normalized = Normalize-NodeRuntimeAdvisory $entry
             if ($null -eq $normalized) {
+                $invalidEntries++
                 Add-Finding -Severity 'WARN' -Category 'NODE_RUNTIME_IOC_ENTRY_INVALID' -Title 'Node.js runtime advisory entry is invalid' -Path $file -Evidence 'An advisory entry failed schema or trusted-source validation and was ignored.' -Recommendation 'Use an official nodejs.org security release and exact affected/fixed version boundaries.' -Check 'NodeRuntime' -DetectionMethod 'metadata'
                 continue
             }
             $id = [string]$normalized.id
+            if ($seenLocalIds.ContainsKey($id)) {
+                $invalidEntries++
+                Add-Finding -Severity 'WARN' -Category 'NODE_RUNTIME_IOC_ENTRY_INVALID' -Title 'Duplicate Node.js runtime advisory ID' -Path $file -Evidence ("Duplicate advisory ID: {0}; the built-in baseline remains active." -f $id) -Recommendation 'Keep each advisory ID unique before publication.' -Check 'NodeRuntime' -DetectionMethod 'metadata'
+                continue
+            }
+            $seenLocalIds[$id] = $true
             if ($existingById.ContainsKey($id)) {
                 $seenBaseline[$id] = $true
                 if ((Get-NodeRuntimeAdvisoryFingerprint $existingById[$id]) -ne (Get-NodeRuntimeAdvisoryFingerprint $normalized)) {
@@ -3665,11 +3903,15 @@ function Load-LocalNodeRuntimeIocs {
         if ($missingBuiltin.Count -gt 0) {
             Add-Finding -Severity 'WARN' -Category 'NODE_RUNTIME_IOC_PARITY_MISMATCH' -Title 'Shipped Node.js IOC file does not mirror the built-in baseline' -Path $file -Evidence ("Missing or unmatched built-in advisory count: {0}. Built-in data remains active." -f $missingBuiltin.Count) -Recommendation 'Restore the shipped known-node-runtimes.json before distribution.' -Check 'NodeRuntime' -DetectionMethod 'metadata'
         }
-        if ($conflicts -eq 0 -and $missingBuiltin.Count -eq 0 -and -not [string]::IsNullOrWhiteSpace($lastUpdated)) {
+        if ($conflicts -eq 0 -and $invalidEntries -eq 0 -and $missingBuiltin.Count -eq 0) {
             $script:Context.nodeRuntimeDataLastUpdated = $parsedUpdated.ToString('yyyy-MM-dd')
             $script:Context.nodeRuntimeLocalDataStatus = if ($accepted -gt 0) { 'baseline-plus-local' } else { 'baseline-parity' }
             $nodeStatus = if ($parsedUpdated.AddDays($expiresAfterDays) -lt (Get-Date)) { 'stale' } else { 'current' }
             Set-IocDataSetStatus -Name 'known-node-runtimes.json' -FilePath $file -Status $nodeStatus -LastUpdated $lastUpdated -ExpiresAfterDays $expiresAfterDays
+        }
+        else {
+            Set-IocDataSetStatus -Name 'known-node-runtimes.json' -FilePath $file -Status 'invalid' -LastUpdated $lastUpdated -ExpiresAfterDays $expiresAfterDays
+            $script:Context.nodeRuntimeLocalDataStatus = 'invalid-builtin-active'
         }
     }
     catch {
@@ -3685,7 +3927,10 @@ function Test-NodeRuntimeDataStaleness {
         $updated = [DateTime]::ParseExact([string]$script:Context.nodeRuntimeDataLastUpdated, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
         if ($updated.AddDays(30) -lt (Get-Date)) {
             $file = Join-Path $script:BaseDir 'iocs\known-node-runtimes.json'
-            Set-IocDataSetStatus -Name 'known-node-runtimes.json' -FilePath $file -Status 'stale' -LastUpdated $updated.ToString('yyyy-MM-dd') -ExpiresAfterDays 30
+            $existingStatus = Get-PropertyValue $script:Context.iocDataSets['known-node-runtimes.json'] 'status'
+            if ($existingStatus -notin @('missing','invalid')) {
+                Set-IocDataSetStatus -Name 'known-node-runtimes.json' -FilePath $file -Status 'stale' -LastUpdated $updated.ToString('yyyy-MM-dd') -ExpiresAfterDays 30
+            }
             Add-Finding -Severity 'WARN' -Category 'NODE_RUNTIME_DATA_STALE' -Title 'Node.js vulnerability data is older than 30 days' -Path $file -Evidence ("lastUpdated={0}; expiresAfterDays=30; the offline baseline may not include recent security releases." -f $updated.ToString('yyyy-MM-dd')) -Recommendation 'Manually review official Node.js security releases and update the offline baseline before publishing a release.' -RiskType 'limitation' -Confidence 'high' -Check 'NodeRuntime' -DetectionMethod 'metadata'
         }
     }
@@ -4050,8 +4295,59 @@ function Test-IsSecretInventoryFile {
     return $false
 }
 
+function Get-SecurityCandidateMetadata {
+    param([string]$Path)
+    if ($null -eq $script:Context -or $null -eq $script:Context.securityCandidateMetadata -or [string]::IsNullOrWhiteSpace($Path)) { return $null }
+    try { $key = [System.IO.Path]::GetFullPath($Path).ToLowerInvariant() } catch { return $null }
+    if ($script:Context.securityCandidateMetadata.ContainsKey($key)) { return $script:Context.securityCandidateMetadata[$key] }
+    return $null
+}
+
+function Register-SecurityCandidateMetadata {
+    param([string]$Path, [string]$Kind, [string]$OwnerCheck, [string]$SelectionReason, [string]$BoundaryRoot, [Nullable[bool]]$Critical, [switch]$Selected)
+    if ($null -eq $script:Context -or [string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($Kind)) { return }
+    try { $key = [System.IO.Path]::GetFullPath($Path).ToLowerInvariant() } catch { return }
+    if ($null -eq $script:Context.securityCandidateMetadata) { $script:Context.securityCandidateMetadata = @{} }
+    if (-not $script:Context.securityCandidateMetadata.ContainsKey($key)) {
+        $script:Context.securityCandidateMetadata[$key] = [ordered]@{
+            kind=$Kind; ownerChecks=@(); selectionReasons=@(); boundaryRoot=$BoundaryRoot
+            critical=($null -ne $Critical -and [bool]$Critical); selected=[bool]$Selected; ciBridgeProof=$false
+        }
+    }
+    $metadata = $script:Context.securityCandidateMetadata[$key]
+    if ($OwnerCheck -in $script:LeafCheckOrder -and $metadata.ownerChecks -notcontains $OwnerCheck) { $metadata.ownerChecks += $OwnerCheck }
+    if (-not [string]::IsNullOrWhiteSpace($SelectionReason) -and $metadata.selectionReasons -notcontains $SelectionReason) { $metadata.selectionReasons += $SelectionReason }
+    if ($null -ne $Critical -and [bool]$Critical) { $metadata.critical = $true }
+    if ($Selected) { $metadata.selected = $true }
+    if ([string]::IsNullOrWhiteSpace([string]$metadata.boundaryRoot)) { $metadata.boundaryRoot = $BoundaryRoot }
+    if ($Kind -eq 'incident-hash' -or ($metadata.kind -eq 'file')) { $metadata.kind = $Kind }
+}
+
+function Test-SecurityCandidateBoundary {
+    param([string]$Path, [string]$Root)
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        $metadata = Get-SecurityCandidateMetadata $Path
+        if ($null -ne $metadata) { $Root = [string]$metadata.boundaryRoot }
+    }
+    if ([string]::IsNullOrWhiteSpace($Root)) { return $true }
+    if (-not (Test-IsPathUnderRoot -CandidatePath $Path -RootPath $Root)) { return $false }
+    return (-not (Test-PathHasReparsePointBelowRoot -CandidatePath $Path -RootPath $Root))
+}
+
+function Register-SecurityAnalysisLimit {
+    param([System.IO.FileInfo]$File, [string]$FailureType)
+    Add-ScanStat -Name 'securityUpdateAnalysisLimits'
+    $kind = Get-CoverageCandidateKindForFile -File $File
+    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind $kind -FailureType $FailureType -Critical (Test-IsCriticalCandidate -Path $File.FullName -Kind $kind)
+}
+
 function Test-IsCriticalCandidate {
     param([string]$Path, [string]$Kind)
+    if ($Kind -eq 'incident-hash') { return $true }
+    $candidateMetadata = Get-SecurityCandidateMetadata $Path
+    if ($null -ne $candidateMetadata) { return [bool]$candidateMetadata.critical }
+    if ($Kind -eq 'python-distribution-metadata') { return $true }
+    if ($Kind -eq 'native-build-config') { return (-not (Test-IsDependencyOrGeneratedArtifactPath $Path) -or (Test-IsTargetedScanPath $Path)) }
     if ($Kind -in @('lockfile','installed-package','incident-hash','startup-script','vscode-task','claude-settings','ai-config','workflow','git-ref','npm-global','npm-cache')) { return $true }
     if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
     $normalized = $Path.ToLowerInvariant() -replace '/', '\'
@@ -4303,7 +4599,13 @@ function Reserve-ScanFile {
     param(
         [string]$FilePath,
         [switch]$Targeted,
-        [switch]$DeepOnly
+        [switch]$DeepOnly,
+        [string]$Kind,
+        [string]$OwnerCheck,
+        [string]$SelectionReason,
+        [string]$BoundaryRoot,
+        [Nullable[bool]]$Critical,
+        [switch]$Selected
     )
     if ([string]::IsNullOrWhiteSpace($FilePath) -or $null -eq $script:Context) { return $false }
     try {
@@ -4313,6 +4615,9 @@ function Reserve-ScanFile {
         return $false
     }
     $key = $fullPath.ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($Kind)) {
+        Register-SecurityCandidateMetadata -Path $fullPath -Kind $Kind -OwnerCheck $OwnerCheck -SelectionReason $SelectionReason -BoundaryRoot $BoundaryRoot -Critical $Critical -Selected:$Selected
+    }
     if ($script:Context.queuedFilePaths.ContainsKey($key)) { return $false }
 
     if ($Targeted) {
@@ -4331,6 +4636,7 @@ function Reserve-ScanFile {
 
     $script:Context.queuedFilePaths[$key] = $true
     Add-ScanStat -Name 'uniqueFilesQueued'
+    if (-not [string]::IsNullOrWhiteSpace($Kind)) { Add-ScanStat -Name 'securityUpdateCandidatesQueued' }
     if ($Targeted) {
         $script:Context.targetedFilePaths[$key] = $true
         Add-ScanStat -Name 'targetedDependencyFilesQueued'
@@ -4541,9 +4847,16 @@ function Scan-HostNodeRuntimes {
 }
 
 function Add-FileIfExists {
-    param($List, [string]$FilePath)
+    param($List, [string]$FilePath, [string]$Kind, [string]$OwnerCheck, [string]$SelectionReason, [string]$BoundaryRoot, [Nullable[bool]]$Critical, [switch]$Selected)
     if ([string]::IsNullOrEmpty($FilePath)) {
         return
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Kind)) {
+        Register-SecurityCandidateMetadata -Path $FilePath -Kind $Kind -OwnerCheck $OwnerCheck -SelectionReason $SelectionReason -BoundaryRoot $BoundaryRoot -Critical $Critical -Selected:$Selected
+        if (-not (Test-SecurityCandidateBoundary -Path $FilePath -Root $BoundaryRoot)) {
+            Register-CoverageFailure -Scope 'candidate' -Path $FilePath -Kind $Kind -FailureType 'path-boundary-rejected' -Critical $Critical
+            return
+        }
     }
     if ($List.Count -ge $script:TargetedPerProjectFileLimit) {
         Add-ScanStat -Name 'targetedDependencyFilesSkippedByBudget'
@@ -4570,7 +4883,7 @@ function Add-FileIfExists {
                 Add-ScanStat -Name 'scannerReportArtifactsSkipped'
                 return
             }
-            if (Reserve-ScanFile -FilePath $FilePath -Targeted) {
+            if (Reserve-ScanFile -FilePath $FilePath -Targeted -Kind $Kind -OwnerCheck $OwnerCheck -SelectionReason $SelectionReason -BoundaryRoot $BoundaryRoot -Critical $Critical -Selected:$Selected) {
                 Add-ListItem $List ([System.IO.FileInfo]$FilePath)
             }
         }
@@ -4903,18 +5216,19 @@ function Get-NpmLifecycleLocalScriptCandidates {
 function Test-PathHasReparsePointBelowRoot {
     param([string]$RootPath, [string]$CandidatePath)
     try {
-        $rootFull = [System.IO.Path]::GetFullPath($RootPath).TrimEnd('\')
+        $rootFull = [System.IO.Path]::GetFullPath($RootPath)
+        $rootPrefix = $rootFull.TrimEnd('\') + '\'
         $candidateFull = [System.IO.Path]::GetFullPath($CandidatePath)
-        if (-not $candidateFull.StartsWith($rootFull + '\', [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
-        $relative = $candidateFull.Substring($rootFull.Length + 1)
+        if (-not $candidateFull.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
+        $relative = $candidateFull.Substring($rootPrefix.Length)
         $current = $rootFull
         foreach ($segment in ($relative -split '\\')) {
             if ([string]::IsNullOrEmpty($segment)) { continue }
-            $current = Join-Path $current $segment
-            if (Test-Path -LiteralPath $current) {
-                $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop
-                if (Test-IsReparsePoint $item) { return $true }
-            }
+            $current = [System.IO.Path]::Combine($current,$segment)
+            try { $attributes=[System.IO.File]::GetAttributes($current) }
+            catch [System.IO.FileNotFoundException] { return $false }
+            catch [System.IO.DirectoryNotFoundException] { return $false }
+            if (($attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }
         }
     }
     catch {
@@ -4966,9 +5280,219 @@ function Resolve-NpmPackageEntrypointFile {
     return $null
 }
 
+function Read-BoundedSecurityCandidateText {
+    param([System.IO.FileInfo]$File, [int]$MaxBytes = 131072, [int]$MaxLines = 1024)
+    $result = [ordered]@{ ok=$false; text=''; failureType='' }
+    $stream = $null
+    try {
+        if (Test-IsSecretInventoryFile $File.FullName) { $result.failureType='secret-inventory-excluded'; return $result }
+        if (-not (Test-SecurityCandidateBoundary -Path $File.FullName)) { $result.failureType='path-boundary-rejected'; return $result }
+        $stream = [System.IO.File]::Open($File.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        $buffer = New-Object byte[] ($MaxBytes + 1)
+        $count = 0
+        while ($count -lt $buffer.Length) {
+            $read = $stream.Read($buffer, $count, $buffer.Length - $count)
+            if ($read -eq 0) { break }
+            $count += $read
+        }
+        if ($count -gt $MaxBytes) { $result.failureType='selector-byte-limit'; return $result }
+        $encoding = New-Object System.Text.UTF8Encoding($false, $true)
+        $text = $encoding.GetString($buffer, 0, $count).TrimStart([char]0xFEFF)
+        $lineCount = [regex]::Matches($text, '\n').Count
+        if ($text.Length -gt 0 -and -not $text.EndsWith("`n")) { $lineCount++ }
+        if ($lineCount -gt $MaxLines) { $result.failureType='selector-line-limit'; return $result }
+        $result.ok=$true
+        $result.text=$text
+        return $result
+    }
+    catch [System.Text.DecoderFallbackException] { $result.failureType='decode-error'; return $result }
+    catch { $result.failureType='access-denied'; return $result }
+    finally { if ($null -ne $stream) { $stream.Dispose() } }
+}
+
+function Add-TargetedNpmIncidentFiles {
+    param($List, [string]$PackageRoot, $PackageJson, [int]$PackageStartCount)
+    $scripts = Get-PropertyValue $PackageJson 'scripts'
+    $hasInstallOverride = -not [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $scripts 'install')) -or -not [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $scripts 'preinstall'))
+    $explicitGyp = $false
+    foreach ($property in @($scripts.PSObject.Properties)) {
+        if ($property.Name -match '^(preinstall|install|postinstall|prepare)$' -and [string]$property.Value -match '(?i)(node-gyp|binding\.gyp)') { $explicitGyp=$true }
+    }
+    $activeGyp = ($null -ne $PackageJson -and (-not $hasInstallOverride -or $explicitGyp))
+    $name = [string](Get-PropertyValue $PackageJson 'name')
+    $knownFamily = $name -in @('@7nohe/openapi-react-query-codegen','@memtensor/memos-cloud-openclaw-plugin','feishu-docx-mcp','bmc-i18n-extract-cli','blueai-cli','bmc-translate-utils','virgil-cli')
+    $candidates = @(
+        [ordered]@{relative='binding.gyp'; kind='native-build-config'; check='LifecycleScripts'; selected=$activeGyp; enabled=(Test-CheckEnabled 'LifecycleScripts')},
+        [ordered]@{relative='3FWCvzduYZg.js'; kind='runtime-loader'; check='Packages'; selected=$true; enabled=$true},
+        [ordered]@{relative='nu.js'; kind='runtime-loader'; check='Packages'; selected=$true; enabled=$true},
+        [ordered]@{relative='is_it_this_simple.js'; kind='runtime-loader'; check='Packages'; selected=$true; enabled=$true},
+        [ordered]@{relative='index.js'; kind='runtime-loader'; check='Packages'; selected=$true; enabled=$knownFamily},
+        [ordered]@{relative='lib/sckit.js'; kind='runtime-loader'; check='Packages'; selected=$true; enabled=$true},
+        [ordered]@{relative='.sckit/windows-amd64/sckit.exe'; kind='runtime-binary'; check='Packages'; selected=$true; enabled=$true},
+        [ordered]@{relative='.sckit/windows-arm64/sckit.exe'; kind='runtime-binary'; check='Packages'; selected=$true; enabled=$true}
+    )
+    $newCandidates=0
+    foreach ($candidate in $candidates) {
+        if (-not [bool]$candidate.enabled) { continue }
+        $path = Join-Path $PackageRoot ([string]$candidate.relative)
+        if (-not (Test-SecurityCandidateBoundary -Path $path -Root $PackageRoot)) {
+            Register-CoverageFailure -Scope 'candidate' -Path $path -Kind ([string]$candidate.kind) -FailureType 'path-boundary-rejected' -Critical $true
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+        if ($newCandidates -ge 8 -or ($List.Count - $PackageStartCount) -ge 16) {
+            Register-CoverageFailure -Scope 'candidate' -Path $path -Kind ([string]$candidate.kind) -FailureType 'package-candidate-limit' -Critical $true
+            break
+        }
+        $before = $List.Count
+        $critical = ([string]$candidate.kind -ne 'native-build-config' -or $activeGyp)
+        $selected = if ([string]$candidate.kind -eq 'native-build-config') { $activeGyp } else { $knownFamily -or (Test-IsTargetedScanPath $path) }
+        Add-FileIfExists -List $List -FilePath $path -Kind ([string]$candidate.kind) -OwnerCheck ([string]$candidate.check) -SelectionReason 'npm-fixed-incident-candidate' -BoundaryRoot $PackageRoot -Critical $critical -Selected:$selected
+        if ([string]$candidate.kind -ne 'native-build-config' -and (Test-CheckEnabled 'LifecycleScripts')) {
+            Register-SecurityCandidateMetadata -Path $path -Kind ([string]$candidate.kind) -OwnerCheck 'LifecycleScripts' -SelectionReason 'npm-runtime' -BoundaryRoot $PackageRoot -Critical $critical -Selected:$selected
+        }
+        if ($List.Count -gt $before) { $newCandidates++ }
+    }
+}
+
+function Read-PythonDistributionHeader {
+    param([System.IO.FileInfo]$File)
+    $key=$File.FullName.ToLowerInvariant()
+    if ($script:Context.pythonDistributionHeaders.ContainsKey($key)) { return $script:Context.pythonDistributionHeaders[$key] }
+    $result=[ordered]@{ok=$false; name=''; version=''; nameLine=0; versionLine=0; failureType=''; bytesRead=0}
+    $stream=$null
+    try {
+        if (-not (Test-SecurityCandidateBoundary -Path $File.FullName)) { $result.failureType='path-boundary-rejected'; return $result }
+        $stream=[System.IO.File]::Open($File.FullName,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite)
+        $lineBytes=New-Object 'System.Collections.Generic.List[byte]'
+        $encoding=New-Object System.Text.UTF8Encoding($false,$true)
+        $lineNumber=0
+        $terminated=$false
+        $lastField=''
+        while ($result.bytesRead -lt 131072 -and $lineNumber -lt 1024) {
+            $value=$stream.ReadByte()
+            if ($value -lt 0) { $terminated=$true; break }
+            $result.bytesRead++
+            if ($value -ne 10) { $lineBytes.Add([byte]$value); continue }
+            $lineNumber++
+            $line=$encoding.GetString($lineBytes.ToArray())
+            if ($line.Length -gt 0 -and $line[$line.Length-1] -eq [char]13) { $line=$line.Substring(0,$line.Length-1) }
+            if ($lineNumber -eq 1 -and $line.Length -gt 0 -and $line[0] -eq [char]0xFEFF) { $line=$line.Substring(1) }
+            $lineBytes.Clear()
+            if ($line.Length -eq 0) { $terminated=$true; break }
+            if ($line -match '[\x00-\x08\x0B-\x1F\x7F]') { $result.failureType='metadata-malformed-header'; break }
+            if ($line -match '^[ \t]') {
+                if ($lastField -in @('name','version')) { $result.failureType='metadata-folded-identity'; break }
+                if ([string]::IsNullOrEmpty($lastField)) { $result.failureType='metadata-malformed-header'; break }
+                continue
+            }
+            $field=[regex]::Match($line,'\A(?<field>[!-9;-~]+):[ \t]*(?<value>.*)\z')
+            if (-not $field.Success) { $result.failureType='metadata-malformed-header'; break }
+            $lastField=$field.Groups['field'].Value.ToLowerInvariant()
+            if ($lastField -eq 'name') {
+                if ($result.nameLine -ne 0) { $result.failureType='metadata-duplicate-name'; break }
+                $result.name=$field.Groups['value'].Value.Trim(); $result.nameLine=$lineNumber
+            }
+            elseif ($lastField -eq 'version') {
+                if ($result.versionLine -ne 0) { $result.failureType='metadata-duplicate-version'; break }
+                $result.version=$field.Groups['value'].Value.Trim(); $result.versionLine=$lineNumber
+            }
+        }
+        if (-not $terminated -and [string]::IsNullOrEmpty($result.failureType)) { $result.failureType='metadata-header-limit' }
+        if ($terminated -and $lineBytes.Count -gt 0) { $result.failureType='metadata-unterminated-header' }
+        if ([string]::IsNullOrEmpty($result.failureType)) {
+            if ($result.name.Length -gt 128 -or $result.name -notmatch '\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\z' -or -not (Test-IsExactPackageVersionText -Version $result.version -Ecosystem 'python')) { $result.failureType='metadata-identity-invalid' }
+            else { $result.ok=$true }
+        }
+    }
+    catch [System.Text.DecoderFallbackException] { $result.failureType='decode-error' }
+    catch { $result.failureType='access-denied' }
+    finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        Add-ScanStat -Name 'pythonDistributionHeadersRead'
+        $script:Context.pythonDistributionHeaders[$key]=$result
+    }
+    return $result
+}
+
+function ConvertFrom-PythonRecordLine {
+    param([string]$Line)
+    $fields=New-ArrayList
+    $value=New-Object System.Text.StringBuilder
+    $quoted=$false
+    $closedQuote=$false
+    for ($i=0; $i -lt $Line.Length; $i++) {
+        $character=$Line[$i]
+        if ($quoted) {
+            if ($character -eq [char]34) {
+                if ($i+1 -lt $Line.Length -and $Line[$i+1] -eq [char]34) { [void]$value.Append([char]34); $i++ }
+                else { $quoted=$false; $closedQuote=$true }
+            }
+            else { [void]$value.Append($character) }
+        }
+        elseif ($character -eq ',') { Add-ListItem $fields $value.ToString(); [void]$value.Clear(); $closedQuote=$false }
+        elseif ($character -eq [char]34 -and $value.Length -eq 0 -and -not $closedQuote) { $quoted=$true }
+        elseif ($closedQuote -or $character -eq [char]34) { return $null }
+        else { [void]$value.Append($character) }
+    }
+    if ($quoted) { return $null }
+    Add-ListItem $fields $value.ToString()
+    if ($fields.Count -ne 3) { return $null }
+    return [ordered]@{path=[string]$fields[0]; hash=[string]$fields[1]; size=[string]$fields[2]}
+}
+
+function Add-PythonDistributionRuntimeFiles {
+    param($List,[System.IO.FileInfo]$MetadataFile,[string]$VenvRoot)
+    $header=Read-PythonDistributionHeader $MetadataFile
+    if (-not $header.ok) { Register-SecurityAnalysisLimit -File $MetadataFile -FailureType ([string]$header.failureType); return }
+    $name=ConvertTo-PackageIocName -Ecosystem 'python' -Name ([string]$header.name)
+    if ($name -notin @('memoryos','anthropic-sdk')) { return }
+    $recordPath=Join-Path $MetadataFile.DirectoryName 'RECORD'
+    if (-not (Test-SecurityCandidateBoundary -Path $recordPath -Root $VenvRoot)) {
+        Register-CoverageFailure -Scope 'candidate' -Path $recordPath -Kind 'python-distribution-metadata' -FailureType 'path-boundary-rejected' -Critical $true
+        return
+    }
+    Add-FileIfExists -List $List -FilePath $recordPath -Kind 'python-distribution-metadata' -OwnerCheck 'Packages' -SelectionReason 'python-record' -BoundaryRoot $VenvRoot -Critical $true -Selected
+    $recordKey=([System.IO.Path]::GetFullPath($recordPath)).ToLowerInvariant()
+    if (-not $script:Context.queuedFilePaths.ContainsKey($recordKey)) {
+        Register-CoverageFailure -Scope 'candidate' -Path $recordPath -Kind 'python-distribution-metadata' -FailureType 'required-record-unavailable' -Critical $true
+        return
+    }
+    $recordFile=New-Object System.IO.FileInfo($recordPath)
+    $record=Read-BoundedSecurityCandidateText -File $recordFile
+    if (-not $record.ok) { Register-SecurityAnalysisLimit -File $recordFile -FailureType ([string]$record.failureType); return }
+    $siteRoot=Split-Path -Parent $MetadataFile.DirectoryName
+    $runtimePaths=New-ArrayList
+    foreach ($line in ($record.text -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $entry=ConvertFrom-PythonRecordLine $line
+        if ($null -eq $entry) { Register-SecurityAnalysisLimit -File $recordFile -FailureType 'record-csv-invalid'; continue }
+        $relative=([string]$entry.path) -replace '\\','/'
+        $selected=($name -eq 'memoryos' -and $relative -match '(?:^|/)memos/(?:log\.py|_stage0\.py|\.sckit/windows-(?:amd64|arm64)/sckit\.exe)$') -or ($name -eq 'anthropic-sdk' -and $relative -match '\.py$' -and $relative -notmatch '(^|/)(tests?|examples?)/')
+        if (-not $selected) { continue }
+        if ($relative -match '(^|/)\.\.(/|$)|^[\\/]|^[A-Za-z]:|^[a-z]+://' -or $relative.IndexOf([char]0) -ge 0) {
+            Register-CoverageFailure -Scope 'candidate' -Path $recordPath -Kind 'runtime-loader' -FailureType 'record-path-rejected' -Critical $true
+            continue
+        }
+        Add-ListItem $runtimePaths $relative
+    }
+    $added=0
+    foreach ($relative in @($runtimePaths.ToArray() | Sort-Object -Unique)) {
+        $runtime=Join-Path $siteRoot $relative
+        if ($added -ge 8) { Register-CoverageFailure -Scope 'candidate' -Path $recordPath -Kind 'runtime-loader' -FailureType 'distribution-candidate-limit' -Critical $true; break }
+        $kind=if ($relative -match '\.exe$') {'runtime-binary'} else {'runtime-loader'}
+        $added++
+        if (-not (Test-SecurityCandidateBoundary -Path $runtime -Root $siteRoot)) { Register-CoverageFailure -Scope 'candidate' -Path $recordPath -Kind $kind -FailureType 'record-path-rejected' -Critical $true; continue }
+        if (-not [System.IO.File]::Exists($runtime)) { Register-CoverageFailure -Scope 'candidate' -Path $runtime -Kind $kind -FailureType 'required-runtime-unavailable' -Critical $true; continue }
+        Add-FileIfExists -List $List -FilePath $runtime -Kind $kind -OwnerCheck 'Packages' -SelectionReason 'python-record-runtime' -BoundaryRoot $siteRoot -Critical $true -Selected
+        if (Test-CheckEnabled 'LifecycleScripts') { Register-SecurityCandidateMetadata -Path $runtime -Kind $kind -OwnerCheck 'LifecycleScripts' -SelectionReason 'python-import-runtime' -BoundaryRoot $siteRoot -Critical $true -Selected }
+    }
+}
+
 function Add-NodeModuleTargetedFiles {
     param($List, [string]$RootPath)
     $nodeModules = Join-Path $RootPath 'node_modules'
+    if (-not (Test-SecurityCandidateBoundary -Path $nodeModules -Root $RootPath)) { return }
     if (-not (Test-Path -LiteralPath $nodeModules -PathType Container)) { return }
     if (Test-RunFileBudgetExhausted) {
         Register-RunFileBudgetReached -CandidatePath $nodeModules
@@ -4997,6 +5521,8 @@ function Add-NodeModuleTargetedFiles {
         }
 
         foreach ($packageRoot in @($packageRoots)) {
+            $packageStartCount=$List.Count
+            $json=$null
             if ($List.Count -ge $script:TargetedPerProjectFileLimit) { break }
             if (Test-RunFileBudgetExhausted) {
                 Register-RunFileBudgetReached -CandidatePath $packageRoot
@@ -5008,6 +5534,10 @@ function Add-NodeModuleTargetedFiles {
             }
             Write-ScanHeartbeat -Stage 'targeting-node-modules' -Path $packageRoot
             $packageJsonPath = Join-Path $packageRoot 'package.json'
+            if (-not (Test-SecurityCandidateBoundary -Path $packageJsonPath -Root $packageRoot)) {
+                Register-CoverageFailure -Scope 'candidate' -Path $packageJsonPath -Kind 'installed-package' -FailureType 'path-boundary-rejected' -Critical $true
+                continue
+            }
             if (-not (Test-Path -LiteralPath $packageJsonPath -PathType Leaf)) { continue }
             Add-ScanStat -Name 'npmTargetedPackagesInspected'
             $key = ([System.IO.Path]::GetFullPath($packageJsonPath)).ToLowerInvariant()
@@ -5094,6 +5624,7 @@ function Add-NodeModuleTargetedFiles {
             catch {
                 Add-ScanStat -Name 'npmTargetedEntrypointResolutionFailures'
             }
+            Add-TargetedNpmIncidentFiles -List $List -PackageRoot $packageRoot -PackageJson $json -PackageStartCount $packageStartCount
         }
     }
     catch {
@@ -5106,6 +5637,7 @@ function Add-TargetedPythonFiles {
     $roots = @('.venv', 'venv', 'env')
     foreach ($name in $roots) {
         $venv = Join-Path $RootPath $name
+        if (-not (Test-SecurityCandidateBoundary -Path $venv -Root $RootPath)) { continue }
         if (-not (Test-Path -LiteralPath $venv -PathType Container)) {
             continue
         }
@@ -5135,10 +5667,15 @@ function Add-TargetedPythonFiles {
                 Write-ScanHeartbeat -Stage 'targeting-python-env' -Path $current
                 $dirInfo = New-Object System.IO.DirectoryInfo($current)
                 if (Test-IsReparsePoint $dirInfo) { continue }
-                $currentFiles = [System.IO.Directory]::GetFiles($current)
+                $currentFiles = @([System.IO.Directory]::GetFiles($current) | Sort-Object)
                 $hasSetupPth = $false
                 foreach ($file in $currentFiles) {
                     $leaf = [System.IO.Path]::GetFileName($file).ToLowerInvariant()
+                    if ($leaf -eq 'metadata' -and $dirInfo.Name.EndsWith('.dist-info',[StringComparison]::OrdinalIgnoreCase)) {
+                        Add-FileIfExists -List $List -FilePath $file -Kind 'python-distribution-metadata' -OwnerCheck 'Packages' -SelectionReason 'python-installed-metadata' -BoundaryRoot $venv -Critical $true -Selected
+                        $metadataKey=([System.IO.Path]::GetFullPath($file)).ToLowerInvariant()
+                        if ($script:Context.queuedFilePaths.ContainsKey($metadataKey)) { Add-PythonDistributionRuntimeFiles -List $List -MetadataFile (New-Object System.IO.FileInfo($file)) -VenvRoot $venv }
+                    }
                     if ($leaf.EndsWith('.pth') -or $leaf -eq 'sitecustomize.py' -or $leaf -eq 'usercustomize.py' -or $leaf -eq 'direct_url.json' -or $leaf -eq 'record') {
                         Add-FileIfExists $List $file
                     }
@@ -5148,13 +5685,128 @@ function Add-TargetedPythonFiles {
                     Add-FileIfExists $List (Join-Path $current '_index.js')
                     Add-FileIfExists $List (Join-Path $current '.bun_ran')
                 }
-                foreach ($subdir in [System.IO.Directory]::GetDirectories($current)) {
+                foreach ($subdir in @([System.IO.Directory]::GetDirectories($current) | Sort-Object)) {
                     $queue.Enqueue($subdir)
                 }
             }
+            if ($queue.Count -gt 0 -and $visited -ge 10000) { Register-CoverageFailure -Scope 'directory' -Path $venv -Kind 'python-distribution-metadata' -FailureType 'python-directory-limit' -Critical $true }
         }
         catch {
             Add-Finding -Severity 'INFO' -Category 'TARGETED_PYTHON_ENV_FAILED' -Title 'Targeted Python environment scan failed' -Path $venv -Evidence 'Python environment metadata enumeration failed.' -Recommendation 'Inspect Python environment hooks manually if needed.'
+        }
+    }
+}
+
+function Add-TargetedIdeIocFiles {
+    param($List,[string]$RootPath)
+    $metadataPaths=New-ArrayList
+    Add-ListItem $metadataPaths (Join-Path $RootPath 'package.json')
+    foreach ($relativeRoot in @('.vscode/extensions','.vscode-insiders/extensions','.vscode-server/extensions','.cursor/extensions')) {
+        $extensionsRoot=Join-Path $RootPath $relativeRoot
+        if (-not (Test-SecurityCandidateBoundary -Path $extensionsRoot -Root $RootPath) -or -not (Test-Path -LiteralPath $extensionsRoot -PathType Container)) { continue }
+        $inspected=0
+        foreach ($directory in @([System.IO.Directory]::GetDirectories($extensionsRoot) | Sort-Object)) {
+            if ($inspected -ge 128) { Register-CoverageFailure -Scope 'directory' -Path $extensionsRoot -Kind 'installed-package' -FailureType 'ide-root-limit' -Critical $true; break }
+            $inspected++
+            if (-not (Test-SecurityCandidateBoundary -Path $directory -Root $RootPath)) { continue }
+            Add-ListItem $metadataPaths (Join-Path $directory 'package.json')
+        }
+    }
+    foreach ($metadataPath in @($metadataPaths.ToArray() | Sort-Object -Unique)) {
+        if (Test-RunFileBudgetExhausted) { Register-RunFileBudgetReached -CandidatePath $metadataPath; break }
+        if (-not (Test-SecurityCandidateBoundary -Path $metadataPath -Root $RootPath) -or -not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) { continue }
+        $isExtensionPath=Test-IsVsCodeStyleExtensionPath $metadataPath
+        # Reserve before selector reads; a normal project package is not promoted to IDE scope by its leaf name.
+        $metadataFile=New-Object System.IO.FileInfo($metadataPath)
+        if (-not $isExtensionPath -and $metadataFile.Length -gt 131072) { continue }
+        if ($isExtensionPath) {
+            Add-FileIfExists -List $List -FilePath $metadataPath -Kind 'installed-package' -OwnerCheck 'IdeExtensions' -SelectionReason 'ide-metadata' -BoundaryRoot $RootPath -Critical $true -Selected
+        }
+        else {
+            if (-not (Reserve-ScanFile -FilePath $metadataPath -Targeted)) {
+                if (-not $script:Context.queuedFilePaths.ContainsKey($metadataPath.ToLowerInvariant())) { continue }
+            }
+            else { Add-ListItem $List $metadataFile }
+        }
+        $read=Read-BoundedSecurityCandidateText -File $metadataFile
+        if (-not $read.ok) { if ($isExtensionPath) { Register-SecurityAnalysisLimit -File $metadataFile -FailureType ([string]$read.failureType) }; continue }
+        try { $json=$read.text | ConvertFrom-Json -ErrorAction Stop }
+        catch { if ($isExtensionPath) { Register-SecurityAnalysisLimit -File $metadataFile -FailureType 'ide-metadata-invalid' }; continue }
+        $id=([string](Get-PropertyValue $json 'publisher')+'.'+[string](Get-PropertyValue $json 'name')).ToLowerInvariant()
+        if (-not $isExtensionPath -and $id -notin @('microsoftvs.microsoftvs','cosmic-themes.theme-cosmic-nebula')) { continue }
+        Register-SecurityCandidateMetadata -Path $metadataPath -Kind 'installed-package' -OwnerCheck 'IdeExtensions' -SelectionReason 'ide-metadata' -BoundaryRoot $RootPath -Critical $true -Selected
+        $extensionRoot=Split-Path -Parent $metadataPath
+        $relativePaths=New-ArrayList
+        if ($id -eq 'microsoftvs.microsoftvs') { Add-ListItem $relativePaths 'out/extension.js' }
+        if ($id -eq 'cosmic-themes.theme-cosmic-nebula') { Add-ListItem $relativePaths 'app.js' }
+        foreach ($propertyName in @('main','browser')) {
+            $value=Get-PropertyValue $json $propertyName
+            if ($value -is [string]) { Add-ListItem $relativePaths ([string]$value) }
+        }
+        $candidateCount=0
+        foreach ($relative in @($relativePaths.ToArray() | Select-Object -Unique)) {
+            if ($candidateCount -ge 3) { Register-CoverageFailure -Scope 'candidate' -Path $metadataPath -Kind 'runtime-loader' -FailureType 'ide-candidate-limit' -Critical $true; break }
+            $resolved=Resolve-NpmPackageEntrypointFile -PackageRoot $extensionRoot -Candidate ([string]$relative)
+            if ([string]::IsNullOrWhiteSpace($resolved)) {
+                $unsafe=([string]$relative -match '(^|[\\/])\.\.([\\/]|$)|^[\\/]{2}|^[A-Za-z]:|^[a-z]+://')
+                $requiredFixed=($id -eq 'microsoftvs.microsoftvs' -and $relative -eq 'out/extension.js') -or ($id -eq 'cosmic-themes.theme-cosmic-nebula' -and $relative -eq 'app.js')
+                if ($unsafe -or $requiredFixed) {
+                    $failure=if ($unsafe) {'ide-payload-path-rejected'} else {'ide-payload-unavailable'}
+                    Register-CoverageFailure -Scope 'candidate' -Path $metadataPath -Kind 'runtime-loader' -FailureType $failure -Critical $true
+                }
+                continue
+            }
+            $candidateCount++
+            Add-FileIfExists -List $List -FilePath $resolved -Kind 'runtime-loader' -OwnerCheck 'IdeExtensions' -SelectionReason 'ide-payload' -BoundaryRoot $extensionRoot -Critical $true -Selected
+        }
+    }
+}
+
+function Get-CiLocalScriptReferences {
+    param([string]$Text,[switch]$Workflow)
+    $pattern=if ($Workflow) { '(?m)^\s*(?:-\s*)?(?:run\s*:\s*)?(?:(?:bash|sh|node|python|pwsh|powershell)\s+)?(?<path>\./[A-Za-z0-9._/-]+\.(?:sh|bash|js|mjs|cjs|py|ps1))(?=\s|$)' }
+        else { '(?i)\bBASH_ENV\s*=\s*["'']?(?<path>(?:\./)?[A-Za-z0-9._/-]+\.(?:sh|bash|js|mjs|cjs|py|ps1))' }
+    return @(Get-BoundedTextRegexMatches -Text $Text -Pattern $pattern -MaximumMatches 65 | ForEach-Object { $_.Groups['path'].Value } | Select-Object -Unique)
+}
+
+function Add-TargetedCiBridgeFiles {
+    param($List,[string]$RootPath)
+    $workflowRoot=Join-Path $RootPath '.github/workflows'
+    if (-not (Test-SecurityCandidateBoundary -Path $workflowRoot -Root $RootPath) -or -not (Test-Path -LiteralPath $workflowRoot -PathType Container)) { return }
+    $workflows=@([System.IO.Directory]::GetFiles($workflowRoot) | Where-Object {$_ -match '\.ya?ml$'} | Sort-Object)
+    $scriptsAdded=0
+    $workflowCount=0
+    foreach ($workflowPath in $workflows) {
+        if ($workflowCount -ge 64) { Register-CoverageFailure -Scope 'directory' -Path $workflowRoot -Kind 'workflow' -FailureType 'ci-workflow-selector-limit' -Critical $true; break }
+        $workflowCount++
+        Add-FileIfExists -List $List -FilePath $workflowPath -Kind 'workflow' -OwnerCheck 'CiCd' -SelectionReason 'active-workflow' -BoundaryRoot $RootPath -Critical $true -Selected
+        if (-not $script:Context.queuedFilePaths.ContainsKey($workflowPath.ToLowerInvariant())) { continue }
+        $workflowFile=New-Object System.IO.FileInfo($workflowPath)
+        $read=Read-BoundedSecurityCandidateText -File $workflowFile -MaxLines 2048
+        if (-not $read.ok) { Register-SecurityAnalysisLimit -File $workflowFile -FailureType ([string]$read.failureType); continue }
+        foreach ($relative in @(Get-CiLocalScriptReferences -Text $read.text -Workflow)) {
+            if ($scriptsAdded -ge 8) { Register-CoverageFailure -Scope 'candidate' -Path $workflowPath -Kind 'runtime-loader' -FailureType 'ci-script-candidate-limit' -Critical $true; break }
+            if ($relative -match '(^|/)\.\.(/|$)|^[A-Za-z]:|^[\\/]|^[a-z]+://') { Register-CoverageFailure -Scope 'candidate' -Path $workflowPath -Kind 'runtime-loader' -FailureType 'ci-script-path-rejected' -Critical $true; continue }
+            $scriptPath=Join-Path $RootPath $relative
+            Add-FileIfExists -List $List -FilePath $scriptPath -Kind 'runtime-loader' -OwnerCheck 'CiCd' -SelectionReason 'workflow-local-script' -BoundaryRoot $RootPath -Critical $true -Selected
+            if (-not $script:Context.queuedFilePaths.ContainsKey(([System.IO.Path]::GetFullPath($scriptPath)).ToLowerInvariant())) { Register-CoverageFailure -Scope 'candidate' -Path $scriptPath -Kind 'runtime-loader' -FailureType 'ci-script-unavailable' -Critical $true; continue }
+            $scriptsAdded++
+            $scriptFile=New-Object System.IO.FileInfo($scriptPath)
+            $scriptRead=Read-BoundedSecurityCandidateText -File $scriptFile
+            if (-not $scriptRead.ok) { Register-SecurityAnalysisLimit -File $scriptFile -FailureType ([string]$scriptRead.failureType); continue }
+            $writesBashEnv=Test-BoundedTextRegex -Text $scriptRead.text -Pattern '(?im)^\s*(?:echo|printf)\b[^\r\n]*\bBASH_ENV\s*=[^\r\n]*>>?\s*["'']?\$\{?GITHUB_ENV\b'
+            if (-not $writesBashEnv) { continue }
+            foreach ($bridgeRelative in @(Get-CiLocalScriptReferences -Text $scriptRead.text)) {
+                if ($scriptsAdded -ge 8) { Register-SecurityAnalysisLimit -File $scriptFile -FailureType 'ci-script-candidate-limit'; break }
+                if ($bridgeRelative -match '(^|/)\.\.(/|$)|^[A-Za-z]:|^[\\/]|^[a-z]+://') { Register-SecurityAnalysisLimit -File $scriptFile -FailureType 'ci-bridge-path-rejected'; continue }
+                $bridgePath=Join-Path $RootPath $bridgeRelative
+                if (-not (Test-SecurityCandidateBoundary -Path $bridgePath -Root $RootPath)) { Register-SecurityAnalysisLimit -File $scriptFile -FailureType 'ci-bridge-path-rejected'; continue }
+                Add-FileIfExists -List $List -FilePath $bridgePath -Kind 'runtime-loader' -OwnerCheck 'CiCd' -SelectionReason 'ci-publish-bridge' -BoundaryRoot $RootPath -Critical $true -Selected
+                $bridgeMetadata=Get-SecurityCandidateMetadata $bridgePath
+                if (-not [System.IO.File]::Exists($bridgePath)) { Register-SecurityAnalysisLimit -File $scriptFile -FailureType 'ci-bridge-unavailable'; continue }
+                if ($null -ne $bridgeMetadata) { $bridgeMetadata.ciBridgeProof=$true }
+                $scriptsAdded++
+            }
         }
     }
 }
@@ -5186,6 +5838,8 @@ function Get-TargetedFileList {
             }
         }
     }
+    if (Test-CheckEnabled 'IdeExtensions') { Add-TargetedIdeIocFiles -List $result -RootPath $RootPath }
+    if (Test-CheckEnabled 'CiCd') { Add-TargetedCiBridgeFiles -List $result -RootPath $RootPath }
     return $result
 }
 
@@ -5218,8 +5872,12 @@ function Test-IsLikelyBinaryFile {
 function Get-CoverageCandidateKindForFile {
     param([System.IO.FileInfo]$File)
     if ($null -eq $File) { return 'file' }
+    $candidateMetadata = Get-SecurityCandidateMetadata $File.FullName
+    if ($null -ne $candidateMetadata) { return [string]$candidateMetadata.kind }
     $name = $File.Name.ToLowerInvariant()
     $path = $File.FullName.ToLowerInvariant() -replace '/', '\'
+    if ($File.Extension -ieq '.gyp') { return 'native-build-config' }
+    if ($name -eq 'metadata' -and $path -match '\\.dist-info\\metadata$|\\[^\\]+\.dist-info\\metadata$') { return 'python-distribution-metadata' }
     if ($name -in @('package-lock.json','npm-shrinkwrap.json','pnpm-lock.yaml','yarn.lock','bun.lock','bun.lockb','pipfile.lock','poetry.lock','uv.lock','composer.lock')) { return 'lockfile' }
     if ($name -eq 'package.json' -and $path -match '\\node_modules\\') { return 'installed-package' }
     if ($name -in @('setup.mjs','math_symbol.js','math_init.js')) { return 'incident-hash' }
@@ -5244,6 +5902,10 @@ function Read-TextFileSafe {
     }
 
     try {
+        if (-not (Test-SecurityCandidateBoundary -Path $File.FullName)) {
+            Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind (Get-CoverageCandidateKindForFile $File) -FailureType 'path-boundary-rejected'
+            return $result
+        }
         if ($File.Length -gt $maxBytes) {
             Add-Finding -Severity 'INFO' -Category 'FILE_TOO_LARGE_SKIPPED' -Title 'File skipped because it exceeds size limit' -Path $File.FullName -Evidence ("Length exceeds MaxFileSizeMB={0}." -f $MaxFileSizeMB) -Recommendation 'Increase MaxFileSizeMB or inspect manually if this file is important.'
             Add-ScanStat -Name 'filesSkipped'
@@ -6294,9 +6956,37 @@ function Test-ReferenceTextExecutableSamplePattern {
     return $false
 }
 
+function Get-KnownFileIocCandidates {
+    if ($null -ne $script:Context.knownFileIocCandidates) { return @($script:Context.knownFileIocCandidates) }
+    $entries=New-ArrayList
+    $compiled=@{}
+    foreach ($ioc in @($script:Context.iocs.files)) {
+        $pattern=[string](Get-PropertyValue $ioc 'pathPattern')
+        $patternOnly=-not [string]::IsNullOrEmpty($pattern) -and [string]::IsNullOrEmpty([string](Get-PropertyValue $ioc 'fileName')) -and [string]::IsNullOrEmpty([string](Get-PropertyValue $ioc 'path'))
+        $regex=$null
+        if ($patternOnly) {
+            if (-not $compiled.ContainsKey($pattern)) {
+                try { $compiled[$pattern]=New-Object System.Text.RegularExpressions.Regex($pattern,[System.Text.RegularExpressions.RegexOptions]::IgnoreCase,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds)) }
+                catch { $compiled[$pattern]=$null }
+            }
+            $regex=$compiled[$pattern]
+        }
+        Add-ListItem $entries ([ordered]@{ioc=$ioc; pathRegex=$regex; ownerCheck=[string](Get-PropertyValue $ioc 'ownerCheck')})
+    }
+    $script:Context.knownFileIocCandidates=@($entries.ToArray())
+    return @($script:Context.knownFileIocCandidates)
+}
+
 function Test-KnownFileIocMatch {
     param([System.IO.FileInfo]$File, $Ioc)
     if ($null -eq $File -or $null -eq $Ioc) { return $false }
+    $artifactRole = [string](Get-PropertyValue $Ioc 'artifactRole')
+    if ($artifactRole -in @('ide-archive','ide-payload')) {
+        $candidateMetadata = Get-SecurityCandidateMetadata $File.FullName
+        $isIdeCandidate = (Test-IsVsCodeStyleExtensionPath $File.FullName) -or ($null -ne $candidateMetadata -and $candidateMetadata.ownerChecks -contains 'IdeExtensions')
+        if (-not $isIdeCandidate) { return $false }
+        if ($artifactRole -eq 'ide-archive' -and $null -ne $candidateMetadata -and $candidateMetadata.selectionReasons -notcontains 'explicit-ide-archive' -and -not (Test-IsVsCodeStyleExtensionPath $File.FullName)) { return $false }
+    }
     $path = $File.FullName -replace '/', '\'
     $pathLower = $path.ToLowerInvariant()
 
@@ -6348,20 +7038,29 @@ function Add-KnownFileIocFinding {
     elseif (Test-IsVsCodeStyleExtensionPath $File.FullName) { $checkName = 'IdeExtensions' }
     elseif ($pathLower -match '\\node_modules\\') { $checkName = 'Packages' }
     elseif ($pathLower -match '\\\.github\\actions\\') { $checkName = 'CiCd' }
+    $declaredOwner = [string](Get-PropertyValue $Ioc 'ownerCheck')
+    if ($declaredOwner -in $script:LeafCheckOrder) { $checkName = $declaredOwner }
     if ([string](Get-PropertyValue $Ioc 'campaignId') -eq 'keyv-chaindrop-2026-08') {
         $checkName = 'LifecycleScripts'
         $category = 'KNOWN_MALICIOUS_FILE_HASH'
         $title = 'Known Keyv/ChainDrop file hash detected'
         $evidence = ("Exact SHA-256 campaign IOC matched. Notes: {0}" -f $notes)
     }
-    Add-Finding -Severity $severity -Category $category -Title $title -Path $File.FullName -Evidence $evidence -Recommendation 'Preserve evidence and verify endpoint context before deleting or modifying the file.' -RiskType 'known-ioc' -Confidence 'high' -Check $checkName -DetectionMethod 'metadata'
+    Add-Finding -Severity $severity -Category $category -Title $title -Path $File.FullName -Evidence $evidence -Recommendation 'Preserve evidence and verify endpoint context before deleting or modifying the file.' -RiskType 'known-ioc' -Confidence 'high' -Check $checkName -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $Ioc 'sourceId')) -RuleId ([string](Get-PropertyValue $Ioc 'ruleId'))
 }
 
 function Scan-KnownFileIocs {
     param([System.IO.FileInfo]$File)
     if ($null -eq $File -or $null -eq $script:Context -or $null -eq $script:Context.iocs) { return }
     $seenHashes = @{}
-    foreach ($ioc in @($script:Context.iocs.files)) {
+    $actualHash = ''
+    $hashAttempted = $false
+    $normalizedPath=$File.FullName -replace '/', '\'
+    foreach ($candidate in @(Get-KnownFileIocCandidates)) {
+        if ($null -ne $candidate.pathRegex -and -not $candidate.pathRegex.IsMatch($normalizedPath)) { continue }
+        $ioc=$candidate.ioc
+        $ownerCheck = [string]$candidate.ownerCheck
+        if (-not [string]::IsNullOrWhiteSpace($ownerCheck) -and -not (Test-CheckEnabled $ownerCheck)) { continue }
         if (-not (Test-KnownFileIocMatch -File $File -Ioc $ioc)) { continue }
         $expectedHash = [string](Get-PropertyValue $ioc 'sha256')
         if (-not [string]::IsNullOrEmpty($expectedHash)) {
@@ -6369,15 +7068,23 @@ function Scan-KnownFileIocs {
             if ($seenHashes.ContainsKey($hashKey)) { continue }
             $seenHashes[$hashKey] = $true
             if ($File.Name -match '^(?i:setup\.mjs|Math_Symbol\.js|math_init\.js)$') { Add-ScanStat -Name 'incidentHashCandidates' }
-            if ($File.Length -gt ([int64]$MaxFileSizeMB * 1024 * 1024)) {
-                Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'incident-hash' -FailureType 'too-large' -Critical $true
-                continue
+            if (-not $hashAttempted) {
+                $hashAttempted = $true
+                if (-not (Test-SecurityCandidateBoundary -Path $File.FullName)) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'incident-hash' -FailureType 'path-boundary-rejected' -Critical $true
+                }
+                elseif ($File.Length -gt ([int64]$MaxFileSizeMB * 1024 * 1024)) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'incident-hash' -FailureType 'too-large' -Critical $true
+                }
+                else {
+                    Add-ScanStat -Name 'fileHashComputations'
+                    $actualHash = Get-BytesSha256ForFile $File.FullName
+                    if ([string]::IsNullOrEmpty($actualHash)) {
+                        Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'incident-hash' -FailureType 'access-denied' -Critical $true
+                    }
+                }
             }
-            $actualHash = Get-BytesSha256ForFile $File.FullName
-            if ([string]::IsNullOrEmpty($actualHash)) {
-                Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'incident-hash' -FailureType 'access-denied' -Critical (Test-IsCriticalCandidate -Path $File.FullName -Kind 'incident-hash')
-                continue
-            }
+            if ([string]::IsNullOrEmpty($actualHash)) { continue }
             if ($actualHash.ToLowerInvariant() -ne $expectedHash.ToLowerInvariant()) {
                 continue
             }
@@ -6451,7 +7158,7 @@ function Scan-LocalSuspiciousTextPatterns {
             if ([string]::IsNullOrEmpty($title)) { $title = 'Local suspicious text pattern matched' }
             $notes = [string](Get-PropertyValue $patternIoc 'notes')
             if ([string]::IsNullOrEmpty($notes)) { $notes = 'Local suspicious pattern matched. Line content redacted.' }
-            Add-Finding -Severity $severity -Category $id.ToUpperInvariant() -Title $title -Path $File.FullName -Line (Get-LineNumberForIndex -Text $Text -Index $match.Index) -Evidence $notes -Recommendation 'Review the file context manually and update local IOC data if this is no longer relevant.'
+            Add-Finding -Severity $severity -Category $id.ToUpperInvariant() -Title $title -Path $File.FullName -Line (Get-LineNumberForIndex -Text $Text -Index $match.Index) -Evidence $notes -Recommendation 'Review the file context manually and update local IOC data if this is no longer relevant.' -SourceId ([string](Get-PropertyValue $patternIoc 'sourceId')) -RuleId $id
         }
         catch [System.Text.RegularExpressions.RegexMatchTimeoutException] {
             throw
@@ -6997,9 +7704,58 @@ function Normalize-Version {
     return $v.TrimStart('v','^','~','=','>','<',' ')
 }
 
-function Test-IsExactPackageVersionText {
+function ConvertTo-PythonPackageVersion {
     param([string]$Version)
+    if ([string]::IsNullOrWhiteSpace($Version) -or $Version.Length -gt 128) { return '' }
+    # PEP 440 public/local identity only; constraints and partial matches are never accepted.
+    $pattern='\Av?(?:(?<epoch>[0-9]+)!)?(?<release>[0-9]+(?:\.[0-9]+)*)(?:[-_.]?(?<pre>alpha|beta|preview|pre|rc|a|b|c)[-_.]?(?<preNumber>[0-9]+)?)?(?:-(?<postNumber1>[0-9]+)|[-_.]?(?<post>post|rev|r)[-_.]?(?<postNumber2>[0-9]+)?)?(?:[-_.]?(?<dev>dev)[-_.]?(?<devNumber>[0-9]+)?)?(?:\+(?<local>[0-9a-z]+(?:[-_.][0-9a-z]+)*))?\z'
+    $match=[regex]::Match($Version.Trim(),$pattern,[Text.RegularExpressions.RegexOptions]::IgnoreCase -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant,[TimeSpan]::FromSeconds(2))
+    if (-not $match.Success) { return '' }
+    $normalized=''
+    if ($match.Groups['epoch'].Success) {
+        $epoch=[regex]::Replace($match.Groups['epoch'].Value,'\A0+(?=[0-9])','')
+        if ($epoch -ne '0') { $normalized=$epoch+'!' }
+    }
+    $release=@($match.Groups['release'].Value.Split('.') | ForEach-Object {[regex]::Replace($_,'\A0+(?=[0-9])','')})
+    $normalized+=[string]::Join('.',[string[]]$release)
+    if ($match.Groups['pre'].Success) {
+        $label=switch ($match.Groups['pre'].Value.ToLowerInvariant()) { 'alpha' {'a'}; 'beta' {'b'}; 'preview' {'rc'}; 'pre' {'rc'}; 'c' {'rc'}; default {$match.Groups['pre'].Value.ToLowerInvariant()} }
+        $number=$match.Groups['preNumber'].Value
+        if ([string]::IsNullOrEmpty($number)) { $number='0' }
+        $normalized+=$label+[regex]::Replace($number,'\A0+(?=[0-9])','')
+    }
+    if ($match.Groups['post'].Success -or $match.Groups['postNumber1'].Success) {
+        $number=if ($match.Groups['postNumber1'].Success) {$match.Groups['postNumber1'].Value} else {$match.Groups['postNumber2'].Value}
+        if ([string]::IsNullOrEmpty($number)) { $number='0' }
+        $normalized+='.post'+[regex]::Replace($number,'\A0+(?=[0-9])','')
+    }
+    if ($match.Groups['dev'].Success) {
+        $number=$match.Groups['devNumber'].Value
+        if ([string]::IsNullOrEmpty($number)) { $number='0' }
+        $normalized+='.dev'+[regex]::Replace($number,'\A0+(?=[0-9])','')
+    }
+    if ($match.Groups['local'].Success) {
+        $segments=@($match.Groups['local'].Value.ToLowerInvariant() -split '[-_.]' | ForEach-Object {if ($_ -match '\A[0-9]+\z') {[regex]::Replace($_,'\A0+(?=[0-9])','')} else {$_}})
+        $normalized+='+'+[string]::Join('.',[string[]]$segments)
+    }
+    return $normalized
+}
+
+function ConvertTo-PackageIocVersion {
+    param([string]$Ecosystem,[string]$Version)
+    if ($Ecosystem -ine 'python') { return (Normalize-Version $Version) }
+    $normalized=ConvertTo-PythonPackageVersion $Version
+    if ([string]::IsNullOrEmpty($normalized)) { return '' }
+    $match=[regex]::Match($normalized,'\A(?<epoch>[0-9]+!)?(?<release>[0-9]+(?:\.[0-9]+)*)(?<suffix>.*)\z')
+    # Zero padding in the release tuple is equivalent; epoch, pre/post/dev and local parts remain distinct.
+    $release=[regex]::Replace($match.Groups['release'].Value,'(?:\.0)+\z','')
+    return ($match.Groups['epoch'].Value+$release+$match.Groups['suffix'].Value)
+}
+
+function Test-IsExactPackageVersionText {
+    param([string]$Version,[string]$Ecosystem='npm')
     if ([string]::IsNullOrWhiteSpace($Version)) { return $false }
+    if ($Ecosystem -ieq 'python') { return (-not [string]::IsNullOrEmpty((ConvertTo-PythonPackageVersion $Version))) }
     return ($Version.Trim() -match '^(v|=)?[0-9]+\.[0-9]+\.[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$')
 }
 
@@ -7013,7 +7769,7 @@ function Add-KnownPackageFinding {
         [string]$EvidenceKind = 'text-fallback'
     )
     if ($null -eq $script:Context.iocs) { return }
-    $normalizedVersion = Normalize-Version $Version
+    $normalizedVersion = if ($Ecosystem -ieq 'python') { ConvertTo-PythonPackageVersion $Version } else { Normalize-Version $Version }
     $ioc = Get-ExactPackageIocMatch -Ecosystem $Ecosystem -Name $Name -Version $normalizedVersion
     if ($null -eq $ioc) { return }
     $sev = [string](Get-PropertyValue $ioc 'severity')
@@ -7027,7 +7783,7 @@ function Add-KnownPackageFinding {
         $title = 'Manifest, cache, constraint, or fallback text references a known compromised version'
         $confidence = 'medium'
     }
-    Add-Finding -Severity $sev -Category $category -Title $title -Path $Path -Line $Line -Evidence ("ecosystem={0}; package={1}; version={2}; evidenceKind={3}" -f $Ecosystem, $Name, $normalizedVersion, $EvidenceKind) -Recommendation 'Confirm the resolved version in a lockfile or installed package metadata before concluding that the affected version is present.' -RiskType 'known-ioc' -Confidence $confidence -Check 'Packages' -DetectionMethod 'metadata'
+    Add-Finding -Severity $sev -Category $category -Title $title -Path $Path -Line $Line -Evidence ("ecosystem={0}; package={1}; version={2}; evidenceKind={3}" -f $Ecosystem, $Name, $normalizedVersion, $EvidenceKind) -Recommendation 'Confirm the resolved version in a lockfile or installed package metadata before concluding that the affected version is present.' -RiskType 'known-ioc' -Confidence $confidence -Check 'Packages' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
 }
 
 function Test-NpmIncidentWatchlistPackageName {
@@ -7154,7 +7910,7 @@ function Scan-KnownPackageText {
     param([System.IO.FileInfo]$File, [string]$Text, [string]$Ecosystem, [string]$EvidenceKindOverride)
     $fileName = $File.Name.ToLowerInvariant()
     $evidenceKind = 'text-fallback'
-    if ($fileName -in @('package-lock.json','npm-shrinkwrap.json','pnpm-lock.yaml','yarn.lock','bun.lock','pipfile.lock','poetry.lock','uv.lock')) {
+    if ($fileName -in @('package-lock.json','npm-shrinkwrap.json','pnpm-lock.yaml','yarn.lock','bun.lock')) {
         $evidenceKind = 'lockfile-exact'
     }
     if (-not [string]::IsNullOrEmpty($EvidenceKindOverride)) { $evidenceKind = $EvidenceKindOverride }
@@ -7175,10 +7931,11 @@ function Scan-KnownPackageText {
 
     foreach ($ioc in @($script:Context.iocs.packages)) {
         if ($ioc.ecosystem -ne $Ecosystem) { continue }
-        $namePattern = [regex]::Escape($ioc.name)
+        $normalizedName = ConvertTo-PackageIocName -Ecosystem $Ecosystem -Name ([string]$ioc.name)
+        $namePattern = '(?<![A-Za-z0-9._-])' + ([string]::Join('[-_.]+',[string[]]@($normalizedName.Split('-') | ForEach-Object {[regex]::Escape($_)}))) + '(?![A-Za-z0-9._-])'
         foreach ($badVersion in @($ioc.versions)) {
             if ($badVersion -eq '*') { continue }
-            $versionPattern = [regex]::Escape($badVersion)
+            $versionPattern = '(?<![0-9A-Za-z.!+_-])' + [regex]::Escape($badVersion) + '(?![0-9A-Za-z.!+_-])'
             $pattern = '(?is)' + $namePattern + '.{0,120}' + $versionPattern
             $match = Get-BoundedTextRegexMatch -Text $Text -Pattern $pattern
             if (-not $match.Success) { continue }
@@ -7536,6 +8293,304 @@ function Scan-BoundedGitRefIocs {
     }
 }
 
+function Get-StaticCodeMask {
+    param([string]$Text,[ValidateSet('javascript','python','gyp')][string]$Language='javascript')
+    $strings='(?s)""".*?"""|''''''.*?''''''|"(?:\\.|[^"\\])*"|''(?:\\.|[^''\\])*''|`(?:\\.|[^`\\])*`'
+    $comments=if ($Language -in @('python','gyp')) { '#[^\r\n]*' } else { '(?s)/\*.*?\*/|//[^\r\n]*' }
+    $pattern='(?:'+$strings+'|'+$comments+')'
+    return [regex]::Replace($Text,$pattern,[System.Text.RegularExpressions.MatchEvaluator]{
+        param($match)
+        return [regex]::Replace($match.Value,'[^\r\n]',' ',[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+    },[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+}
+
+function ConvertFrom-GypStaticEscapes {
+    param([string]$Text)
+    if ($Text.Length -gt 65536) { throw 'gyp-scalar-limit' }
+    $value=$Text
+    for ($pass=0; $pass -lt 2; $pass++) {
+        $decoded=[regex]::Replace($value,'\\(?:u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|x[0-9a-fA-F]{2})',[System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            $code=[Convert]::ToInt32($match.Value.Substring(2),16)
+            if ($code -gt 0x10FFFF -or ($code -ge 0xD800 -and $code -le 0xDFFF)) { throw 'gyp-invalid-unicode-scalar' }
+            return [char]::ConvertFromUtf32($code)
+        },[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+        $decoded=[regex]::Replace($decoded,'\\(?<escape>[\\"''nrt])',[System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            switch ($match.Groups['escape'].Value) { 'n' {return "`n"}; 'r' {return "`r"}; 't' {return "`t"}; default {return $match.Groups['escape'].Value} }
+        },[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+        if ($decoded.Length -gt 65536) { throw 'gyp-scalar-limit' }
+        if ($decoded -ceq $value) { return $decoded }
+        $value=$decoded
+    }
+    return $value
+}
+
+function Get-GypStaticExecutionAssessment {
+    param([string]$Text)
+    $result=[ordered]@{matches=New-ArrayList; failureType=''; scalarCount=0}
+    $stack=New-ArrayList
+    $pendingConditions=$false
+    $index=0
+    while ($index -lt $Text.Length) {
+        $character=$Text[$index]
+        if ([char]::IsWhiteSpace($character)) { $index++; continue }
+        if ($character -eq '#') { $end=$Text.IndexOf("`n",$index); if ($end -lt 0) { break }; $index=$end+1; continue }
+        if ($pendingConditions -and $character -notin @(':','[')) { $result.failureType='gyp-condition-list-invalid'; return $result }
+        if ($character -eq [char]34 -or $character -eq [char]39) {
+            $start=$index
+            $quote=$character
+            $index++
+            $builder=New-Object System.Text.StringBuilder
+            $closed=$false
+            while ($index -lt $Text.Length) {
+                $current=$Text[$index]
+                if ($current -eq $quote) { $closed=$true; $index++; break }
+                if ($current -eq '\' -and $index+1 -lt $Text.Length) { [void]$builder.Append($current); $index++; [void]$builder.Append($Text[$index]); $index++ }
+                else { [void]$builder.Append($current); $index++ }
+                if ($builder.Length -gt 65536) { $result.failureType='gyp-scalar-limit'; return $result }
+            }
+            if (-not $closed) { $result.failureType='gyp-string-unclosed'; return $result }
+            try { $value=ConvertFrom-GypStaticEscapes $builder.ToString() }
+            catch { $result.failureType='gyp-invalid-escape'; return $result }
+            $top=if ($stack.Count -gt 0) { $stack[$stack.Count-1] } else { $null }
+            if ($null -ne $top -and $top.conditionRow -and $top.first) {
+                $top.first=$false
+                $result.scalarCount++
+                if ($result.scalarCount -gt 64) { $result.failureType='gyp-condition-limit'; return $result }
+                $code=Get-StaticCodeMask -Text $value -Language gyp
+                $traversal=(Test-BoundedTextRegex -Text $code -Pattern '__class__\s*\.\s*__(?:base|bases|mro)__') -and (Test-BoundedTextRegex -Text $code -Pattern '__subclasses__\s*\(')
+                $recovery=Test-BoundedTextRegex -Text $value -Pattern '__builtins__|__globals__|catch_warnings'
+                $import=Test-BoundedTextRegex -Text $value -Pattern '__import__|import_module'
+                $execution=Test-BoundedTextRegex -Text $code -Pattern '\.\s*(?:system|popen|Popen|run|call|exec[a-z]*)\s*\('
+                if ($traversal -and $recovery -and $import -and $execution) { Add-ListItem $result.matches ([ordered]@{index=$start; length=$index-$start}) }
+            }
+            $lookahead=$index
+            while ($lookahead -lt $Text.Length) {
+                if ([char]::IsWhiteSpace($Text[$lookahead])) { $lookahead++; continue }
+                if ($Text[$lookahead] -eq '#') { $end=$Text.IndexOf("`n",$lookahead); if ($end -lt 0) { $lookahead=$Text.Length; break }; $lookahead=$end+1; continue }
+                break
+            }
+            if ($lookahead -lt $Text.Length -and $Text[$lookahead] -eq ':' -and $value -ceq 'conditions') { $pendingConditions=$true }
+            continue
+        }
+        if ($character -eq '[' -or $character -eq '{') {
+            if ($stack.Count -ge 32) { $result.failureType='gyp-depth-limit'; return $result }
+            $parent=if ($stack.Count -gt 0) { $stack[$stack.Count-1] } else { $null }
+            $row=($character -eq '[' -and $null -ne $parent -and $parent.conditionsRoot)
+            if ($null -ne $parent -and $parent.conditionRow -and $parent.first) { $result.failureType='gyp-condition-nonscalar'; return $result }
+            Add-ListItem $stack ([ordered]@{open=$character; conditionsRoot=($character -eq '[' -and $pendingConditions); conditionRow=$row; first=$true})
+            $pendingConditions=$false
+            $index++; continue
+        }
+        if ($character -eq ']' -or $character -eq '}') {
+            if ($stack.Count -eq 0) { $result.failureType='gyp-unbalanced'; return $result }
+            $top=$stack[$stack.Count-1]
+            if (($character -eq ']' -and $top.open -ne '[') -or ($character -eq '}' -and $top.open -ne '{')) { $result.failureType='gyp-unbalanced'; return $result }
+            $stack.RemoveAt($stack.Count-1)
+            $index++; continue
+        }
+        if ($stack.Count -gt 0) {
+            $top=$stack[$stack.Count-1]
+            if ($top.conditionRow -and $top.first -and $character -notin @(':',',')) { $result.failureType='gyp-condition-nonscalar'; return $result }
+        }
+        $index++
+    }
+    if ($stack.Count -gt 0) { $result.failureType='gyp-unbalanced' }
+    return $result
+}
+
+function Scan-GypBuildFile {
+    param([System.IO.FileInfo]$File,[string]$Text)
+    if ($File.Extension -ine '.gyp' -or -not (Test-CheckEnabled 'LifecycleScripts')) { return }
+    Add-ScanStat -Name 'securityUpdateCandidatesAnalyzed'
+    if ($Text.Length -gt 131072) { Register-SecurityAnalysisLimit -File $File -FailureType 'gyp-file-limit'; return }
+    $assessment=Get-GypStaticExecutionAssessment $Text
+    if (-not [string]::IsNullOrWhiteSpace([string]$assessment.failureType)) { Register-SecurityAnalysisLimit -File $File -FailureType ([string]$assessment.failureType) }
+    $metadata=Get-SecurityCandidateMetadata $File.FullName
+    $selected=if ($null -ne $metadata) { [bool]$metadata.selected } else { -not (Test-IsDependencyOrGeneratedArtifactPath $File.FullName) }
+    foreach ($match in @($assessment.matches)) {
+        $severity=if ($selected) {'DANGER'} else {'WARN'}
+        Add-Finding -Severity $severity -Category 'GYP_PYTHON_EXECUTION_COMPOUND' -Title 'GYP condition combines object traversal, import recovery and process execution' -Path $File.FullName -Line (Get-LineNumberForIndex -Text $Text -Index ([int]$match.index)) -Evidence 'A bounded condition scalar contains a Python sandbox-escape/process compound. Source text and command values are redacted; the condition was not evaluated.' -Recommendation 'Review the native build entrypoint and package provenance without invoking node-gyp or importing the expression.' -RiskType 'fetch-execute' -Confidence 'high' -Check 'LifecycleScripts' -DetectionMethod 'static-file' -RuleId 'gyp-python-execution-compound' -SourceId 'S02'
+    }
+}
+
+function Get-RuntimeTransferAssessment {
+    param([string]$Text,[string]$Language='javascript',[bool]$CiBridge=$false)
+    $result=[ordered]@{dns=$false; sckit=$false; secondary=''; ciTransfer=''; index=0; dnsIndex=0; sckitIndex=0; secondaryIndex=0; ciIndex=0; failureType=''}
+    if ([string]::IsNullOrEmpty($Text)) { return $result }
+    if ($Language -eq 'shell') {
+        if (-not $CiBridge -or $Text -notmatch '(?i)NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY|\.npmrc|\.pypirc') { return $result }
+    }
+    elseif ($Text -notmatch '(?i)\bdns\b|\bsocket\b|sckit|\bmessages\b|\bconversation\w*\b|tool_?results?') { return $result }
+    if ($Language -eq 'shell') {
+        # Preserve expansion positions, while excluding literal strings and comments from call/flow proofs.
+        $mask=[regex]::Replace($Text,'''[^'']*''|"(?:\\.|[^"\\])*"|#[^\r\n]*',[System.Text.RegularExpressions.MatchEvaluator]{
+            param($token)
+            if ($token.Value.StartsWith('"')) {
+                return [regex]::Replace($token.Value,'(?<var>\$(?:\{[^}\r\n]{1,128}\}|[A-Za-z_][A-Za-z0-9_]{0,63}))|[^\r\n$]+|\$',{param($part) if ($part.Groups['var'].Success) { return $part.Value }; return (' '*$part.Length)},[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds(2))
+            }
+            return [regex]::Replace($token.Value,'[^\r\n]',' ',[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds(2))
+        },[System.Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds(2))
+    }
+    else { $mask=Get-StaticCodeMask -Text $Text -Language $Language }
+    $anchorPattern=if ($Language -eq 'shell') { '(?m)(?:^|;)[ \t]*(?<shellCall>curl|wget)\b' }
+        else { '\b(?:dns\s*\.\s*(?:resolve\w*|lookup)|socket\s*\.\s*getaddrinfo|fetch|requests\s*\.\s*post|axios\s*\.\s*post|https?\s*\.\s*request|spawn|execFile|subprocess\s*\.\s*(?:Popen|run))\s*\(' }
+    $anchors=@(Get-BoundedTextRegexMatches -Text $mask -Pattern $anchorPattern -MaximumMatches 65)
+    if ($anchors.Count -gt 64) { $result.failureType='transfer-anchor-limit'; $anchors=@($anchors | Select-Object -First 64) }
+    foreach ($anchor in $anchors) {
+        $start=[Math]::Max(0,$anchor.Index-1536)
+        $before=$mask.Substring($start,$anchor.Index-$start)
+        $functionBoundary=if ($Language -eq 'shell') { '(?m)(?:\bfunction\s+[A-Za-z_]\w*\s*(?:\(\))?\s*\{|\b[A-Za-z_]\w*\s*\(\)\s*\{)' }
+            elseif ($Language -eq 'python') { '(?m)^\s*(?:async\s+)?def\s+[A-Za-z_]\w*[^\r\n]*:' }
+            else { '\bfunction(?:\s+[A-Za-z_$][\w$]*)?\s*\([^()]*\)\s*\{|=>\s*\{' }
+        $boundaries=@(Get-BoundedTextRegexMatches -Text $before -Pattern $functionBoundary -MaximumMatches 64)
+        if ($boundaries.Count -gt 0) { $start+=$boundaries[-1].Index }
+        $length=[Math]::Min(2048,$Text.Length-$start)
+        $local=$Text.Substring($start,$length)
+        $code=$mask.Substring($start,$length)
+        $relativeIndex=$anchor.Index-$start
+        $after=$code.Substring($relativeIndex,[Math]::Min(512,$code.Length-$relativeIndex))
+        if ($anchor.Value -match '(spawn|execFile|subprocess)' -and $local -match '(?i)\.sckit[\\/]|["'']\.sckit["'']' -and $local -match '_stage0|stage0' -and $local -match '(?i)config|base64') {
+            $result.sckit=$true; $result.index=$anchor.Index; $result.sckitIndex=$anchor.Index
+        }
+        if ($Language -eq 'shell') {
+            if (-not $CiBridge -or -not $anchor.Groups['shellCall'].Success) { continue }
+            $activeSendLine=($code.Substring($relativeIndex) -split "\r?\n",2)[0]
+            $sendLine=($local.Substring($relativeIndex) -split "`r?`n",2)[0]
+            $reads=@(Get-BoundedTextRegexMatches -Text $code -Pattern '(?m)\b(?<var>[A-Za-z_][A-Za-z0-9_]{0,63})\s*=\s*(?<rhs>[^;\r\n]{1,512})' -MaximumMatches 65)
+            if ($reads.Count -gt 64) { $result.failureType='transfer-assignment-limit'; continue }
+            $hasFlow=$false
+            foreach ($read in $reads) {
+                if ($read.Index -ge $relativeIndex) { continue }
+                $sourceLine=($local.Substring($read.Index) -split "`r?`n",2)[0]
+                if ($sourceLine -notmatch '(?i)\.npmrc|\.pypirc|NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY') { continue }
+                if ($read.Groups['rhs'].Value -notmatch '\bcat\b|\$(?:\{)?(?:NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY)\b') { continue }
+                $overwritten=@($reads | Where-Object {$_.Index -gt $read.Index -and $_.Index -lt $relativeIndex -and $_.Groups['var'].Value -ceq $read.Groups['var'].Value})
+                if ($overwritten.Count -gt 0) { continue }
+                $sources=@(Get-BoundedTextRegexMatches -Text $read.Groups['rhs'].Value -Pattern '\$(?:\{)?(?<var>NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY)\b' -MaximumMatches 8)
+                $sourceOverwritten=$false
+                foreach ($sourceVariable in $sources) {
+                    $binding=@($reads | Where-Object {$_.Index -lt $read.Index -and $_.Groups['var'].Value -ceq $sourceVariable.Groups['var'].Value} | Select-Object -Last 1)
+                    if ($binding.Count -gt 0 -and $binding[0].Groups['rhs'].Value -notmatch '\bcat\b|\$(?:\{)?(?:NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY)\b') { $sourceOverwritten=$true }
+                }
+                if ($sourceOverwritten) { continue }
+                $variable=[regex]::Escape($read.Groups['var'].Value)
+                if ($activeSendLine -match ('\$(?:\{)?'+$variable+'\b')) { $hasFlow=$true; break }
+            }
+            foreach ($environmentRead in @(Get-BoundedTextRegexMatches -Text $activeSendLine -Pattern '\$(?:\{)?(?<var>NPM_TOKEN|GITHUB_TOKEN|GH_TOKEN|AWS_SECRET_ACCESS_KEY)\b' -MaximumMatches 8)) {
+                $binding=@($reads | Where-Object {$_.Index -lt $relativeIndex -and $_.Groups['var'].Value -ceq $environmentRead.Groups['var'].Value} | Select-Object -Last 1)
+                if ($binding.Count -eq 0) { $hasFlow=$true }
+            }
+            if ($hasFlow -and $sendLine -match '(?i)(--data(?:-binary|-raw)?|-d|--post-data|--upload-file|-T)\b') {
+                $urls=@(Get-BoundedTextRegexMatches -Text $sendLine -Pattern 'https?://(?<host>[A-Za-z0-9.-]+)(?=[:/\s"'']|$)' -MaximumMatches 64)
+                foreach ($url in $urls) {
+                    $hostName=$url.Groups['host'].Value.ToLowerInvariant()
+                    if ($hostName -match '^(?:[a-z0-9-]+\.)*skyleen\.fr$') { $result.ciTransfer='known-c2'; $result.index=$anchor.Index; $result.ciIndex=$anchor.Index; break }
+                    if ($hostName -notin @('registry.npmjs.org','upload.pypi.org','test.pypi.org') -and $result.ciTransfer -ne 'known-c2') { $result.ciTransfer='additional-destination'; $result.index=$anchor.Index; $result.ciIndex=$anchor.Index }
+                }
+            }
+            continue
+        }
+        if ($anchor.Value -match 'dns|socket') {
+            $reads=@(Get-BoundedTextRegexMatches -Text $code -Pattern '(?<![\w$.])(?<var>[A-Za-z_$][A-Za-z0-9_$]{0,63})\s*=\s*(?<rhs>[^;\r\n]{1,512})' -MaximumMatches 65)
+            if ($reads.Count -gt 64) { $result.failureType='transfer-assignment-limit'; continue }
+            foreach ($read in $reads) {
+                $rhs=$read.Groups['rhs'].Value
+                $source=$local.Substring($read.Index,[Math]::Min($read.Length,$local.Length-$read.Index))
+                if ($rhs -notmatch '(?i)process\s*\.\s*env|os\s*\.\s*environ|readFile(?:Sync)?\s*\(|open\s*\(' -or $source -notmatch '(?i)TOKEN|API[_-]?KEY|SECRET|PASSWORD|CREDENTIAL|\.npmrc|\.pypirc|\.ssh|\.aws') { continue }
+                $secretVar=[regex]::Escape($read.Groups['var'].Value)
+                foreach ($encoded in $reads) {
+                    if ($encoded.Index -lt $read.Index -or $encoded.Index -gt $relativeIndex) { continue }
+                    $encodedSource=$local.Substring($encoded.Index,[Math]::Min($encoded.Length,$local.Length-$encoded.Index))
+                    if ($encoded.Groups['rhs'].Value -notmatch ('\b'+$secretVar+'\b') -or $encodedSource -notmatch '(?i)base64|b64encode|toString\s*\(\s*["'']hex["'']|hexlify') { continue }
+                    $overwritten=@($reads | Where-Object {$_.Index -gt $read.Index -and $_.Index -lt $encoded.Index -and $_.Groups['var'].Value -ceq $read.Groups['var'].Value})
+                    if ($overwritten.Count -gt 0) { continue }
+                    $encodedVar=[regex]::Escape($encoded.Groups['var'].Value)
+                    $overwritten=@($reads | Where-Object {$_.Index -gt $encoded.Index -and $_.Index -lt $relativeIndex -and $_.Groups['var'].Value -ceq $encoded.Groups['var'].Value})
+                    if ($overwritten.Count -gt 0) { continue }
+                    $queryVars=@($encodedVar)
+                    foreach ($derived in $reads) {
+                        if ($derived.Index -gt $encoded.Index -and $derived.Index -lt $relativeIndex -and $derived.Groups['rhs'].Value -match ('\b'+$encodedVar+'\b')) {
+                            $overwritten=@($reads | Where-Object {$_.Index -gt $derived.Index -and $_.Index -lt $relativeIndex -and $_.Groups['var'].Value -ceq $derived.Groups['var'].Value})
+                            if ($overwritten.Count -eq 0) { $queryVars+=([regex]::Escape($derived.Groups['var'].Value)) }
+                        }
+                    }
+                    foreach ($queryVar in $queryVars) {
+                        if ($after -match ('^[^(]*\([^;\r\n]{0,400}\b'+$queryVar+'\b')) { $result.dns=$true; $result.index=$anchor.Index; $result.dnsIndex=$anchor.Index; break }
+                    }
+                }
+            }
+        }
+    }
+    if ($Language -ne 'shell') {
+        $calls=New-ArrayList
+        foreach ($anchor in $anchors) {
+            if ($anchor.Value -notmatch 'fetch|requests|axios|request') { continue }
+            $length=[Math]::Min(1024,$Text.Length-$anchor.Index)
+            $segment=$Text.Substring($anchor.Index,$length)
+            $activeSegment=$mask.Substring($anchor.Index,$length)
+            # Stop at the end of this statement. The same payload identifier must appear in both calls.
+            $end=$segment.IndexOf(';'); if ($end -ge 0) { $segment=$segment.Substring(0,$end); $activeSegment=$activeSegment.Substring(0,$end) }
+            $payload=Get-BoundedTextRegexMatch -Text $activeSegment -Pattern '\b(?<var>messages|conversation|conversations|tool_results|toolResults|toolResult)\b'
+            if (-not $payload.Success) { continue }
+            $destination=Get-BoundedTextRegexMatch -Text $segment -Pattern 'https?://(?<host>[A-Za-z0-9.-]+)(?<path>/[^\s"''`)]*)?'
+            $scopeStart=[Math]::Max(0,$anchor.Index-1536)
+            $scopeMatches=@(Get-BoundedTextRegexMatches -Text ($mask.Substring($scopeStart,$anchor.Index-$scopeStart)) -Pattern $functionBoundary -MaximumMatches 64)
+            $scope=if ($scopeMatches.Count -gt 0) {$scopeStart+$scopeMatches[-1].Index} else {0}
+            Add-ListItem $calls ([ordered]@{payload=$payload.Groups['var'].Value; destination=$destination.Value; known=($destination.Value -match '^https?://api\.nm-streetwear\.space/vx/learn(?:[/?#]|$)'); index=$anchor.Index; scope=$scope})
+        }
+        foreach ($call in $calls) {
+            foreach ($other in $calls) {
+                if ($call.index -eq $other.index -or $call.payload -cne $other.payload -or [string]::IsNullOrEmpty($call.destination) -or $call.destination -ceq $other.destination) { continue }
+                if ($call.scope -ne $other.scope -or [Math]::Abs($call.index-$other.index) -gt 2048) { continue }
+                if ($call.known) { $result.secondary='reported-destination'; $result.index=$call.index; $result.secondaryIndex=$call.index; break }
+                if (-not [string]::IsNullOrEmpty($other.destination) -and $result.secondary -ne 'reported-destination') { $result.secondary='additional-destination'; $result.index=$call.index; $result.secondaryIndex=$call.index }
+            }
+        }
+    }
+    return $result
+}
+
+function Scan-RuntimeTransferBehavior {
+    param([System.IO.FileInfo]$File,[string]$Text)
+    if ($null -eq $File -or [string]::IsNullOrEmpty($Text) -or $File.Extension -notin @('.js','.mjs','.cjs','.ts','.py','.sh','.bash')) { return }
+    $sourceContext=Get-SourceContext $File.FullName
+    if ($sourceContext -in @('scanner-self','reference-text','session-log','cache-data','plugin-metadata') -or (Get-TextContext -File $File) -eq 'documentation') { return }
+    $metadata=Get-SecurityCandidateMetadata $File.FullName
+    $dependency=Test-IsDependencyOrGeneratedArtifactPath $File.FullName
+    $selected=Test-IsTargetedScanPath $File.FullName
+    $ideOwner=($null -ne $metadata -and 'IdeExtensions' -in @($metadata.ownerChecks)) -or (Test-IsVsCodeStyleExtensionPath $File.FullName)
+    $ciOwner=$null -ne $metadata -and 'CiCd' -in @($metadata.ownerChecks)
+    $check=if ($ideOwner -and (Test-CheckEnabled 'IdeExtensions')) {'IdeExtensions'} elseif ($ciOwner -and (Test-CheckEnabled 'CiCd')) {'CiCd'} elseif (Test-CheckEnabled 'LifecycleScripts') {'LifecycleScripts'} else {''}
+    if ([string]::IsNullOrEmpty($check)) { return }
+    $bridge=$ciOwner -and [bool]$metadata.ciBridgeProof
+    $language=if ($File.Extension -eq '.py') {'python'} elseif ($File.Extension -in @('.sh','.bash')) {'shell'} else {'javascript'}
+    $assessment=Get-RuntimeTransferAssessment -Text $Text -Language $language -CiBridge $bridge
+    Add-ScanStat -Name 'securityUpdateCandidatesAnalyzed'
+    if (-not [string]::IsNullOrEmpty($assessment.failureType)) { Register-SecurityAnalysisLimit -File $File -FailureType $assessment.failureType }
+    if ($assessment.sckit) {
+        $line=Get-LineNumberForIndex -Text $Text -Index ([int]$assessment.sckitIndex)
+        Add-Finding -Severity 'WARN' -Category 'SCKIT_STAGE0_LOADER_COMPOUND' -Title 'Runtime loader combines a hidden sckit process, stage0 and configuration markers' -Path $File.FullName -Line $line -Evidence 'A local process-call window contains the sckit/stage0/configuration compound. Code and configuration values are redacted; this heuristic does not establish a malicious binary hash.' -Recommendation 'Verify the selected entrypoint and the reported implant hashes without executing the loader.' -RiskType 'posture' -Confidence 'medium' -Check $check -DetectionMethod 'static-file' -RuleId 'sckit-stage0-loader' -SourceId 'S03'
+    }
+    if ($assessment.dns) {
+        $line=Get-LineNumberForIndex -Text $Text -Index ([int]$assessment.dnsIndex)
+        $severity=if ($dependency -and -not $selected) {'WARN'} else {'DANGER'}
+        $confidence=if ($severity -eq 'DANGER') {'high'} else {'medium'}
+        Add-Finding -Severity $severity -Category 'CREDENTIAL_DNS_EXFIL_PATTERN' -Title 'Credential-derived encoded data flows into a DNS query' -Path $File.FullName -Line $line -Evidence 'A bounded static assignment flow links credential access, encoding and a DNS query argument. Credential values and query labels are redacted; no query was made.' -Recommendation 'Trace the selected entrypoint and destination without executing the code or resolving the domain.' -RiskType 'active-exfil' -Confidence $confidence -Check $check -DetectionMethod 'static-file' -RuleId 'dns-credential-flow' -SourceId 'S02'
+    }
+    if (-not [string]::IsNullOrEmpty($assessment.secondary)) {
+        $line=Get-LineNumberForIndex -Text $Text -Index ([int]$assessment.secondaryIndex)
+        $severity=if ($assessment.secondary -eq 'reported-destination') {'WARN'} else {'CAUTION'}
+        Add-Finding -Severity $severity -Category 'CONVERSATION_SECONDARY_TRANSFER' -Title 'Conversation or tool-result data is sent to an additional destination' -Path $File.FullName -Line $line -Evidence ("Two active transfer statements share a conversation/tool-result identifier; assessment={0}. Payload and endpoint values are redacted. Credential theft is not asserted." -f $assessment.secondary) -Recommendation 'Verify user consent and the purpose of the additional transfer before using the tool.' -RiskType 'posture' -Confidence 'medium' -Check $check -DetectionMethod 'static-file' -RuleId 'conversation-secondary-transfer' -SourceId 'S08'
+    }
+    if (-not [string]::IsNullOrEmpty($assessment.ciTransfer)) {
+        $line=Get-LineNumberForIndex -Text $Text -Index ([int]$assessment.ciIndex)
+        $severity=if ($assessment.ciTransfer -eq 'known-c2') {'DANGER'} else {'WARN'}
+        Add-Finding -Severity $severity -Category 'CI_PUBLISH_BRIDGE_EXFIL_PATTERN' -Title 'A workflow-selected BASH_ENV bridge transfers credential-derived data' -Path $File.FullName -Line $line -Evidence ("The selected bridge has a credential-read/transfer flow; destinationAssessment={0}. Credential values and shell contents are redacted." -f $assessment.ciTransfer) -Recommendation 'Review the workflow, local publish script and bridge without running them or contacting the endpoint.' -RiskType 'active-exfil' -Confidence 'high' -Check 'CiCd' -DetectionMethod 'static-file' -RuleId 'ci-publish-bridge-flow' -SourceId 'S03'
+    }
+}
+
 function Scan-NpmRuntimeCode {
     param([System.IO.FileInfo]$File, [string]$Text)
     if (-not (Test-CheckEnabled 'LifecycleScripts')) { return }
@@ -7644,18 +8699,88 @@ function Scan-NpmIncidentContextMarkers {
     }
 }
 
+function Scan-PythonTextLock {
+    param([System.IO.FileInfo]$File,[string]$Text)
+    # Match literal name/version fields within one TOML [[package]] block, never across blocks.
+    # Mask strings/comments before identifying tables or keys so multiline examples are not dependencies.
+    $quote=[string][char]39
+    $triple=$quote*3
+    $pattern='(?<string>"""(?:\\[\s\S]|"{1,2}(?!")|[^"\\])*(?<end>"{3,5}|\z)|'+$triple+'(?:(?!'+$triple+')[\s\S])*(?<end>'+$quote+'{3,5}|\z)|"(?:\\[^\r\n]|[^"\\\r\n])*(?<end>"|(?=\r?$))|'+$quote+'[^'+$quote+'\r\n]*(?<end>'+$quote+'|(?=\r?$)))|#[^\r\n]*'
+    $maskState=@{invalid=$false}
+    $mask=[regex]::Replace($Text,$pattern,[Text.RegularExpressions.MatchEvaluator]{
+        param($match)
+        if ($match.Groups['string'].Success -and $match.Groups['end'].Value.Length -eq 0) { $maskState.invalid=$true }
+        return [regex]::Replace($match.Value,'[^\r\n]',' ',[Text.RegularExpressions.RegexOptions]::None,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+    },[Text.RegularExpressions.RegexOptions]::Multiline -bor [Text.RegularExpressions.RegexOptions]::CultureInvariant,[TimeSpan]::FromSeconds($script:RegexMatchTimeoutSeconds))
+    if ($maskState.invalid) { Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true; return }
+    $lines=$Text -split "`r?`n"
+    $maskLines=$mask -split "`r?`n"
+    $entry=$null
+    $invalid=$false
+    for ($i=0; $i -le $lines.Count; $i++) {
+        $line=if ($i -eq $lines.Count) {'[__scanner_end__]'} else {$lines[$i]}
+        $maskLine=if ($i -eq $lines.Count) {'[__scanner_end__]'} else {$maskLines[$i]}
+        if ($maskLine -match '^\s*\[') {
+            if ($null -ne $entry) {
+                if ($entry.invalid -or ($entry.versionLine -gt 0 -and ($entry.nameLine -eq 0 -or $entry.name -notmatch '\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\z' -or $entry.name.Length -gt 128 -or -not (Test-IsExactPackageVersionText -Version $entry.version -Ecosystem 'python')))) { $invalid=$true }
+                elseif ($entry.nameLine -gt 0 -and $entry.versionLine -gt 0) {
+                    Add-ScanStat -Name 'packageLockEntriesEvaluated'
+                    Add-KnownPackageFinding -Ecosystem 'python' -Name $entry.name -Version $entry.version -Path $File.FullName -Line $entry.versionLine -EvidenceKind 'lockfile-exact'
+                }
+            }
+            $entry=$null
+            if ($maskLine -cmatch '^\s*\[\[package\]\]\s*$') { $entry=@{name='';version='';nameLine=0;versionLine=0;invalid=$false} }
+            continue
+        }
+        if ($null -eq $entry -or $maskLine -cnotmatch '^\s*(?:name|version)\s*=') { continue }
+        $field=[regex]::Match($line,'\A\s*(?<field>name|version)\s*=\s*(?<quote>["''])(?<value>[^"'']*)\k<quote>\s*(?:#.*)?\z')
+        if ($field.Success) {
+            $key=$field.Groups['field'].Value
+            if ($entry[$key+'Line'] -ne 0) { $entry.invalid=$true }
+            $entry[$key]=$field.Groups['value'].Value
+            $entry[$key+'Line']=$i+1
+        }
+        elseif ($line -cmatch '^\s*(?:name|version)\s*=') { $entry.invalid=$true }
+    }
+    if ($invalid) { Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true }
+}
+
 function Scan-PipfileLockJson {
     param([System.IO.FileInfo]$File, [string]$Text)
     Add-ScanStat -Name 'packageLockStructuralScans'
     try {
+        if (-not $Text.TrimStart().StartsWith('{',[StringComparison]::Ordinal)) { throw 'pipfile-root-not-object' }
         $json = $Text | ConvertFrom-Json -ErrorAction Stop
         foreach ($sectionName in @('default','develop')) {
-            $section = Get-PropertyValue $json $sectionName
-            if ($null -eq $section) { continue }
+            $sectionProperty = $json.PSObject.Properties[$sectionName]
+            if ($null -eq $sectionProperty) { continue }
+            $section = $sectionProperty.Value
+            if ($section -isnot [System.Management.Automation.PSCustomObject] -and $section -isnot [System.Collections.IDictionary]) {
+                Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true
+                continue
+            }
             foreach ($property in @($section.PSObject.Properties)) {
-                $rawVersion = [string](Get-PropertyValue $property.Value 'version')
-                $match = [regex]::Match($rawVersion, '^==\s*(?<version>[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$')
-                if (-not $match.Success) { continue }
+                if ($property.Value -isnot [System.Management.Automation.PSCustomObject] -and $property.Value -isnot [System.Collections.IDictionary]) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true
+                    continue
+                }
+                $versionProperty = $property.Value.PSObject.Properties['version']
+                if ($null -eq $versionProperty) { continue }
+                $declaredVersion = $versionProperty.Value
+                if ($declaredVersion -isnot [string]) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true
+                    continue
+                }
+                $rawVersion = [string]$declaredVersion
+                $match = [regex]::Match($rawVersion, '\A==\s*(?<version>[^\r\n]+)\z')
+                if (-not $match.Success) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true
+                    continue
+                }
+                if (-not (Test-IsExactPackageVersionText -Version $match.Groups['version'].Value -Ecosystem 'python')) {
+                    Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'parse-error' -Critical $true
+                    continue
+                }
                 Add-ScanStat -Name 'packageLockEntriesEvaluated'
                 Add-KnownPackageFinding -Ecosystem 'python' -Name ([string]$property.Name) -Version $match.Groups['version'].Value -Path $File.FullName -Line 1 -EvidenceKind 'lockfile-exact'
             }
@@ -7670,6 +8795,19 @@ function Scan-PipfileLockJson {
     }
 }
 
+function Scan-PythonDistributionMetadata {
+    param([System.IO.FileInfo]$File)
+    $header = Read-PythonDistributionHeader -File $File
+    if (-not $header.ok) {
+        Register-SecurityAnalysisLimit -File $File -FailureType ([string]$header.failureType)
+        return
+    }
+    Add-ScanStat -Name 'filesScanned'
+    if (Test-CheckEnabled 'Packages') {
+        Add-KnownPackageFinding -Ecosystem 'python' -Name ([string]$header.name) -Version ([string]$header.version) -Path $File.FullName -Line ([int]$header.versionLine) -EvidenceKind 'installed-exact'
+    }
+}
+
 function Scan-PythonFiles {
     param([System.IO.FileInfo]$File, [string]$Text)
     $name = $File.Name.ToLowerInvariant()
@@ -7681,6 +8819,10 @@ function Scan-PythonFiles {
     if (Test-CheckEnabled 'Packages') {
         if ($name -eq 'pipfile.lock') {
             [void](Scan-PipfileLockJson -File $File -Text $Text)
+            return
+        }
+        if ($name -in @('poetry.lock','uv.lock')) {
+            Scan-PythonTextLock -File $File -Text $Text
             return
         }
         Scan-KnownPackageText -File $File -Text $Text -Ecosystem 'python'
@@ -7791,22 +8933,48 @@ function Get-GitHubActionUsesEntries {
     return @($entries.ToArray())
 }
 
+function Get-ActionAdvisoryAssessment {
+    param($Entry,$Advisory)
+    if ([string]$Entry.repository -ine [string](Get-PropertyValue $Advisory 'repository')) { return $null }
+    $reference=[string]$Entry.reference
+    if ($reference -notmatch '^[vV]?[0-9]+\.[0-9]+\.[0-9]+$') { return [ordered]@{status='unresolved'; advisory=$Advisory; version=''} }
+    $version=ConvertTo-NodeRuntimeVersion $reference
+    if ($null -eq $version) { return [ordered]@{status='unresolved'; advisory=$Advisory; version=''} }
+    $affected=$false
+    foreach ($range in @((Get-PropertyValue $Advisory 'affectedRanges'))) {
+        $max=ConvertTo-NodeRuntimeVersion ([string](Get-PropertyValue $range 'maxExclusive'))
+        $minText=[string](Get-PropertyValue $range 'minInclusive')
+        $min=if ([string]::IsNullOrWhiteSpace($minText)) { $null } else { ConvertTo-NodeRuntimeVersion $minText }
+        if ($null -ne $max -and (Compare-NodeRuntimeVersion $version $max) -lt 0 -and ($null -eq $min -or (Compare-NodeRuntimeVersion $version $min) -ge 0)) { $affected=$true }
+    }
+    return [ordered]@{status=$(if ($affected) {'affected-reference'} else {'outside-declared-range'}); advisory=$Advisory; version=[string]$version.normalized}
+}
+
 function Scan-GitHubActionReferences {
     param([System.IO.FileInfo]$File, [string]$Text)
     $thirdPartyMutable = New-ArrayList
     foreach ($entry in @(Get-GitHubActionUsesEntries -Text $Text)) {
+        foreach ($advisory in @($script:Context.iocs.actionAdvisories)) {
+            $assessment=Get-ActionAdvisoryAssessment -Entry $entry -Advisory $advisory
+            if ($null -eq $assessment -or $assessment.status -eq 'outside-declared-range') { continue }
+            $unresolved=($assessment.status -eq 'unresolved')
+            $category=if ($unresolved) {'GITHUB_ACTION_ADVISORY_REF_UNRESOLVED'} else {'GITHUB_ACTION_REFERENCE_VULNERABILITY'}
+            $severity=if ($unresolved) {'INFO'} else {'WARN'}
+            $confidence=if ($unresolved) {'low'} else {'medium'}
+            Add-Finding -Severity $severity -Category $category -Title 'GitHub Action reference requires advisory review' -Path $File.FullName -Line $entry.line -Evidence ("advisory={0}; repository={1}; declaredVersion={2}; assessment={3}; mutable ref contents and exploit preconditions were not verified offline." -f [string](Get-PropertyValue $advisory 'id'),[string]$entry.repository,[string]$assessment.version,[string]$assessment.status) -Recommendation 'Review the published advisory, pull-request trust boundary, and a verified immutable Action commit. A numeric tag alone does not authenticate the runtime artifact.' -RiskType 'posture' -Confidence $confidence -Check 'CiCd' -DetectionMethod 'metadata' -RuleId 'action-reference-advisory' -SourceId ([string](Get-PropertyValue $advisory 'sourceId')) -UpstreamSeverity ([string](Get-PropertyValue $advisory 'upstreamSeverity'))
+        }
         $matchedKnown = $false
         foreach ($ioc in @($script:Context.iocs.actions)) {
             if ([string]$ioc.repository -ne [string]$entry.repository) { continue }
             foreach ($commit in @($ioc.compromisedCommits)) {
                 if ([string]$entry.reference -ieq [string]$commit) {
-                    Add-Finding -Severity 'DANGER' -Category 'GITHUB_ACTIONS_KNOWN_COMPROMISED_COMMIT' -Title 'GitHub Action references a known compromised commit' -Path $File.FullName -Line $entry.line -Evidence ("action={0}; match=compromised-commit" -f $entry.display) -Recommendation 'Disable the workflow and review runs, artifacts, and exposed credentials associated with this Action reference.' -RiskType 'known-ioc' -Confidence 'high' -Check 'CiCd' -DetectionMethod 'metadata'
+                    Add-Finding -Severity 'DANGER' -Category 'GITHUB_ACTIONS_KNOWN_COMPROMISED_COMMIT' -Title 'GitHub Action references a known compromised commit' -Path $File.FullName -Line $entry.line -Evidence ("action={0}; match=compromised-commit" -f $entry.display) -Recommendation 'Disable the workflow and review runs, artifacts, and exposed credentials associated with this Action reference.' -RiskType 'known-ioc' -Confidence 'high' -Check 'CiCd' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
                     $matchedKnown = $true
                 }
             }
             foreach ($knownRef in @($ioc.compromisedRefs)) {
                 if ([string]$entry.reference -ceq [string]$knownRef) {
-                    Add-Finding -Severity 'WARN' -Category 'GITHUB_ACTIONS_HISTORICALLY_COMPROMISED_REF' -Title 'GitHub Action uses a historically affected mutable ref' -Path $File.FullName -Line $entry.line -Evidence ("action={0}; match=historically-affected-ref" -f $entry.display) -Recommendation 'Pin to a reviewed full commit SHA and verify the current ref target from a trusted source.' -RiskType 'known-ioc' -Confidence 'medium' -Check 'CiCd' -DetectionMethod 'metadata'
+                    Add-Finding -Severity 'WARN' -Category 'GITHUB_ACTIONS_HISTORICALLY_COMPROMISED_REF' -Title 'GitHub Action uses a historically affected mutable ref' -Path $File.FullName -Line $entry.line -Evidence ("action={0}; match=historically-affected-ref" -f $entry.display) -Recommendation 'Pin to a reviewed full commit SHA and verify the current ref target from a trusted source.' -RiskType 'known-ioc' -Confidence 'medium' -Check 'CiCd' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
                     $matchedKnown = $true
                 }
             }
@@ -8337,7 +9505,8 @@ function Scan-JetBrainsPluginXml {
 function Scan-IdeExtensionPackageJson {
     param([System.IO.FileInfo]$File, [string]$Text)
     $path = $File.FullName.ToLowerInvariant()
-    if ($File.Name.ToLowerInvariant() -ne 'package.json' -or -not (Test-IsVsCodeStyleExtensionPath $File.FullName)) {
+    $candidateMetadata=Get-SecurityCandidateMetadata $File.FullName
+    if ($File.Name.ToLowerInvariant() -ne 'package.json' -or (-not (Test-IsVsCodeStyleExtensionPath $File.FullName) -and ($null -eq $candidateMetadata -or 'IdeExtensions' -notin @($candidateMetadata.ownerChecks)))) {
         return
     }
     try {
@@ -8362,7 +9531,7 @@ function Scan-IdeExtensionPackageJson {
                             $category = 'IDE_EXTENSION_ID_WATCHLIST'
                             $title = 'IDE extension ID appears on a confirmed campaign watchlist'
                         }
-                        Add-Finding -Severity $ioc.severity -Category $category -Title $title -Path $File.FullName -Evidence ("extension={0}; version={1}; matchType={2}" -f $id, $version, ([string]$ioc.matchType)) -Recommendation 'Verify the registry source, publisher, installed version, and file hashes before continuing IDE use.' -RiskType 'known-ioc' -Confidence $confidence -Check 'IdeExtensions' -DetectionMethod 'metadata'
+                        Add-Finding -Severity $ioc.severity -Category $category -Title $title -Path $File.FullName -Evidence ("extension={0}; version={1}; matchType={2}" -f $id, $version, ([string]$ioc.matchType)) -Recommendation 'Verify the registry source, publisher, installed version, and file hashes before continuing IDE use.' -RiskType 'known-ioc' -Confidence $confidence -Check 'IdeExtensions' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
                     }
                 }
             }
@@ -8459,9 +9628,18 @@ function Test-KnownFileIocCheckEnabledForFile {
     $pathLower = $File.FullName.ToLowerInvariant() -replace '/', '\'
     if (Test-IsJetBrainsPluginPath $File.FullName) { return (Test-CheckEnabled 'IdeExtensions') }
     if (Test-IsVsCodeStyleExtensionPath $File.FullName) { return (Test-CheckEnabled 'IdeExtensions') }
+    $candidateMetadata = Get-SecurityCandidateMetadata $File.FullName
+    if ($null -ne $candidateMetadata -and $candidateMetadata.ownerChecks -contains 'IdeExtensions') { return (Test-CheckEnabled 'IdeExtensions') }
+    if ($null -ne $candidateMetadata -and $candidateMetadata.ownerChecks -contains 'Packages' -and (Test-CheckEnabled 'Packages')) { return $true }
     if ($pathLower -match '\\node_modules\\') { return (Test-CheckEnabled 'Packages') }
     if ($pathLower -match '\\\.github\\actions\\') { return (Test-CheckEnabled 'CiCd') }
-    return (Test-CheckEnabled 'ScannerSelf')
+    if (Test-CheckEnabled 'ScannerSelf') { return $true }
+    foreach ($candidate in @(Get-KnownFileIocCandidates)) {
+        if ($null -ne $candidate.pathRegex -and -not $candidate.pathRegex.IsMatch($File.FullName)) { continue }
+        $ownerCheck = [string]$candidate.ownerCheck
+        if ($ownerCheck -in $script:LeafCheckOrder -and (Test-CheckEnabled $ownerCheck) -and (Test-KnownFileIocMatch -File $File -Ioc $candidate.ioc)) { return $true }
+    }
+    return $false
 }
 
 function Scan-WasmLoaderBehavior {
@@ -8552,13 +9730,23 @@ function Scan-File {
         return
     }
 
+    if (($File.Name -ieq 'METADATA') -and $File.FullName -match '(?i)[\\/]\S+\.dist-info[\\/]METADATA$' -and ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts'))) {
+        Invoke-ScannerStep -StepName 'Scan-PythonDistributionMetadata' -File $File -ScriptBlock { Scan-PythonDistributionMetadata -File $File }
+        return
+    }
+
     if (Test-IsLikelyBinaryFile -File $File) {
         Add-ScanStat -Name 'filesSkipped'
         Add-ScanStat -Name 'likelyBinaryFilesSkipped'
         return
     }
 
-    $read = Read-TextFileSafe -File $File
+    $candidateMetadata=Get-SecurityCandidateMetadata $File.FullName
+    if ($null -ne $candidateMetadata -and 'python-record' -in @($candidateMetadata.selectionReasons)) {
+        $read=Read-BoundedSecurityCandidateText -File $File
+        if (-not $read.ok) { Register-SecurityAnalysisLimit -File $File -FailureType ([string]$read.failureType); return }
+    }
+    else { $read = Read-TextFileSafe -File $File }
     if (-not $read.ok) {
         return
     }
@@ -8585,6 +9773,12 @@ function Scan-File {
         Invoke-ScannerStep -StepName 'Scan-ComposerFiles' -File $File -ScriptBlock { Scan-ComposerFiles -File $File -Text $text }
         Invoke-ScannerStep -StepName 'Scan-NpmRuntimeCode' -File $File -ScriptBlock { Scan-NpmRuntimeCode -File $File -Text $behaviorText }
         Invoke-ScannerStep -StepName 'Scan-NpmIncidentContextMarkers' -File $File -ScriptBlock { Scan-NpmIncidentContextMarkers -File $File -Text $behaviorText }
+    }
+    if (Test-CheckEnabled 'LifecycleScripts') {
+        Invoke-ScannerStep -StepName 'Scan-GypBuildFile' -File $File -ScriptBlock { Scan-GypBuildFile -File $File -Text $behaviorText }
+    }
+    if ((Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'CiCd') -or (Test-CheckEnabled 'IdeExtensions')) {
+        Invoke-ScannerStep -StepName 'Scan-RuntimeTransferBehavior' -File $File -ScriptBlock { Scan-RuntimeTransferBehavior -File $File -Text $behaviorText }
     }
     if (Test-CheckEnabled 'CiCd') {
         Invoke-ScannerStep -StepName 'Scan-GitHubActions' -File $File -ScriptBlock { Scan-GitHubActions -File $File -Text $text }
@@ -8624,6 +9818,9 @@ function Scan-Project {
     }
     $oldCurrentScanRoot = $script:CurrentScanRoot
     $script:CurrentScanRoot = $resolved
+    if ((Test-CheckEnabled 'IdeExtensions') -and $resolved -match '(?i)\.(vsix|zip)$' -and [System.IO.File]::Exists($resolved)) {
+        Register-SecurityCandidateMetadata -Path $resolved -Kind 'incident-hash' -OwnerCheck 'IdeExtensions' -SelectionReason 'explicit-ide-archive' -BoundaryRoot ([System.IO.Path]::GetDirectoryName($resolved)) -Critical $true -Selected
+    }
     if (Test-IsJetBrainsPluginPath $resolved) { Register-JetBrainsRoot -RootPath (Get-JetBrainsPluginAggregateRoot $resolved) }
     Add-ListItem $script:Context.scanRoots (ConvertTo-RedactedPath $resolved)
     $oldSkipOwnSyntheticSamples = $script:SkipOwnSyntheticSamples
@@ -8641,7 +9838,7 @@ function Scan-Project {
     try {
         if (Test-CheckEnabled 'NodeRuntime') { $script:Context.nodeRuntimeProjectScanPerformed = $true }
         $projectRoots = @()
-        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks') -or (Test-CheckEnabled 'NodeRuntime')) {
+        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks') -or (Test-CheckEnabled 'NodeRuntime') -or (Test-CheckEnabled 'IdeExtensions') -or (Test-CheckEnabled 'CiCd')) {
             $projectRoots = @(Get-DiscoveredProjectRoots -RootPath $resolved)
         }
         $script:TargetedPerProjectFileLimit = Get-TargetedDependencyPerProjectFileLimit -ProjectCount $projectRoots.Count
@@ -8659,7 +9856,7 @@ function Scan-Project {
             Scan-BoundedGitRefIocs -ProjectRoot $projectRoot
         }
         $targeted = New-ArrayList
-        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks')) {
+        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks') -or (Test-CheckEnabled 'IdeExtensions') -or (Test-CheckEnabled 'CiCd')) {
             foreach ($projectRoot in $projectRoots) {
                 if (Test-RunFileBudgetExhausted) {
                     Register-RunFileBudgetReached -CandidatePath $projectRoot
