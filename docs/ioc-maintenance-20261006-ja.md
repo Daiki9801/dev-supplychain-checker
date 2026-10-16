@@ -1,5 +1,7 @@
 # IOC 鮮度・fixture 整合性の修正記録（2026-10-06）
 
+本書は2026-10-06時点の記録です。旧テスト生成物は2026-10-09に承認された移動で `reports/` へ保管し、その後の自己検査はcomplete・DANGER 0となりました。後続の修正・検証結果は[最新のローカル検証記録](python-metadata-review-20261008-ja.md)を参照してください。以下のartifactパスはローカル限定で、Git公開には含めません。
+
 ## 結果と範囲
 
 全7 IOC データセットを出典台帳と照合し、レビュー日を2026-10-06へ更新した。有効期間は30日のままで、期限判定を緩めていない。公開情報と承認済みの旧ベースラインを比較し、出典が否定した2組の誤検知候補と、検出パス・鮮度判定の問題を修正した。
@@ -67,12 +69,12 @@ Windows PowerShell `5.1.26100.9444` で次を確認した。新規2 suite は計
 
 | 検証 | 結果・証拠 |
 |---|---|
-| IOC maintenance | 39 case・1,082 assertion、158 fixture 全件一致。[結果](../reports/ioc-maintenance-regression-e85dbeebfac54c14a3649e5942ce8fdf/result.json) |
-| October security update | 36 case・231 assertion。[結果](../reports/security-update-regression-0eae9af1c16848fba28d89135e63e48c/result.json) |
-| Security boundary / launcher scope | 両方合格。境界 artifact は [reports 内](../reports/security-boundary-regression-a83a4fc3be5f42aab820eb1ada4579d3/) に保持 |
-| PowerShell parser / JSON | main と3 regression script の parse error 0、同梱7 IOC・manifest・証拠記録の9 JSON が妥当。[検証 script](../reports/ioc-maintenance-parser-d1202e10aa144f2bb0a04e45aaff375e/validate.ps1) |
-| 合成 samples / safe Node.js | samples は complete・意図した DANGER 49 / WARN 38・exit 2、safe Node.js は complete・DANGER/WARN 0・exit 0。IOC current 7、manifest mismatch / unexpected fixture / scanner error 0。[samples](../reports/ioc-maintenance-final-e4d64cf35ff3447ab08e7076b2adc526/samples.json)・[safe Node.js](../reports/ioc-maintenance-final-e4d64cf35ff3447ab08e7076b2adc526/node-safe.json) |
-| repository / tests 全体 | IOC current 7・`releaseReady=true`、期限切れ・欠落・不正・manifest mismatch・未知 fixture・scanner error 0。repository の DANGER 66 は下記の旧2 directory の意図した fixture だけ。両検査はその dense Unicode fixture による `partial-non-critical` で、critical failure 0。[repository](../reports/ioc-maintenance-repository-final-31fd7e2b232746c387a26900f5e60d81/repository.json)・[tests](../reports/ioc-maintenance-final-e4d64cf35ff3447ab08e7076b2adc526/manifest-parent.json) |
+| IOC maintenance | 39 case・1,082 assertion、158 fixture 全件一致。ローカル証拠: `reports/ioc-maintenance-regression-e85dbeebfac54c14a3649e5942ce8fdf/result.json` |
+| October security update | 36 case・231 assertion。ローカル証拠: `reports/security-update-regression-0eae9af1c16848fba28d89135e63e48c/result.json` |
+| Security boundary / launcher scope | 両方合格。ローカルartifact: `reports/security-boundary-regression-a83a4fc3be5f42aab820eb1ada4579d3/` |
+| PowerShell parser / JSON | main と3 regression script の parse error 0、同梱7 IOC・manifest・証拠記録の9 JSON が妥当。ローカルscript: `reports/ioc-maintenance-parser-d1202e10aa144f2bb0a04e45aaff375e/validate.ps1` |
+| 合成 samples / safe Node.js | samples は complete・意図した DANGER 49 / WARN 38・exit 2、safe Node.js は complete・DANGER/WARN 0・exit 0。IOC current 7、manifest mismatch / unexpected fixture / scanner error 0。ローカル証拠: `reports/ioc-maintenance-final-e4d64cf35ff3447ab08e7076b2adc526/samples.json`、同ディレクトリの `node-safe.json` |
+| repository / tests 全体（当時） | IOC current 7・`releaseReady=true`、期限切れ・欠落・不正・manifest mismatch・未知 fixture・scanner error 0。repository の DANGER 66 は下記の旧2 directory の意図した fixture だけ。両検査はその dense Unicode fixture による `partial-non-critical` で、critical failure 0。ローカル証拠: `reports/ioc-maintenance-repository-final-31fd7e2b232746c387a26900f5e60d81/repository.json`、`reports/ioc-maintenance-final-e4d64cf35ff3447ab08e7076b2adc526/manifest-parent.json` |
 
 主なコマンド:
 
@@ -92,19 +94,21 @@ report 出力先は実行ごとに未使用の名前を指定する。意図し�
 
 CI には `Test-IocMaintenance.ps1` を加えた。GitHub 上の CI 起動、Git 操作、公開は行っていない。実 host/profile、EndpointTelemetry、npm global/cache、registry/event log の検査は承認がないため行っていない。
 
-## 旧 test artifact の整理待ち
+## 当時の旧 test artifact と後続の整理結果
 
-残る repository 全体の未完了は、次の2ディレクトリの意図した dense Unicode fixture に限られる。全体検査を完了するにはこの生成物を scan root から外す必要があり、既存ファイルの削除・移動は別の明示承認を必要とする。
+2026-10-06時点で残った repository 全体の未完了は、次の2ディレクトリの意図した dense Unicode fixture に限られた。当時は移動・削除の承認前であったため保持した。
 
 - `tests/.security-boundary-regression-17558f93ef6642fb8fb95c3daab7b9ba`
 - `tests/.security-boundary-regression-920baeefd5bb4206bdb272dbe1e9d2c2`
 
-削除を実行する前の復元用 [ZIP](../reports/ioc-maintenance-artifact-recovery-72deeb32a5974f368648bd8e3e3d6376/retained-boundary-artifacts.zip) と [inventory](../reports/ioc-maintenance-artifact-recovery-72deeb32a5974f368648bd8e3e3d6376/inventory.json) を用意した。元データは202 file・172 directory（root 2件を含む）、3,121,942 byte。ZIP は645,901 byteで、全202 file の SHA-256 を元データと照合した。ZIP の SHA-256 は `d764a9bdda758300d1602ff6d30139c875d8ba91f6725c22f4243f4d3fcb7e10`。承認前は元データと復元用 ZIP を保持する。
+当時、復元用ZIPとinventoryを `reports/ioc-maintenance-artifact-recovery-72deeb32a5974f368648bd8e3e3d6376/` に用意した。ローカル限定のファイル名は `retained-boundary-artifacts.zip` と `inventory.json`。元データは202 file・172 directory（root 2件を含む）、3,121,942 byte。ZIP は645,901 byteで、当時の記録では全202 file の SHA-256 を元データと照合した。ZIP の SHA-256 は `d764a9bdda758300d1602ff6d30139c875d8ba91f6725c22f4243f4d3fcb7e10`。
+
+2026-10-09にこの2ディレクトリの移動が明示承認され、同じIDの `reports/retained-security-boundary-regression-*` へ内容を保持して移動した。削除は行っていない。移動後の自己検査は `scanComplete=true`、`completionStatus=complete`、DANGER 0、coverage failure 0で、整理待ちは解消した。詳細は[後続の検証記録](python-metadata-review-20261008-ja.md)を参照する。
 
 ## 保持した制限
 
 - `iocData.releaseReady` はこの限定 corpus のレビュー日・必須データ・整合性の公開条件を示す。独立再検証していない historical entry の証拠を強くする指標ではない。
 - スキャナーは引き続き dependency-free / offline-only / read-only / Windows PowerShell 5.1。修復・隔離・対象実行を追加していない。
-- 以前の安全境界テストが作った `tests/.security-boundary-regression-*` の2ディレクトリには意図的な検知対象がある。これらを含む repository-wide scan の finding は test artifact として区別する。実ファイルの削除には個別の承認が必要である。
+- 保管した旧安全境界テストの2ディレクトリには意図的な検知対象がある。保管先を明示スキャンした場合のfindingはtest artifactとして区別する。実ファイルの削除には個別の承認が必要である。
 
-削除0、移動0、改名0、既存ファイル全置換0。更新前からある instruction・`.codex/`・歴史的文書の変更は保持した。
+2026-10-06の作業は削除0、移動0、改名0、既存ファイル全置換0。更新前からある instruction・`.codex/`・歴史的文書の変更は保持した。後続の承認済み移動2件は上記の2026-10-09記録に区別した。

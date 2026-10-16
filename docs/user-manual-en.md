@@ -1,8 +1,38 @@
 # Beginner User Manual
 
+Current scanner version: **0.1.27**. Updated: **2026-10-16**.
+
+Version 0.1.27 prints severity totals beside finding classes. `ConfigReview=153` is not a WARN count; read `Findings by severity`, execution status and coverage completion separately. Menus 3/4/5 inspect the current folder with their selected checks and shared Unicode/IOC checks.
+
+Four reviewed markers in this distribution's tests/workflow become INFO `SCANNER_TEST_MARKER_REFERENCE` only after exact relative-path, normalized source-hash and rule verification. Edited files, external copies and other behavior remain analyzed. Local IOC timeouts keep the two-second bound and continue later rules with incomplete coverage. MCP extraction recognizes escaped keys and is bounded to 8,192 nodes, depth 32, 256 fragments and 65,536 characters. Exhaustion or command-bearing malformed JSON yields WARN coverage information.
+
+File counters count distinct normalized paths within each counter. `fileEnumerationEvents` / `fileSkipEvents` describe repeat visits. Exclusions can happen before queuing, so queued does not equal scanned plus skipped. Verified fixture project markers are excluded from project/budget counts; unknown/changed files remain eligible.
+
+Timestamps and elapsed time share a monotonic origin. `performance.slowActivities` retains at most 20 redacted slow read/file/analysis records. Reading and analysis are nested; add only `partition=true` activities. Real-PC performance has not been remeasured. The IOC baseline remains 2026-10-06. With the parsed report in `$r`:
+
+```powershell
+$r.summary
+$r.coverage.summary.nextActions | Format-List
+$r.performance.slowActivities | Format-Table activity, elapsedMs, path -AutoSize
+```
+
+Version 0.1.26 classifies mixed passive PowerShell pattern definitions using original source syntax plus proven passive spans. A parse error caused by blanking a test literal is not treated as an original-source execution finding; active code beside passive definitions remains checked. Plugin-cache workflow copies are INFO references with activation unknown, while active repository CI posture remains checked.
+
+`_cacache/content-v2` blob subtrees are excluded under standard and custom cache roots without decoding or enumerating their contents. `cacheBlobDirectoriesSkipped` counts excluded directories, not inferred file totals. Ordinary files outside that structural subtree remain eligible. Menu scopes, confirmations, severity/exit codes and the 2026-10-06 IOC baseline are unchanged.
+
+Version 0.1.25 separates execution, coverage and finding severity. Ctrl+C/pipeline stops produce `executionStatus=interrupted`, an `INTERRUPTED` label, `completionStatus=incomplete-critical` and `scanComplete=false` when PowerShell can save its final report. Unstarted npm/dependency checks say `not-started`, not `not-found` or within-limits. Closing the window or killing the process cannot guarantee a report.
+
+Ordinary regex classifier patterns receive the same conservative passive-data review as earlier test literals. Compressed/binary containers use bounded probes and aggregate INFO instead of noisy text decoding; no decompression dependency is added. Cached MCP command configs state `activation=unknown`. Mutable npx/uvx selectors in cache are CAUTION capabilities; strong command compounds remain detectable. The IOC baseline remains 2026-10-06.
+
+Version 0.1.24 improves distinctions between passive test strings, planned operations and actual credential-send/configuration-write compounds. Proven regex-only PowerShell test literals retain INFO evidence; unknown consumers, dynamic execution and malformed syntax remain in normal analysis. INFO does not certify the rest of a file. AI key inventories and pagination properties alone do not establish exfiltration.
+
+For incomplete coverage, inspect `failureType` in `coverage.candidateFailures` and `coverage.directoryFailures`: `file-in-use` indicates a sharing/locking conflict, `access-denied` insufficient access, `path-too-long` an actual long-path cause, `path-not-found` a missing/disappearing path, and `io-error` another I/O failure. `exceptionTypes` and `hresults` provide bounded metadata without exception messages or file contents; a directory may represent a failing child. Size and regex limits remain recorded. Non-critical read failures and dependency/cache sampling limits also set `scanComplete=false` with PARTIAL completion. Review the affected scope and rerun a narrower check when needed.
+
 This manual explains how to use `Dev Supply Chain IOC Checker` on Windows.
 
 The checker performs static, read-only triage for suspicious supply-chain indicators in developer folders, package metadata, CI/CD files, AI/MCP agent configs, IDE extension metadata, and selected opt-in host locations. It does not delete files, fix issues, run target code, download data, or contact the network.
+
+Version 0.1.23 adds the reviewed October IOC supplement and bounded native-build/runtime and Python metadata checks. It correctly matches short Python version spellings and treats OCR data and signature artifacts as binary after hash checks. The shipped IOC baseline was reviewed on 2026-10-06; scans do not fetch current advisories.
 
 ## 1. What To Know First
 
@@ -23,22 +53,24 @@ The checker performs static, read-only triage for suspicious supply-chain indica
 
 Run the launcher from the extracted checker folder. If only `Scan-DevSupplyChain.ps1` was copied elsewhere, the scan still works, but reports may show `distributionStatus=script-only` or `incomplete`.
 
+A PowerShell 7 terminal can launch the BAT file. The BAT uses Windows PowerShell 5.1 (`powershell.exe`), independently of the `pwsh.exe` version. Start ordinary project scans as a normal user and review any recorded coverage gaps before considering broader access.
+
 ## 3. Launcher Menu
 
 ```text
-1. Recommended project scan
-2. Scan selected path
-3. Package / Node runtime risks
-4. AI / MCP / IDE config risks only
-5. CI/CD and hooks risks only
-6. npm global/cache static check
-7. Major PC locations scan
-8. Custom checks for current folder
-9. Comprehensive bounded scan (target + major locations + profile + endpoint)
+1. Recommended project scan - current folder
+2. Scan selected path - choose folder, then Recommended or Deep
+3. Package / Node runtime risks - current folder
+4. AI / MCP / IDE config risks only - current folder
+5. CI/CD and hooks risks only - current folder
+6. npm global/cache static check - PC metadata; confirm
+7. Major PC locations scan - PC folders/profile; confirm
+8. Custom checks for current folder - advanced
+9. Comprehensive bounded scan (target + major locations + profile + endpoint) - confirm
 10. Exit
 ```
 
-Use `1` first for normal project triage. Modes `6`, `7`, and `9` read broader real-PC locations and require typing `YES` before running.
+Use `1` for the current working folder, or `2` to select another project explicitly. Double-clicking the launcher can make the checker folder itself the working folder. Modes `3`, `4`, `5` and `8` also default to the working folder. Modes `6`, `7`, and `9` read broader real-PC locations and require typing `YES` before running.
 
 Custom menu item `8` accepts project-local checks only. It does not accept `NpmGlobal`, `NpmCache`, `MajorRecommended`, or `AllSafe`; use confirmed modes `6`, `7`, or `9` for broader host scope. Risk-specific menus `3`, `4`, and `5` retain the cross-cutting `InvisibleUnicode`/GlassWorm check for their selected files.
 
@@ -52,9 +84,17 @@ A parent-folder scan discovers child npm, Python, and Composer projects within b
 
 Long scans use compact progress by default. About every 30 seconds, `progress` shows the redacted project root, run-wide deduplicated target count (`queued`), text-content scan count (`scanned`), and elapsed time. It does not normally print each current file, every stage for files of at least 1 MiB, or `slow step completed` lines. For diagnostics, pass `-VerboseProgress` directly to `Scan-DevSupplyChain.ps1` to restore five-second detailed progress; `-Quiet` suppresses progress entirely. Finding line numbers are counted in 64 KiB native string chunks instead of per-character PowerShell loops. Reaching `MaxFiles` or the reserved dependency budget stops the applicable remaining traversal and records incomplete coverage in the report.
 
-Each full-text regular-expression operation has an explicit two-second .NET timeout; this is not a total scan time limit. Pathological input produces a `regex timeout` console line and a `REGEX_SCAN_TIMEOUT` limitation. Only that operation for that file is skipped; other checks and files continue. Because the operation was not completed, the run cannot be `complete`: it is `partial-non-critical` for a non-critical candidate or `incomplete-critical` when the affected file is a critical candidate such as a lockfile or active configuration. File contents are not included in timeout output. Narrow the scan or review the named file manually rather than treating a larger timeout as proof that it is safe.
+Each full-text regular-expression operation has an explicit two-second .NET timeout; this is not a total scan time limit. Pathological input produces a `regex timeout` console line and a `REGEX_SCAN_TIMEOUT` limitation. Other checks and files continue, but the remaining rules in the containing step can be skipped. Runtime credential-subrule isolation specifically preserves its later execution checks. The named rule/step was not completed, so the run cannot be `complete`: it is `partial-non-critical` for a non-critical candidate or `incomplete-critical` when the affected file is a critical candidate such as a lockfile or active configuration. File contents are not included in timeout output. Review the named file and rule; narrowing a folder alone may not fix the same timeout.
 
 ## 4. Risk Checks
+
+Read `executionStatus` before interpreting the findings. `completed` means all planned phases returned; recorded read/analysis gaps may still make coverage partial. `interrupted` means some planned work has no result; `error` means execution failed. Inspect `execution.phases` / `unfinishedPhases`, and `checkStats.<check>.executionStatus` rather than just `enabled`. Phase states distinguish not-started, running, completed, interrupted and failed.
+
+`execution.startedAt`, `finishedAt` and `elapsedMs` describe the run; `queuedFilesUnprocessed` counts only already-queued unique paths and cannot count an unenumerated remainder. `findingClassSummary` separates security evidence, advisory version matches, configuration review, capabilities, coverage limitations and context. A coverage WARN is not malicious behavior and finding counts are not infection counts.
+
+Timeout findings include a stable hashed `ruleId`, the timeout and elapsed milliseconds, without regex/input text. `performance.steps` contains bounded per-step timing aggregates. A narrower folder alone may not fix a timeout on the same file and rule; the two-second bound is unchanged.
+
+`coverage.summary.nextActions` lists all concurrent failure groups and sampling limits with counts, representative paths and actions. The existing `nextAction` is retained as a combined string. `performance.activities` records Enumeration, ProjectDiscovery, TargetSelection, Reading (including decoding) and FileProcessing. Only `partition=true` activities are additive: their total is `partitionElapsedMs`; `otherElapsedMs` is remaining execution time. Reading and individual check steps are nested and must not be added again. Report formatting/writes are excluded. `performance.slowSteps` keeps at most 20 slowest records at or above two seconds, with redacted profile paths and no source/regex text. Classification, syntax and mask reuse plus applicable-file dispatch reduce work; real-PC speedups depend on the workload.
 
 `-Checks` can select risk categories.
 
@@ -90,7 +130,7 @@ Deep still skips VCS directories and reparse points, never reads auth-file conte
 | Severity | Meaning |
 |---|---|
 | `DANGER` | High-priority candidate such as an exact known IOC or strong execution/exfiltration context. |
-| `WARN` | Actionable review candidate with a stronger suspicious pattern, known risk, or security weakness. Not proof of infection. |
+| `WARN` | Prioritized suspicious pattern, known risk, weakness or coverage limitation. Read its type; this is not proof of infection. |
 | `CAUTION` | Lower-signal presence, capability, or posture finding that merits review but has no strong malicious compound by itself. |
 | `INFO` | Inventory, limitation, aggregate, or context. |
 | `OK` | Scan completed or no problem candidate for that check. |
@@ -125,6 +165,42 @@ Version 0.1.17 adds `scanScope` and `iocData`. `scanScope.fullDisk` is always `f
 The August 2026 Keyv ChainDrop snapshot compares 443 package names and 2,235 exact package/version pairs. An installed-package or structurally parsed lockfile exact match is `DANGER`; manifest constraints, cache/reference text, and marker-only matches require corroboration. Preserve the evidence and do not automatically delete a file based on the finding.
 
 Version 0.1.16 detects the known GlassWorm `codePointAt` decoder shape and consecutive Variation Selector clusters. Version 0.1.18 requires the range checks and byte mapping to use the same locally bound code-point variable, and a decoder signature without an observed Variation Selector cluster is at most `WARN`. Version 0.1.19 reports an isolated invisible control without a nearby execution compound as `CAUTION`. Version 0.1.20 classifies manual workflows, passive tooling, and reference examples more precisely: active unpinned MCP commands remain `WARN`, passive tooling and reference examples are `CAUTION`, and active fetch-execute remains `DANGER`. Version 0.1.21 separates installed and project Node.js assessment and distinguishes non-critical partial completion. Version 0.1.22 pins the launcher executable, removes content-blind active-file self exemptions, bounds environment-defined automatic roots, and distinguishes selected package entrypoints from unselected dependency/generated code reached only by Deep traversal. Generic compounds in the latter are `WARN`/`CAUTION`, while exact IOCs, campaign chains, first-party code, and selected entrypoints retain higher priority. Dependency-owned workflow files are not treated as active consuming-repository CI, and explicitly non-critical traversal limits no longer display as critical coverage failure. Dependency/generated status is derived below the explicit scan root, so an ancestor directory name cannot downgrade first-party content. Embedded executable here-strings remain in normal analysis because target-controlled function, helper, variable, or pattern-array names do not prove that fixture text is passive. For the generic PowerShell fetch-execute heuristic only, each original-source match is classified as active, ambiguous, or passive regex data. A static `Pattern` literal is passive only when its lexical function scope and all direct consumers are proven regex-only and reachable local helpers cannot capture it through dynamic scope. Active matches retain priority and their original line. Parse errors, reflection, self-source reads, wrappers, property/index transfer, and unknown uses remain fail-safe findings. Known selector mapping is decoded only in memory for static marker checks; decoded text is neither executed nor written to reports. Existing report outputs and identical TXT/JSON paths are rejected before scanning instead of being overwritten.
+
+### Reviewing Many CAUTION Findings
+
+Check completion and IOC freshness first, then prioritize DANGER/WARN. Group CAUTION findings by category and inspect each path, evidence, and recommendation. Replace the example JSON path with the exact report file; these commands do not execute project code.
+
+```powershell
+$reportPath = 'C:\Path\To\dev-supplychain-report.json'
+if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+  throw 'The JSON report file was not found.'
+}
+$r = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 -ErrorAction Stop |
+  ConvertFrom-Json -ErrorAction Stop
+$r | Select-Object scanComplete, completionStatus
+$r.iocData | Select-Object releaseReady, staleCount, missingCount, invalidCount
+$r.findings | Where-Object severity -eq 'CAUTION' |
+  Group-Object category | Sort-Object Count -Descending | Select-Object Count, Name
+$r.findings | Where-Object severity -eq 'CAUTION' |
+  Select-Object category, title, path, line, evidence, recommendation | Format-List
+```
+
+| Kind | Static review |
+|---|---|
+| Lifecycle scripts | Read the declaration, called file, execution conditions, downloads, and credential access/transfer. Native packages such as `sharp` may build from source only under specific conditions; a declared script does not prove execution on this PC. |
+| WASM or decoder capability | Check reachability from the selected entrypoint and nearby process, download, or secret-transfer behavior. A capability can also be normal library functionality. |
+| Isolated invisible characters | Distinguish documentation, emoji, and synthetic data from characters tied to a decoder or execution flow. |
+| Configuration or tooling capability | Distinguish manual workflows and reference text from active AI/MCP settings, then check purpose and provenance. |
+
+Record each finding as explained normal functionality, needing further investigation, or being handled in its owning project, with its path and supporting evidence. Do not suppress findings solely by package name or run install/build, package code, or hooks to investigate them. Access denied does not prove that a directory is empty; review `coverage.summary` and obtain access to the exact affected scope before rerunning it.
+
+After loading the JSON into `$r`, inspect all coverage actions and timing records with:
+
+```powershell
+$r.coverage.summary.nextActions | Format-List reason, count, paths, action
+$r.performance.activities | Format-Table activity, attempts, elapsedMs, maxElapsedMs, partition
+$r.performance.slowSteps | Format-Table step, elapsedMs, timedOut, path -Wrap
+```
 
 ## 6. Synthetic Samples And Reports
 

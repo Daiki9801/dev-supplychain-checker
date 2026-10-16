@@ -1,8 +1,9 @@
 # Push前のPCテスト手順
 
-- 対象バージョン: **0.1.23**
+- 対象バージョン: **0.1.27**
 - 対象OS: Windows 10 / 11
 - 実行環境: Windows PowerShell 5.1
+- 手順更新日: 2026-10-16
 
 この手順は、最初にリポジトリ内の合成データだけで安全に検証し、その後、必要な範囲に限って実PCを読み取り専用で確認する構成です。スキャナーはネットワーク接続、対象コード実行、修復、削除、隔離、レジストリ変更を行いません。TXT/JSONレポートだけを作成します。
 
@@ -17,6 +18,17 @@ Set-Location C:\Path\To\dev-supplychain-checker
 $PSVersionTable.PSVersion
 git status --short
 git rev-parse HEAD
+
+$pcTestReportRoot = Join-Path (Get-Location) 'reports'
+if (Test-Path -LiteralPath $pcTestReportRoot) {
+  $reportRootItem = Get-Item -LiteralPath $pcTestReportRoot -Force -ErrorAction Stop
+  if (-not $reportRootItem.PSIsContainer -or
+      ($reportRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'reports must be an ordinary directory inside this repository.'
+  }
+} else {
+  New-Item -ItemType Directory -Path $pcTestReportRoot -ErrorAction Stop | Out-Null
+}
 ```
 
 確認事項:
@@ -24,6 +36,8 @@ git rev-parse HEAD
 - `PSVersion` の `Major` が `5` である。
 - 意図しない変更や未知の未追跡ファイルがない。
 - `.env`、秘密鍵、実レポート、認証ファイルをGitへ追加しない。
+
+以降はこの開始手順で設定した `$pcTestReportRoot` を使い、今回の生成物をすべてGit除外対象の `reports/` 配下へ保存します。各テストの保存先はGUIDで分け、既存の出力を上書きしません。管理者権限は合成テストには不要です。
 
 PowerShell 7を開いている場合も、次のようにWindows PowerShell 5.1を明示して回帰テストを実行できます。`pwsh.exe` のバージョンと、BATが使う `powershell.exe` のバージョンは別です。
 
@@ -48,36 +62,73 @@ if ($parseErrors.Count -ne 0) {
   throw 'PowerShell parser validation failed.'
 }
 
-$jsonFiles = @(Get-ChildItem -LiteralPath .\iocs -Filter *.json -File -Force)
-$jsonFiles += Get-Item -LiteralPath .\tests\samples\manifest.json
-foreach ($file in $jsonFiles) {
-  Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json | Out-Null
+$requiredJsonPaths = @(
+  '.\iocs\campaign-keyv-chaindrop-20260806.json',
+  '.\iocs\known-actions.json',
+  '.\iocs\known-extensions.json',
+  '.\iocs\known-files.json',
+  '.\iocs\known-node-runtimes.json',
+  '.\iocs\known-packages.json',
+  '.\iocs\suspicious-patterns.json',
+  '.\tests\samples\manifest.json',
+  '.\docs\ioc-maintenance-20261006-evidence.json'
+)
+foreach ($relativePath in $requiredJsonPaths) {
+  try {
+    Get-Content -LiteralPath $relativePath -Raw -Encoding UTF8 -ErrorAction Stop |
+      ConvertFrom-Json -ErrorAction Stop | Out-Null
+  } catch {
+    throw ("Invalid or missing JSON: {0}" -f $relativePath)
+  }
 }
 
-.\tests\Test-LauncherScopeContracts.ps1
-.\tests\Test-SecurityBoundaryRegressions.ps1 -KeepArtifacts
-.\tests\Test-SecurityUpdate20261006.ps1
-.\tests\Test-IocMaintenance.ps1
-.\tests\Test-PythonMetadataRegressions.ps1
+$winPS = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$regressionPaths = @(
+  '.\tests\Test-LauncherScopeContracts.ps1',
+  '.\tests\Test-SecurityBoundaryRegressions.ps1',
+  '.\tests\Test-SecurityUpdate20261006.ps1',
+  '.\tests\Test-IocMaintenance.ps1',
+  '.\tests\Test-PythonMetadataRegressions.ps1',
+  '.\tests\Test-StaticTriageRegressions.ps1',
+  '.\tests\Test-ScanExecutionRegressions.ps1',
+  '.\tests\Test-ScanTriagePerformanceRegressions.ps1',
+  '.\tests\Test-ScanReviewRegressions.ps1'
+)
+foreach ($regressionPath in $regressionPaths) {
+  $regressionArgs = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$regressionPath)
+  if ($regressionPath -like '*Test-SecurityBoundaryRegressions.ps1') {
+    $regressionArgs += '-KeepArtifacts'
+  }
+  & $winPS @regressionArgs
+  if ($LASTEXITCODE -ne 0) { throw ("Regression failed: {0}" -f $regressionPath) }
+}
 
 git diff --check
+if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 ```
 
 合格条件:
 
 - parser errorが0件。
-- 全JSONが例外なく読み込める。
+- 必須9 JSON（7 IOC、fixture manifest、項目別証拠記録）がUTF-8で例外なく読み込める。欠落・解析エラーを無視せず、ファイル名だけで失敗を報告する。
 - launcher scope契約と、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
 - Python短縮バージョン、PEP 440の同一性、METADATAヘッダー境界、ロックファイルの対応関係、OCR/署名バイナリとハッシュ検査の合成回帰が合格する。
+- 実行状態の回帰で合格メッセージが出る。`Test-ScanExecutionRegressions.ps1` はリポジトリ内の合成パイプラインだけを停止し、保存レポートの中断状態・未着手npm・圧縮判定と保持ハッシュ・キャッシュ内MCP・タイムアウト情報の秘匿を検証する。npmは明示的な合成ルートへ限定し、実プロファイル・端末ログ・実npm/Node配置は読まない。
+- `Test-ScanTriagePerformanceRegressions.ps1` が合格する。通常文字列とPattern表の混在、実行コードの検出維持、大きな引用符付きキー、サブルールのタイムアウト後の検査継続、同時に出る未完了理由、キャッシュ／有効CIの区別、独自npmキャッシュ、計時配列と最大20件の遅い検査記録をリポジトリ内の合成データだけで検証する。
 - `git diff --check` にエラーがない。改行コードの変換予告だけなら失敗ではありません。
+
+`Test-ScanReviewRegressions.ps1` は大きなcompiler風テキスト、多数のPowerShell変数、escaped keyを持つJSON、深い／広いJSON、後続ルールの継続、自己参照ハッシュの改変・コピー拒否、件数、時刻と遅い活動の記録を検証します。入力コードは実行せず、生成物はGUID付きの `reports/` 配下へ保持します。`-BenchmarkOnly` は同じ合成入力形状によるヘルパー計時だけを保存します。
+
+計時はJSONの `performance.activities` を確認します。`partition=true` の活動だけを合計し、`Reading`、`PowerShellContextProof`、`McpCommandExtraction`、`steps` は再加算しません。`otherElapsedMs` は未計測の実行時間で、レポート整形・書き込み時間は含みません。`slowSteps` と `slowActivities` はそれぞれ2秒以上の処理の上位最大20件です。開始・終了時刻と経過時間は同じ単調時計の起点を使います。速度比較は同じ合成入力・検査項目・PowerShellで行い、検出結果と完了状態も確認します。合成入力での短縮率を実PCの所要時間へそのまま適用しません。
+
+重大度別件数は `$r.summary`、分類別は `$r.findingClassSummary` を確認します。ファイル件数は各カウンター内の重複を除いたパス数で、再訪は `fileEnumerationEvents` / `fileSkipEvents` です。キュー投入前の除外もあるため、queued/scanned/skippedを単純加算しません。自己テストの4つのINFO参照は、正確なパスとソースハッシュ・ルールの一致時だけ許容します。
 
 ## 3. 全合成回帰テスト
 
 この検査は `tests/samples` の手書き合成データだけを読みます。実ユーザープロファイル、npm global/cache、レジストリ、イベントログは読みません。
 
 ```powershell
-$syntheticStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$syntheticReportDir = Join-Path (Get-Location) "reports-pc-test-synthetic-$syntheticStamp"
+$syntheticReportDir = Join-Path $pcTestReportRoot ('pc-test-synthetic-' + [Guid]::NewGuid().ToString('N'))
 if (Test-Path -LiteralPath $syntheticReportDir) { throw 'Synthetic test directory already exists.' }
 New-Item -ItemType Directory -Path $syntheticReportDir | Out-Null
 
@@ -96,7 +147,7 @@ if ($syntheticExit -notin @(0, 1, 2)) {
 $syntheticJson = Get-ChildItem -LiteralPath $syntheticReportDir -Filter *.json -File |
   Sort-Object LastWriteTime -Descending |
   Select-Object -First 1
-$syntheticReport = Get-Content -LiteralPath $syntheticJson.FullName -Raw | ConvertFrom-Json
+$syntheticReport = Get-Content -LiteralPath $syntheticJson.FullName -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 
 if (-not [bool]$syntheticReport.scanComplete) { throw 'Synthetic scan was incomplete.' }
 if ($null -eq $syntheticReport.coverage.summary -or [string]::IsNullOrWhiteSpace([string]$syntheticReport.coverage.summary.nextAction)) { throw 'Coverage summary contract failed.' }
@@ -118,7 +169,7 @@ foreach ($category in $requiredCategories) {
   }
 }
 
-$manifest = Get-Content -LiteralPath .\tests\samples\manifest.json -Raw | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath .\tests\samples\manifest.json -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -File .\Scan-DevSupplyChain.ps1 `
   -Path .\tests `
@@ -128,7 +179,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -TextOut (Join-Path $syntheticReportDir 'manifest-parent.txt') `
   -Quiet -NoColor
 if ($LASTEXITCODE -notin @(0, 1, 2)) { throw 'Manifest parent scan failed.' }
-$manifestParent = Get-Content -LiteralPath (Join-Path $syntheticReportDir 'manifest-parent.json') -Raw | ConvertFrom-Json
+$manifestParent = Get-Content -LiteralPath (Join-Path $syntheticReportDir 'manifest-parent.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 if ([int]$manifestParent.scanStats.syntheticSampleUnexpectedFiles -ne 0) { throw 'Unexpected synthetic fixture file found.' }
 if ([int]$manifestParent.scanStats.syntheticSampleHashMismatches -ne 0) { throw 'Synthetic fixture hash mismatch found.' }
 if ([int]$manifestParent.scanStats.syntheticSampleKnownSkipped -lt @($manifest.samples).Count) { throw 'Not all manifest fixtures were verified.' }
@@ -141,7 +192,7 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -TextOut (Join-Path $syntheticReportDir 'node-runtime-safe.txt') `
   -Quiet -NoColor
 if ($LASTEXITCODE -notin @(0, 1, 2)) { throw 'Safe Node.js report test failed.' }
-$safeNodeReport = Get-Content -LiteralPath (Join-Path $syntheticReportDir 'node-runtime-safe.json') -Raw | ConvertFrom-Json
+$safeNodeReport = Get-Content -LiteralPath (Join-Path $syntheticReportDir 'node-runtime-safe.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 if ([int]$safeNodeReport.nodeRuntimeAssessment.installedBinaries.vulnerable -ne 0) { throw 'Project-only scan reported a vulnerable installed Node.js binary.' }
 if ([int]$safeNodeReport.nodeRuntimeAssessment.projectReferences.notAffected -lt 1) { throw 'Safe project Node.js reference was not reported.' }
 if (@($safeNodeReport.nodeRuntimeAssessment.inventory.entries | Where-Object { $_.sourceType -eq 'project-reference' -and $_.advisoryStatus -eq 'not-affected-in-offline-baseline' }).Count -lt 1) { throw 'Safe Node.js inventory contract failed.' }
@@ -175,11 +226,10 @@ if (-not [bool]$syntheticReport.iocData.releaseReady) {
 
 ## 4. レポート非上書きとBAT特殊文字テスト
 
-以下は `reports-pc-test-safety` 内の合成ファイルだけを使います。
+以下は `reports/pc-test-safety-*` 内の今回作成した合成ファイルだけを使います。
 
 ```powershell
-$safetyStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$safetyRoot = Join-Path (Get-Location) "reports-pc-test-safety-$safetyStamp"
+$safetyRoot = Join-Path $pcTestReportRoot ('pc-test-safety-' + [Guid]::NewGuid().ToString('N'))
 if (Test-Path -LiteralPath $safetyRoot) { throw 'Safety test directory already exists.' }
 New-Item -ItemType Directory -Path $safetyRoot | Out-Null
 
@@ -267,26 +317,30 @@ if (@($emptyCustomOutput | Where-Object { [string]$_ -match 'Cancelled\.' }).Cou
 公開候補リポジトリ自体を通常検査し、テストコードや文書の自己参照がDANGERにならないことを確認します。
 
 ```powershell
-$repositoryReportDir = Join-Path (Get-Location) "reports-pc-test-repository-$safetyStamp"
+$repositoryReportDir = Join-Path $pcTestReportRoot ('pc-test-repository-' + [Guid]::NewGuid().ToString('N'))
 if (Test-Path -LiteralPath $repositoryReportDir) { throw 'Repository test directory already exists.' }
 New-Item -ItemType Directory -Path $repositoryReportDir | Out-Null
+$repositoryJsonPath = Join-Path $repositoryReportDir 'repository.json'
 
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -File .\Scan-DevSupplyChain.ps1 `
   -Path . `
   -Checks Recommended `
-  -ReportDir $repositoryReportDir `
+  -ReportDir $pcTestReportRoot `
+  -JsonOut $repositoryJsonPath `
+  -TextOut (Join-Path $repositoryReportDir 'repository.txt') `
   -Quiet -NoColor
 $repositoryExit = $LASTEXITCODE
 if ($repositoryExit -notin @(0, 1, 2)) { throw 'Repository self-scan failed.' }
 
-$repositoryJson = Get-ChildItem -LiteralPath $repositoryReportDir -Filter *.json -File | Select-Object -First 1
-$repositoryReport = Get-Content -LiteralPath $repositoryJson.FullName -Raw | ConvertFrom-Json
+$repositoryReport = Get-Content -LiteralPath $repositoryJsonPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 if (-not [bool]$repositoryReport.scanComplete) { throw 'Repository self-scan was incomplete.' }
 if ($null -eq $repositoryReport.coverage.summary) { throw 'Repository coverage summary is missing.' }
 if ($repositoryReport.completionStatus -ne 'complete') { throw 'Repository completion status is not complete.' }
 if (@($repositoryReport.findings | Where-Object severity -eq 'DANGER').Count -ne 0) { throw 'Repository self-scan produced DANGER.' }
 ```
+
+自己検査では `-ReportDir` に `reports/` 全体を指定し、出力ファイル名だけを今回の専用サブフォルダへ向けます。これにより、別の検証で保管したfixtureや過去レポートも通常の自己検査へ混入しません。`reports-service` などの一般ソースは除外しません。
 
 ## 5. 任意の開発フォルダを検査
 
@@ -351,20 +405,39 @@ if (@($repositoryReport.findings | Where-Object severity -eq 'DANGER').Count -ne
 実レポートを共有・commit・pushしないでください。念のため、作成したテストレポートに代表的な秘密形式が残っていないか、値を表示せずファイル名だけで確認します。
 
 ```powershell
-$reportRoots = @($syntheticReportDir, $safetyRoot, $repositoryReportDir, '.\reports')
+$reportFiles = @(
+  $syntheticJson.FullName,
+  [IO.Path]::ChangeExtension($syntheticJson.FullName, '.txt'),
+  (Join-Path $syntheticReportDir 'manifest-parent.json'),
+  (Join-Path $syntheticReportDir 'manifest-parent.txt'),
+  (Join-Path $syntheticReportDir 'node-runtime-safe.json'),
+  (Join-Path $syntheticReportDir 'node-runtime-safe.txt'),
+  $repositoryJsonPath,
+  (Join-Path $repositoryReportDir 'repository.txt')
+)
+$reportFiles += @(Get-ChildItem -LiteralPath $defaultRoot -File |
+  Where-Object { $_.Extension -in @('.json', '.txt') } |
+  ForEach-Object FullName)
 $secretPattern = '(?i)-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{30,}|gh[pousr]_[A-Za-z0-9_]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|npm_[A-Za-z0-9]{30,}'
 $reportCandidates = New-Object System.Collections.Generic.List[string]
-foreach ($root in $reportRoots) {
-  if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
-  foreach ($file in Get-ChildItem -LiteralPath $root -File -Recurse) {
-    $text = [System.IO.File]::ReadAllText($file.FullName)
-    if ([regex]::IsMatch($text, $secretPattern)) { $reportCandidates.Add($file.FullName) }
+foreach ($reportPath in $reportFiles) {
+  $file = Get-Item -LiteralPath $reportPath -Force -ErrorAction Stop
+  $ancestor = $file
+  while ($null -ne $ancestor) {
+    if ($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+      throw 'A report path crosses a reparse point; do not read its contents.'
+    }
+    if ($ancestor.FullName -eq $pcTestReportRoot) { break }
+    $ancestor = if ($ancestor -is [IO.DirectoryInfo]) { $ancestor.Parent } else { $ancestor.Directory }
   }
+  if ($null -eq $ancestor) { throw 'A report path is outside reports/.' }
+  $text = [System.IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
+  if ([regex]::IsMatch($text, $secretPattern)) { $reportCandidates.Add($file.FullName) }
 }
 $reportCandidates
 ```
 
-合格条件: 出力0件。候補が出た場合は内容を公開せず、redaction不備として合成値で再現してください。
+合格条件: 出力0件。ここではセクション3・4・4.1で今回作成したレポートだけを読みます。`reports/` 全体を再帰走査せず、過去の保管物、認証用fixture、実PCレポートは読みません。BATが作成した別のレポートを調べる場合も、確認した正確なTXT/JSONパスだけを追加してください。候補が出た場合は内容を公開せず、redaction不備として合成値で再現してください。
 
 ## 8. Push直前のGit検査
 
@@ -401,9 +474,29 @@ $patterns = @(
   '(?<![A-Za-z0-9])npm_[A-Za-z0-9]{30,}'
 )
 $publishCandidates = New-Object System.Collections.Generic.List[string]
+$bodySkippedPaths = New-Object System.Collections.Generic.List[string]
+$bodySkipPattern = '(?i)^(?:reports(?:[-_][^/]*)?|other|\.codex|\.aws|\.ssh|\.kube|tests/samples)/|(?:^|/)(?:\.aws|\.ssh|\.kube)/|(?:^|/)(?:\.env[^/]*|\.npmrc|\.pypirc|\.netrc|\.git-credentials|auth\.json|oauth_creds\.json|credentials[^/]*|secrets?[^/]*|tokens?[^/]*|id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?|[^/]*\.(?:pem|key|pfx|p12))$'
+$textExtensions = @('.md','.txt','.ps1','.bat','.yml','.yaml','.json','.toml','.ini','.cfg','.js','.ts','.py','.html','.css','.lock')
 foreach ($relativePath in $candidatePaths) {
+  $normalizedPath = $relativePath.Replace('\', '/')
+  if ($normalizedPath -match $bodySkipPattern -or
+      ([IO.Path]::GetExtension($relativePath) -notin $textExtensions -and
+       [IO.Path]::GetFileName($relativePath) -notin @('LICENSE','.gitignore','.gitattributes'))) {
+    $bodySkippedPaths.Add($relativePath)
+    continue
+  }
   if (-not (Test-Path -LiteralPath $relativePath -PathType Leaf)) { continue }
-  $text = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $relativePath)))
+  $file = Get-Item -LiteralPath $relativePath -Force -ErrorAction Stop
+  $ancestor = $file
+  while ($null -ne $ancestor -and $ancestor.FullName -ne (Get-Location).Path) {
+    if ($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) { break }
+    $ancestor = if ($ancestor -is [IO.DirectoryInfo]) { $ancestor.Parent } else { $ancestor.Directory }
+  }
+  if ($null -eq $ancestor -or $ancestor.FullName -ne (Get-Location).Path) {
+    $bodySkippedPaths.Add($relativePath)
+    continue
+  }
+  $text = [System.IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
   foreach ($pattern in $patterns) {
     if ([regex]::IsMatch($text, $pattern)) {
       $publishCandidates.Add($relativePath)
@@ -412,9 +505,11 @@ foreach ($relativePath in $candidatePaths) {
   }
 }
 $publishCandidates | Sort-Object -Unique
+$bodySkippedPaths | Sort-Object -Unique | ForEach-Object { "BODY_NOT_READ: $_" }
 
 $pendingCommits = @(git rev-list origin/main..HEAD)
 $historyCandidates = New-Object System.Collections.Generic.List[string]
+$historySkippedPaths = New-Object System.Collections.Generic.List[string]
 foreach ($commit in $pendingCommits) {
   $commitObject = @(git cat-file commit $commit) -join "`n"
   foreach ($pattern in $patterns) {
@@ -423,8 +518,15 @@ foreach ($commit in $pendingCommits) {
       break
     }
   }
-  $changedPaths = @(git diff-tree --no-commit-id --name-only -r $commit)
+  $changedPaths = @(git diff-tree --no-commit-id --name-only --diff-filter=ACMRT -r $commit)
   foreach ($relativePath in $changedPaths) {
+    $normalizedPath = $relativePath.Replace('\', '/')
+    if ($normalizedPath -match $bodySkipPattern -or
+        ([IO.Path]::GetExtension($relativePath) -notin $textExtensions -and
+         [IO.Path]::GetFileName($relativePath) -notin @('LICENSE','.gitignore','.gitattributes'))) {
+      $historySkippedPaths.Add("$commit $relativePath")
+      continue
+    }
     $blobText = @(git show "$commit`:$relativePath" 2>$null) -join "`n"
     if ($LASTEXITCODE -ne 0) { continue }
     foreach ($pattern in $patterns) {
@@ -436,9 +538,10 @@ foreach ($commit in $pendingCommits) {
   }
 }
 $historyCandidates | Sort-Object -Unique
+$historySkippedPaths | Sort-Object -Unique | ForEach-Object { "BODY_NOT_READ: $_" }
 ```
 
-合格条件: 作業ツリーとpush予定コミットの両方で、説明済みの合成fixture以外の候補が0件。候補があれば、値を表示・コピーせず、そのファイルまたはコミットをpush対象から外して原因を確認します。
+合格条件: 本文を読んだ公開候補に、説明済みの合成値以外の秘密・個人パス候補が0件。`BODY_NOT_READ` は合格扱いではなく、本文を読まなかったパスの一覧です。秘密・ローカル設定・レポートは公開候補から外し、合成fixtureはセクション3のmanifest/hash検証で確認します。binary等はこの簡易テキスト検査の対象外です。候補があれば値を表示・コピーせず、予定の公開範囲と原因を確認してください。Git状態の変更やpushはこの手順では実行しません。
 
 ## 9. 合格判定
 
@@ -449,10 +552,10 @@ Push候補として合格にする条件:
 3. manifestの未知ファイルとhash mismatchが0件で、全entryが検証済み。
 4. 既存レポート非上書き、既定名衝突、BAT引数・特殊文字・空入力テストが合格。
 5. リポジトリ自己検査が `scanComplete: true` かつDANGER 0件。
-6. 実施した実PC検査で `completionStatus` と `coverage.summary` を確認し、`SCANNER_ERROR`、`incomplete-critical`、`error` がない。`partial-non-critical` は理由と対象範囲を確認済みで、`REGEX_SCAN_TIMEOUT` があれば対象を狭めた再検査または手動確認を実施済み。
+6. 実施した実PC検査で `executionStatus`・`execution.phases`・`completionStatus`・`coverage.summary` を確認する。`interrupted` / `SCAN_INTERRUPTED`、未着手フェーズ、`SCANNER_ERROR`、`incomplete-critical`、`error` がある結果を完了検査として採用しない。`partial-non-critical` は理由と対象範囲を確認済みで、`REGEX_SCAN_TIMEOUT` は `ruleId` と処理時間を記録して再検査または手動確認を実施済み。同じファイルの問題はフォルダを絞るだけでは解消しない場合がある。
 7. DANGER/WARN/CAUTIONを手動確認し、必要な修正は合成fixtureへ落として再検証済み。
 8. stage予定ファイルと未pushコミットに秘密情報、個人パス、実レポート、不要生成物がない。
 9. `iocData.releaseReady: true` で、同梱IOCに期限超過・欠落・不正がない。
 10. GitHubへのpushは、上記確認後に別操作として明示的に実行する。
 
-テスト用の3ディレクトリは自動削除しません。結果確認後、`$syntheticReportDir`、`$safetyRoot`、`$repositoryReportDir` がこのリポジトリ直下の今回作成した専用ディレクトリを指していることを確認し、その3つだけをエクスプローラー等で削除してください。実PC検査の `reports` はGitへ追加せず、組織の保管方針に従って扱います。
+テスト用の3ディレクトリは `reports/` 配下へ保管し、自動削除しません。削除・移動する場合は、今回の正確な対象パス、件数、影響、復旧方法を確認して個別に承認してください。実PC検査の `reports` もGitへ追加せず、組織の保管方針に従って扱います。

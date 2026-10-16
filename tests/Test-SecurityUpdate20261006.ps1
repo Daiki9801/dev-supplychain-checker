@@ -48,7 +48,7 @@ $allowlist=@(
  'New-ArrayList','Add-ListItem','Get-PropertyValue','Normalize-Version','ConvertTo-PythonPackageVersion','ConvertTo-PackageIocVersion','Test-IsExactPackageVersionText',
  'Get-SecurityUpdate20261006Iocs','ConvertTo-PackageIocName','Get-ExactPackageIocMatch','Finalize-IocIndexes','Get-IocSeverityRank','Add-KnownPackageFinding',
  'Get-StaticCodeMask','ConvertFrom-GypStaticEscapes','Get-GypStaticExecutionAssessment','Get-RuntimeTransferAssessment','Scan-GypBuildFile',
- 'Get-BoundedTextRegexMatch','Get-BoundedTextRegexMatches','Test-BoundedTextRegex','Get-LineNumberForIndex',
+ 'Get-CachedBoundedRegex','Get-BoundedTextRegexMatch','Get-BoundedTextRegexMatches','Test-BoundedTextRegex','Get-LineNumberForIndex',
  'ConvertFrom-PythonRecordLine','Read-PythonDistributionHeader','Read-BoundedSecurityCandidateText',
  'Get-ActionAdvisoryAssessment','Test-ActionAdvisoryData','ConvertTo-NodeRuntimeVersion','Compare-NodeRuntimeVersion','Compare-NodeRuntimePrerelease',
  'Get-SecurityCandidateMetadata','Register-SecurityCandidateMetadata','Test-SecurityCandidateBoundary',

@@ -113,3 +113,29 @@ Windows PowerShell 5.1でリポジトリ直下を `-Path . -Checks Recommended` 
 2026-10-09の移動・改名は2フォルダー（配下202ファイル、移動元を含む172ディレクトリ）です。削除と既存ファイルの全置換は0件です。
 
 今回のレビューは作業ツリーと現在のアーカイブ属性の確認です。完全な秘密情報検出、到達可能な全Git履歴の監査、実際の配布アーカイブ作成、GitHub上のCIは未実施です。Git add／commit／pushや、実PCの広い範囲を読むmajor／profile／telemetryモードは実行していません。
+
+## README・マニュアルと公開前手順の改善（2026-10-09）
+
+README・CHANGELOG、日英の初心者／図解マニュアル、公開前手順、旧計画／検証記録と本記録の計11文書、CI設定1ファイルを更新した。日英マニュアルの現行版をv0.1.23へ統一し、旧PNGは履歴資料として案内する。CAUTIONはカテゴリ別に集計した後、ライフサイクルの実行条件、WASM等の能力、不可視文字、設定の有効性を静的に確認する手順を加えた。操作例は[初心者向けマニュアル](user-manual-ja.md)を参照する。
+
+[公開前手順](pre-push-test-procedure-ja.md)の生成先はGUID付きの `reports/pc-test-*` とし、自己検査では `-ReportDir` に `reports/` 全体を指定する。秘密形式チェックは今回の正確なレポートパスだけを読み、過去の保管物を再帰走査しない。公開候補の簡易本文検査は既知の秘密ファイル、ローカル設定、合成fixture、binary、reparse経由のパスを除外し、未読パスを明示する。未読項目を安全と判定する機能ではない。
+
+Windows PowerShell `5.1.26100.9444` で変更後の文書・CIコードを検証した。
+
+| 検証 | 結果 |
+|---|---|
+| 文書内PowerShell／source parser | 28コード例と既存6スクリプトで構文エラー0 |
+| CI JSON step | 本文を抽出してローカル実行。7 IOC・manifest・証拠台帳の必須9 JSONをUTF-8で読み込み、exit 0 |
+| JSON異常系 | 証拠台帳欠落、証拠台帳の不正JSON、先頭IOCの不正JSONの3件がexit 1。後続の成功表示なし、入力本文のmarker漏えいなし |
+| 文書のJSONチェック | 同じ必須9パスで成功。CIとの検査対象差分0 |
+| 文書の合成・manifest・safe Node.js検査 | 全合成検査complete、必須DANGERカテゴリ検出、fixtureの未知・ハッシュ不一致0、Node.jsプロジェクト参照の安全側対照を確認。全samplesのexit 2は意図した検出 |
+| 出力安全性／BAT | 既存ファイル・同一TXT/JSONパスをexit 4で拒否、2回分の既定出力を保持。特殊文字、未対応モード、余分な引数、空カスタム入力を確認 |
+| レポート本文の秘密形式チェック | 今回生成した12 TXT/JSONで候補0。認証用fixtureや過去artifactの本文は対象にしない |
+| 日英CAUTION集計例 | 同じ合成JSONで両方成功 |
+| 公開候補の簡易本文検査 | 候補0。作業ツリー164パスと未pushコミット1パスは本文未読として明示。`.codex/config.toml` と認証名fixtureの除外を確認 |
+| リポジトリ自己検査 | complete、DANGER 0／WARN 4／CAUTION 1／INFO 8／OK 1、exit 1。coverage failure 0、全7 IOC current、releaseReady=true |
+| 文書の相対リンク・版表示 | 更新対象から参照する公開ファイルの欠落0、ローカル限定artifactへのMarkdownリンク0。日英4マニュアルの版・更新日が一致 |
+
+初回のレポートチェックは、親ディレクトリのproviderプロパティによる型判定で途中停止した。`DirectoryInfo`による判定へ修正後、上記の検証はすべて合格した。ローカル検証コマンドは `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\reports\Test-DocumentationReadiness-20261009-7e462fe6aa98468aab0d852711904b30.ps1`。結果はローカル限定の `reports/doc-readiness-validation-1a4b8dd885464aeeac1b0d1acedcb85f/result.json`、自己検査は `reports/pc-test-repository-c5d186dcd3f647e295c1842920e015cc/repository.json` に保持する。
+
+今回は文書とCIのJSON検証だけを修正したため、以前合格した5回帰suiteの全ケースは再実行していない。検出規則、fixture、IOC値、解析上限は変更していない。GitHub上のCI、remoteの最新状態、実ホストの広い範囲は未確認。今回の変更は未コミットで、stage／commit／pushは実行していない。以前からのinstruction文書4件と `.codex/` の変更は保持した。今回の削除・移動・改名・既存ファイル全置換は各0件。

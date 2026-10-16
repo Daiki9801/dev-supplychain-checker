@@ -1,12 +1,14 @@
 # 2026-10-06 セキュリティ更新 実装・検証記録
 
+本書は初回実装時の検証記録です。後続のPythonメタデータ改善と旧artifactの承認済み移動、2026-10-09のcomplete・DANGER 0の自己検査は[最新のローカル検証記録](python-metadata-review-20261008-ja.md)を参照してください。以下のartifactパスはローカル限定で、Git公開には含めません。
+
 ## 結果と公開状態
 
 計画書の機能を scanner v0.1.23 として実装し、実装固有の合成回帰 36 ケース・216 検証項目、Windows PowerShell 5.1 parser、IOC JSON、既存 launcher／安全境界回帰、全既存サンプルの検査を確認した。レビューで見つかった実装固有の問題は修正済み。
 
 初回の実装検証では、部分レビューに旧データセットの期限を更新する根拠がないため公開を保留した。その後の[IOC・fixture 修正](ioc-maintenance-20261006-ja.md)で全7データセットを出典台帳と比較し、30日の期限を維持して更新した。旧 README の manifest 不一致と、未来日付・不正 section・Node.js 競合等の公開判定も修正した。最新の確認根拠・検証結果と歴史的 IOC の証拠上の制限は同記録を参照する。以下の初回 artifact と性能測定は、当時の検証証拠として保持する。
 
-リポジトリ全体の自己検査には、更新前からある fixture manifest の不一致と、意図的に保管した合成悪性データの検出が残る。この全体検査を「陰性・完全合格」とは報告しない。今回追加したテストコード単体の自己検査は complete、DANGER 0、scanner error 0。
+初回のリポジトリ全体の自己検査には、更新前からある fixture manifest の不一致と、意図的に保管した合成悪性データの検出が残った。この当時の全体検査を「陰性・完全合格」とは報告しない。初回に追加したテストコード単体の自己検査は complete、DANGER 0、scanner error 0。manifest不一致と旧artifactの混入は後続作業で解消済み。
 
 実ホスト／ユーザープロファイル、npm global/cache、registry、event log、EndpointTelemetry は検査していない。今回の実装・検証に外部調査、依存インストール、Git 状態変更、対象コード実行は使用していない。
 
@@ -61,14 +63,14 @@ git diff --check
 |---|---|
 | PowerShell 5.1 parser | main、新規 runner、安全境界 runner の3ファイルで error 0 |
 | IOC JSON | shipped 7ファイルを ConvertFrom-Json で確認 |
-| 新規回帰 | 36ケース・216 assertions 合格。[result.json](../reports/security-update-regression-f71c2598ff1c4b039dfefbf54f9bfef1/result.json) |
+| 新規回帰 | 36ケース・216 assertions 合格。ローカル証拠: `reports/security-update-regression-f71c2598ff1c4b039dfefbf54f9bfef1/result.json` |
 | Exact package | 新規20 pair それぞれを installed と npm package-lock v3／Python Pipfile.lock から検出。各 pair 2 findings を個別確認 |
 | Hash | 無害な bytes と in-memory test IOC で陽性／1 byte差陰性／一回計算／owner／出典を確認。production16 hash は形式と built-in/local 一致を確認。悪性 binary は使用していない |
 | Precision／coverage | 正常隣接 version、異なる prerelease、正規 anthropic、range/cache、GYP comment/escape/上限、DNS 再代入、CI literal/別関数/正常 publish、conversation 通常 API、IDE identity/hash、単独 check、重複、size/read/record/advisory failure を確認 |
-| 安全境界 | `Security boundary regression tests passed.`。生成物は [保管 root](../tests/.security-boundary-regression-920baeefd5bb4206bdb272dbe1e9d2c2/) |
+| 安全境界 | `Security boundary regression tests passed.`。当時の生成先 `tests/.security-boundary-regression-920baeefd5bb4206bdb272dbe1e9d2c2/` は、2026-10-09にローカル保管先 `reports/retained-security-boundary-regression-920baeefd5bb4206bdb272dbe1e9d2c2/` へ移動済み |
 | Launcher | `Launcher scope contracts passed.` |
 | 全既存サンプル | 4回とも scanComplete=true、140 text files、scanner error 0。既存の必須 DANGER 5 category を確認。exit 2 は意図した悪性 fixture のため |
-| 新規 test source 自己検査 | complete、DANGER 0、error 0、exit 1（stale IOC 等の警告）。[report](../reports/security-update-final-source-792a522cf1784f5d9bd21257b799c7c4/dev-supplychain-report-20261006-150229.json) |
+| 新規 test source 自己検査 | complete、DANGER 0、error 0、exit 1（stale IOC 等の警告）。ローカル証拠: `reports/security-update-final-source-792a522cf1784f5d9bd21257b799c7c4/dev-supplychain-report-20261006-150229.json` |
 | 差分 | `git diff --check` 合格。LF→CRLF の Git 変換予告は error ではない |
 
 性能は同じ `tests/samples -Checks Recommended`、warmup 1回 + 本計測3回で比較した。測定中には他の重い検証を並行実行していない。
@@ -81,7 +83,7 @@ git diff --check
 | 最終 median | **16.2450422** |
 | 合格上限 max(1.25 × base, base + 2) | 21.902184125 |
 
-[最終 performance.json](../reports/security-update-final-performance-e93e8f0854954dac8ab635f01233cf30/performance.json)。初回には約26.97秒となり不合格だったため、IOC attribute/pattern の反復処理と check gate の重複照合を改善し、同じ corpus で再検証した。最終 median は更新前より約7.3%短い。
+ローカル証拠: `reports/security-update-final-performance-e93e8f0854954dac8ab635f01233cf30/performance.json`。初回には約26.97秒となり不合格だったため、IOC attribute/pattern の反復処理と check gate の重複照合を改善し、同じ corpus で再検証した。最終 median は更新前より約7.3%短い。
 
 ## レビューと改善の記録
 
@@ -98,7 +100,7 @@ git diff --check
 
 1. **初回の鮮度阻害は対応済み**: 後続レビューで全7 dataset を比較・更新した。今後も stale/missing/invalid があれば `releaseReady=false` を無視して公開してはならない。歴史的 artifact の独立再検証とは区別する。
 2. **既存 manifest の不一致は修正済み**: 更新前 HEAD と現 README が同じ canonical hash であることを確認し、manifest 値だけを `df97fe2981e201c513f4c6b964c528ac8faf0f3e78032146cb16c72c09f8bccf` に修正した。後続の maintenance 回帰で158件すべての hash/presence と path・重複・未知ファイルを検証する。
-3. **保管した test artifacts**: 初回の2ディレクトリは `tests/.security-boundary-regression-*` に保持した。今後の生成先は `reports/` に修正した。既存 artifact の削除や production filename 免除は行っていない。
+3. **保管した test artifacts**: 初回は `tests/.security-boundary-regression-*` に保持し、後続で新規生成先を `reports/` に修正した。2026-10-09には既存2ディレクトリも承認を得て `reports/retained-security-boundary-regression-*` へ移動した。削除や production filename 免除は行っていない。
 4. **未実行**: 実 host/profile、EndpointTelemetry、外部 service、完全な言語実行／全 CVE audit、実悪性 artifact。host scope の明示的な承認がない検査は実行していない。
 5. **CI**: 新 step の runner は Windows PowerShell 5.1 でローカル合格。GitHub 上の CI 全体は起動していない。既存 workflow の全補助検査を新たに外部実行したとは扱わない。
 
