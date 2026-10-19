@@ -6,6 +6,8 @@ User-visible changes are documented here beginning with version 0.1.15. Earlier 
 
 ### Fixed
 
+- Preserves the exact bytes of the three `bytes-sha256` fixtures on Windows Git checkouts with `core.autocrlf=true`, preventing fixture integrity failures without changing sample contents or expected hashes.
+- Corrects the PC test procedure to verify full fixture integrity in the maintenance suite and bounded parent-scan completion separately from the number of enumerated fixture paths.
 - Anchors credential candidates and checks bounded send neighborhoods in both directions. Caches bounded regex objects, adds a necessary-literal preflight for the exact shipped host-marker expression, and records each local rule timeout while continuing subsequent rules.
 - Indexes PowerShell bindings, reuses lexical-scope results and prevents root/function cache collisions with type/start/end identities. Adds an ASCII incident-marker preflight without changing non-ASCII regex case semantics.
 - Skips command-free MCP inventories and bounds command extraction by node count, depth, fragment count and text length. Escaped JSON keys remain parsed; exhausted extraction and malformed command-bearing JSON are reported as incomplete coverage.

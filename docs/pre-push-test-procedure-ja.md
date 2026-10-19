@@ -3,7 +3,7 @@
 - 対象バージョン: **0.1.27**
 - 対象OS: Windows 10 / 11
 - 実行環境: Windows PowerShell 5.1
-- 手順更新日: 2026-10-16
+- 手順更新日: 2026-10-19
 
 この手順は、最初にリポジトリ内の合成データだけで安全に検証し、その後、必要な範囲に限って実PCを読み取り専用で確認する構成です。スキャナーはネットワーク接続、対象コード実行、修復、削除、隔離、レジストリ変更を行いません。TXT/JSONレポートだけを作成します。
 
@@ -119,6 +119,10 @@ if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 
 `Test-ScanReviewRegressions.ps1` は大きなcompiler風テキスト、多数のPowerShell変数、escaped keyを持つJSON、深い／広いJSON、後続ルールの継続、自己参照ハッシュの改変・コピー拒否、件数、時刻と遅い活動の記録を検証します。入力コードは実行せず、生成物はGUID付きの `reports/` 配下へ保持します。`-BenchmarkOnly` は同じ合成入力形状によるヘルパー計時だけを保存します。
 
+`Test-IocMaintenance.ps1` はmanifest内の158 fixtureを検証します。`bytes-sha256` の3ファイルは `.gitattributes` の正確なパスに `-text` を指定し、Windows checkoutの `core.autocrlf=true` でも実バイトを保持します。`Fixture hash mismatch` が出た場合は `git ls-files --eol tests/samples` と `git check-attr text -- <対象パス>` で改行・属性を確認してください。期待ハッシュの変更や検査の省略で解消しないでください。`text-lf-sha256` は従来どおりLF正規化後に検証します。
+
+ローカル合格はGitHubの必須チェック合格を代替しません。現行workflowはPR更新とmainへのpushで起動するため、Actions追加実行が未承認の場合はpush・mergeの前に承認を得てください。既存ログの読み取りだけではActionsは起動しません。
+
 計時はJSONの `performance.activities` を確認します。`partition=true` の活動だけを合計し、`Reading`、`PowerShellContextProof`、`McpCommandExtraction`、`steps` は再加算しません。`otherElapsedMs` は未計測の実行時間で、レポート整形・書き込み時間は含みません。`slowSteps` と `slowActivities` はそれぞれ2秒以上の処理の上位最大20件です。開始・終了時刻と経過時間は同じ単調時計の起点を使います。速度比較は同じ合成入力・検査項目・PowerShellで行い、検出結果と完了状態も確認します。合成入力での短縮率を実PCの所要時間へそのまま適用しません。
 
 重大度別件数は `$r.summary`、分類別は `$r.findingClassSummary` を確認します。ファイル件数は各カウンター内の重複を除いたパス数で、再訪は `fileEnumerationEvents` / `fileSkipEvents` です。キュー投入前の除外もあるため、queued/scanned/skippedを単純加算しません。自己テストの4つのINFO参照は、正確なパスとソースハッシュ・ルールの一致時だけ許容します。
@@ -180,9 +184,12 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -Quiet -NoColor
 if ($LASTEXITCODE -notin @(0, 1, 2)) { throw 'Manifest parent scan failed.' }
 $manifestParent = Get-Content -LiteralPath (Join-Path $syntheticReportDir 'manifest-parent.json') -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+if (-not [bool]$manifestParent.scanComplete -or $manifestParent.completionStatus -ne 'complete') { throw 'Manifest parent scan was incomplete.' }
+if ([int]$manifestParent.scanStats.regexMatchTimeouts -ne 0 -or [int]$manifestParent.scanStats.scannerFileErrors -ne 0) { throw 'Manifest parent scan had analysis failures.' }
 if ([int]$manifestParent.scanStats.syntheticSampleUnexpectedFiles -ne 0) { throw 'Unexpected synthetic fixture file found.' }
 if ([int]$manifestParent.scanStats.syntheticSampleHashMismatches -ne 0) { throw 'Synthetic fixture hash mismatch found.' }
-if ([int]$manifestParent.scanStats.syntheticSampleKnownSkipped -lt @($manifest.samples).Count) { throw 'Not all manifest fixtures were verified.' }
+$parentKnownSkipped = [int]$manifestParent.scanStats.syntheticSampleKnownSkipped
+if ($parentKnownSkipped -le 0 -or $parentKnownSkipped -gt (@($manifest.samples).Count + 1)) { throw 'Fixture skip count is outside manifest bounds.' }
 
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -File .\Scan-DevSupplyChain.ps1 `
@@ -211,6 +218,8 @@ if (@($safeNodeReport.nodeRuntimeAssessment.inventory.entries | Where-Object { $
   Report = $syntheticJson.FullName
 }
 ```
+
+全158 fixtureのハッシュ／存在確認は前節の `Test-IocMaintenance.ps1` が担当します。親フォルダー走査の `syntheticSampleKnownSkipped` は実際に列挙して検証・除外した固有パス数で、対象外の依存ディレクトリやキャッシュblob配下を含むmanifest総数とは一致しません。上限の `+ 1` はmanifest自身です。通常走査で全fixtureを数えるためにDeepを有効化したり、分類プローブをskip件数へ加算したりしないでください。
 
 合成サンプルには意図的なDANGERが含まれるため、終了コード `2` は正常です。件数は検出追加により変わり得るので、固定件数ではなく完了性・安全契約・必須カテゴリを確認します。
 
