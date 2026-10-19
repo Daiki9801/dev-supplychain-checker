@@ -20,7 +20,7 @@ jobs:
   scanner-contract:
     name: Scanner contract
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout

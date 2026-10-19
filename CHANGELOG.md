@@ -6,6 +6,7 @@ User-visible changes are documented here beginning with version 0.1.15. Earlier 
 
 ### Fixed
 
+- Allows 25 minutes for the full Scanner contract regression matrix after its expanded suite reached the previous 15-minute job limit. Updates the exact reviewed workflow source hash used for self-reference classification.
 - Preserves the exact bytes of the three `bytes-sha256` fixtures on Windows Git checkouts with `core.autocrlf=true`, preventing fixture integrity failures without changing sample contents or expected hashes.
 - Corrects the PC test procedure to verify full fixture integrity in the maintenance suite and bounded parent-scan completion separately from the number of enumerated fixture paths.
 - Anchors credential candidates and checks bounded send neighborhoods in both directions. Caches bounded regex objects, adds a necessary-literal preflight for the exact shipped host-marker expression, and records each local rule timeout while continuing subsequent rules.
