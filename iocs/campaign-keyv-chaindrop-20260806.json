@@ -1,8 +1,14 @@
 {
   "schemaVersion": "1",
   "campaignId": "keyv-chaindrop-2026-08",
-  "lastReviewed": "2026-08-12",
+  "lastReviewed": "2026-10-06",
   "reviewAfterDays": 30,
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
+  "sourceUrls": [
+    "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip",
+    "https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack"
+  ],
+  "reviewNotes": "All 443 names and 2235 exact pairs were independently corroborated in non-withdrawn OSV malware records on 2026-10-06. The canonical digest, three file hashes, four markers, and one Git ref retain their approved snapshot values. The original supplied artifacts and upstream CSV metadata below are preserved; their original reviewStatus fields are not upgraded by this independent pair comparison.",
   "sourceSet": [
     {
       "name": "user-provided-Keyv-ChainDrop-NonDestructive-Check-v1.2.2.bat",

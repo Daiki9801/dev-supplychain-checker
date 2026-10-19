@@ -1,8 +1,38 @@
 # IT初心者向け 使い方マニュアル
 
+対象バージョン: **0.1.27**。更新日: **2026-10-16**。
+
+v0.1.27では `Findings by severity` に重大度別件数も表示します。`ConfigReview=153` は分類の件数で、WARNが153件という意味ではありません。重大度、`Execution`、`Completion` をそれぞれ確認します。メニュー3・4・5は現在フォルダ内の用途別検査と共通のUnicode／IOC検査を行います。
+
+自己テストの目印4件は、同梱ファイルの正確なパス・内容ハッシュ・ルールが一致した場合に `SCANNER_TEST_MARKER_REFERENCE` のINFOになります。変更されたファイル、外部コピー、ほかの実行・送信パターンは通常どおり検査します。正規表現の2秒上限を保ち、ローカルIOCのタイムアウト後も後続ルールを続け、未完了部分を記録します。MCP解析はノード8,192、深さ32、断片256、抽出文字65,536を上限とし、上限到達やコマンドを含む不正JSONはWARNと未完了理由になります。
+
+ファイル件数は各カウンター内の重複を除いたパス数です。再訪回数は `fileEnumerationEvents` と `fileSkipEvents` に分けます。キュー投入前の除外もあるため、`queued = scanned + skipped` とは限りません。検証済みサンプルの目印は子プロジェクト数・予算に含めず、未知・改変ファイルは対象に残します。
+
+時刻と経過時間の起点をそろえ、`performance.slowActivities` に遅い読み取り・ファイル処理・解析の上位20件を記録します。合計には `partition=true` の活動だけを使います。実PCの速度は再測定していません。IOC基準は2026-10-06です。読み込んだレポートを `$r` とした場合は次で確認できます。
+
+```powershell
+$r.summary
+$r.coverage.summary.nextActions | Format-List
+$r.performance.slowActivities | Format-Table activity, elapsedMs, path -AutoSize
+```
+
+v0.1.26は、正規表現の定義と実際の外部取得・実行を同じPowerShellファイル内で区別します。構文解析には元ソースを使うため、検査用の文字列を除いた結果が構文エラーになっても、それを元ソースのDANGER判定には使いません。プラグインキャッシュに同梱されたCI設定は、有効化不明の参考情報としてINFOになります。有効なプロジェクトのCI権限は引き続き確認します。
+
+`_cacache\content-v2` の本文は、`npm-cache`・`.npm-cache`・独自のキャッシュ配置を問わず列挙・解読しません。`cacheBlobDirectoriesSkipped` は除外したディレクトリ数で、中のファイル数を推定した値ではありません。その構造の外にある通常のソースは検査します。メニューの番号・範囲・確認操作、重大度・終了コード、IOCの2026-10-06基準は変わりません。
+
+v0.1.25では、検出の重大度と実行状態を分けて表示します。Ctrl+Cで中断した場合、保存できたレポートは `Execution: interrupted` と `Completion: INTERRUPTED` になります。JSONは `executionStatus=interrupted`、`completionStatus=incomplete-critical`、`scanComplete=false` です。未着手の検査は `not-started` と表示し、対象が見つからなかった検査と区別します。
+
+正規表現だけを扱う通常の検査用文字列も精査して誤検知を減らします。圧縮データは小さい形式判定の後に本文解析を省略し、INFOへ集約します。プラグインキャッシュ内のMCP設定は、有効化を確認していないことを明示します。`@latest` などの未固定指定はCAUTIONとして残り、実際の取得・実行や秘密情報送信を示す複合パターンは引き続き検査します。IOC基準日は2026-10-06のままです。
+
+v0.1.24は、検査用文字列や変更予定のデータを実際の危険処理と誤認しにくくします。確認できた受動的な検査用文字列はINFOとして根拠を残します。未知の消費先・動的実行・不正な構文は通常の検出対象です。INFOへの分類は、そのファイル全体の安全性を保証しません。
+
+未完了の確認では `coverage.candidateFailures` と `coverage.directoryFailures` の `failureType` を見ます。`file-in-use` は他の処理による占有、`access-denied` は読取権限不足、`path-too-long` は実際の例外原因に基づく長いパス、`path-not-found` は消失・不存在、`io-error` はその他のI/O失敗です。補助情報は `exceptionTypes` と `hresults` に入り、例外メッセージや本文は出しません。サイズ・正規表現の上限も引き続き記録します。非重大の読取失敗や依存関係・キャッシュの検査上限でも `scanComplete=false` とPARTIALを表示します。対象を絞って原因を確認し、必要に応じて再検査してください。
+
 このマニュアルは、Windowsで `Dev Supply Chain IOC Checker` を使うための初心者向け手順です。
 
 このツールは、開発用フォルダの中に「危険そうな設定やファイルの痕跡」がないかを静的に確認します。ファイル削除、修復、ネットワーク通信、外部ダウンロードは行いません。
+
+v0.1.23は2026-10-06にレビューした追加IOC、native build/runtime経路、Pythonのインストール済みメタデータを確認します。Pythonの短縮バージョン表記を正しく照合し、OCRデータや署名ファイルはハッシュ検査後にbinaryとして扱います。IOCは同梱されたオフライン基準であり、実行時に最新版を取得しません。
 
 ## 1. まず知っておくこと
 
@@ -17,12 +47,14 @@
 
 1. このフォルダをエクスプローラーで開きます。
 2. `run-checker.bat` をダブルクリックします。
-3. メニューが表示されたら、通常は `1` を入力します。
-4. Enterキーを押します。
+3. 別の開発プロジェクトを調べる場合は、`2` を入力します。
+4. 対象フォルダのフルパスを入力し、探索方法は `1. Recommended traversal` を選びます。
 5. スキャンが終わるまで待ちます。
 6. `reports` フォルダに結果ファイルが作成されます。
 
-通常は、まず `1. Recommended project scan` だけを使ってください。
+`1` は「起動時の現在作業フォルダ」を調べます。BATをダブルクリックした場合は、このチェッカー自身のフォルダになることがあります。別プロジェクトは `2` で明示してください。`3`・`4`・`5`・`8` も現在作業フォルダが対象です。
+
+PowerShell 7のターミナルからBATを起動しても構いません。BATはWindows PowerShell 5.1の `powershell.exe` を使うため、`pwsh.exe` のバージョンとは別です。通常のプロジェクト検査は一般ユーザーで始め、アクセス拒否が出たらレポートの未検査範囲を確認してください。
 
 配布されたツールを使う時は、展開したフォルダの中にある `run-checker.bat` から起動してください。`Scan-DevSupplyChain.ps1` だけを別フォルダへコピーして実行すると、レポートには `distributionStatus` の警告が出ます。これは動作停止ではありませんが、検証用サンプル除外やIOCデータの出所確認が分かりにくくなるため、通常利用では推奨しません。
 
@@ -31,15 +63,15 @@
 `run-checker.bat` を起動すると、次のような選択肢が出ます。
 
 ```text
-1. Recommended project scan
-2. Scan selected path
-3. Package / Node runtime risks
-4. AI / MCP / IDE config risks only
-5. CI/CD and hooks risks only
-6. npm global/cache static check
-7. Major PC locations scan
-8. Custom checks for current folder
-9. Comprehensive bounded scan (target + major locations + profile + endpoint)
+1. Recommended project scan - current folder
+2. Scan selected path - choose folder, then Recommended or Deep
+3. Package / Node runtime risks - current folder
+4. AI / MCP / IDE config risks only - current folder
+5. CI/CD and hooks risks only - current folder
+6. npm global/cache static check - PC metadata; confirm
+7. Major PC locations scan - PC folders/profile; confirm
+8. Custom checks for current folder - advanced
+9. Comprehensive bounded scan (target + major locations + profile + endpoint) - confirm
 10. Exit
 ```
 
@@ -47,8 +79,8 @@
 
 | 番号 | 用途 | 初心者向けおすすめ |
 |---:|---|---|
-| 1 | 今開いているフォルダを推奨設定で調べる | 最初はこれ |
-| 2 | 自分で指定したフォルダを調べる | 慣れてから |
+| 1 | 起動時の現在作業フォルダを推奨設定で調べる | 対象が現在作業フォルダの場合 |
+| 2 | フルパスで指定したフォルダを調べる | 別プロジェクトを調べる時はこれ |
 | 3 | package.json、lockfile、明示されたNode.jsバージョンと不可視Unicodeを調べる | 依存とNode.jsを見たい時 |
 | 4 | AI/MCP設定、IDE拡張、不可視Unicodeを調べる | AIツール設定が心配な時 |
 | 5 | GitHub Actions、hooks、不可視Unicodeを調べる | CI/CDだけ見たい時 |
@@ -115,7 +147,7 @@ C:\Users\yourname\Projects\my-project
 
 長い検査では、既定で約30秒ごとに簡潔な `progress` 行を表示します。表示内容は、伏せ字化したプロジェクトルート、重複を除く検査対象数 `queued`、本文の静的検査数 `scanned`、経過時間 `elapsed` です。個々の現在ファイルや1 MiB以上のファイルの各検査段階、`slow step completed` は通常表示しません。原因調査時だけ `Scan-DevSupplyChain.ps1` へ `-VerboseProgress` を指定すると、従来の約5秒間隔の詳細表示へ切り替わります。`-Quiet` は進捗をすべて抑止します。検出位置の行番号は64 KiB単位で計算し、大きな生成済み・minify済みファイルでも1文字ずつのPowerShellループを行いません。`MaxFiles` または依存検査用の予約枠に達した場合は、該当する残りの探索を停止し、レポートに範囲不足を記録します。
 
-ファイル本文に対する各正規表現処理には、.NET APIで明示的に2秒のタイムアウトを設定します。これはスキャン全体の制限時間ではなく、1回の正規表現処理ごとの上限です。高負荷な入力では `regex timeout` と `REGEX_SCAN_TIMEOUT` を記録し、そのファイルの該当処理だけを飛ばして、他の検査とファイルを続行します。該当処理は完了していないため、結果は `complete` にはなりません。非重大候補なら `partial-non-critical`、lockfileや有効な設定などの重大候補なら `incomplete-critical` になります。表示やレポートに対象ファイル本文は含めません。対象を狭めるか該当ファイルを手動確認し、単にタイムアウトを延ばしたことを安全の根拠にはしないでください。
+ファイル本文に対する各正規表現処理には、.NET APIで明示的に2秒のタイムアウトを設定します。これはスキャン全体の制限時間ではなく、1回の正規表現処理ごとの上限です。高負荷な入力では `regex timeout` と `REGEX_SCAN_TIMEOUT` を記録し、他の検査とファイルを続行します。タイムアウトした処理を含む検査ステップの残りも省略される場合がありますが、runtimeコードの秘密情報取得サブルールでは、その後の取得・実行パターン検査を続けます。該当ルール／ステップは未完了のため、結果は `complete` にはなりません。非重大候補なら `partial-non-critical`、lockfileや有効な設定などの重大候補なら `incomplete-critical` になります。表示やレポートに対象ファイル本文は含めません。対象ファイルとルールを確認してください。同じタイムアウトは、フォルダを絞るだけでは直らない場合があります。
 
 ## 6. 検査種類を選びたい場合
 
@@ -182,8 +214,8 @@ OK:     1
 |---|---|---|
 | OK | 大きな問題候補は見つからなかった | 通常はそのままでよい |
 | INFO | 参考情報 | 必要なら確認 |
-| CAUTION | 単独では低信号だが確認を勧める存在・機能・設定 | 時間のある時に内容を読む |
-| WARN | より強い不審パターン、既知リスク、セキュリティ上の弱点 | 優先して内容を読む |
+| CAUTION | 単独では低信号だが確認を勧める存在・機能・設定 | 種類と実行条件を確認する |
+| WARN | 不審パターン、既知リスク、設定上の弱点、重要な検査制限 | 種類と理由を優先して読む |
 | DANGER | 強く確認すべき候補 | 削除せず、詳しい人に相談 |
 
 `DANGER` は「感染確定」ではありません。ただし、優先して確認すべきサインです。特に `RiskType` が `known-ioc` や `active-exfil` の場合は、既知の危険な目印、または秘密情報を外へ送るように見える強い候補です。
@@ -194,14 +226,62 @@ JSONの `nodeRuntimeAssessment` では、`installedBinaries` と `projectReferen
 
 `CAUTION` は、ライフサイクルスクリプトの存在、単独の不可視文字、悪性複合条件のないWASM読込機能などに使います。`WARN` は、C2に似た文字列、decoder signature、変更可能な外部参照など、優先度が一段高い調査候補です。どちらも感染確定ではなく、終了コードは互換性維持のため `1` です。
 
+### CAUTIONが多い場合の精査
+
+件数だけで判断せず、まず完了状態とIOCの状態を確認し、DANGER/WARNを優先します。CAUTIONは種類ごとにまとめてから、各findingの `Path`、`Evidence`、`Recommendation` を読みます。
+
+JSONレポートをPowerShellで整理する例です。`$reportPath` の右辺を実際のJSONファイルのパスへ置き換えます。対象プロジェクトのコードは実行しません。
+
+```powershell
+$reportPath = 'C:\Path\To\dev-supplychain-report.json'
+if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+  throw '指定したJSONレポートが見つかりません。'
+}
+$r = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 -ErrorAction Stop |
+  ConvertFrom-Json -ErrorAction Stop
+$r | Select-Object executionStatus, scanComplete, completionStatus
+$r.execution.phases | Select-Object name, status, elapsedMs
+$r.findingClassSummary
+$r.iocData | Select-Object releaseReady, staleCount, missingCount, invalidCount
+$r.findings | Where-Object severity -eq 'CAUTION' |
+  Group-Object category | Sort-Object Count -Descending | Select-Object Count, Name
+$r.findings | Where-Object severity -eq 'CAUTION' |
+  Select-Object category, title, path, line, evidence, recommendation | Format-List
+```
+
+| 種類 | 静的に確認する内容 |
+|---|---|
+| install等のライフサイクルスクリプト | `package.json` の宣言、呼び出すファイル、実行条件、外部取得や秘密情報の読取・送信を確認します。`sharp`などのnative依存ではソースビルドが条件付きの場合があります。宣言の存在だけでは、そのPCで実行された証拠になりません。 |
+| WASM読込やdecoder機能 | 正常なライブラリにもある機能です。実際のentrypointから到達するか、周囲にプロセス起動・外部取得・秘密情報送信があるかを読みます。 |
+| 単独の不可視文字 | README・絵文字・テストデータなのか、実行ファイル内のdecoderや実行処理と結び付いているかを確認します。 |
+| 設定・ツールの能力 | 手動workflow、参考文書、有効なAI/MCP設定を区別し、提供元、用途、実際に有効な設定を確認します。 |
+
+確認結果はfindingごとに「通常機能と根拠を確認」「追加調査が必要」「別プロジェクトで対応」に分け、対象パスと根拠を手元の記録へ残します。正常なパッケージ名だけで自動除外せず、調査のためにinstall/build、`node`、`python`、hookを実行しないでください。アクセス拒否は空フォルダの証拠ではありません。`coverage.summary` と未検査パスを確認し、必要な範囲だけを許可して再検査します。
+
 ### 完了状態の読み方
+
+最初に `executionStatus` を確認します。`completed` は予定フェーズの処理が戻ったことを示し、サイズ上限などのため `scanComplete=false` の場合もあります。`interrupted` は中断、`error` は処理失敗です。`execution.unfinishedPhases` と各 `phase.status` で、未着手・中断・失敗の範囲を確認します。`checkStats` の `enabled=true` だけで検査済みとは判断せず、`executionStatus` も見てください。
 
 | `completionStatus` | 意味と対応 |
 |---|---|
 | `complete` | 選択した境界内の予定検査が完了。PC全体・全依存物の安全保証ではありません。 |
 | `partial-non-critical` | 明示的に非重大とした処理または境界内解析の一部が未完了。`coverage.summary` と制限findingを確認します。 |
-| `incomplete-critical` | 重要な予定範囲に未列挙・読取・解析不能があります。陰性結果として扱わず、対象を狭めて再実行します。 |
+| `incomplete-critical` | 中断による未実施、または重要範囲の未列挙・読取・解析不能があります。陰性結果として扱わず、未完了の範囲を確認します。 |
 | `error` | スキャナーまたはレポート処理が失敗。陰性結果として利用しません。 |
+
+Ctrl+Cは中断操作です。PowerShellが終了処理を行えた場合にTXT/JSONを保存します。ウィンドウを閉じる・プロセスを終了する操作では保存を保証できません。`execution.startedAt`・`finishedAt`・`elapsedMs` は実行時刻と処理時間、`queuedFilesUnprocessed` は列挙済みの未処理ファイル数です。まだ列挙していない範囲の件数は分かりません。中断時は未実施の検査を「検出なし」と解釈しないでください。
+
+`findingClassSummary` は、重大度とは別に所見を「根拠のある指標・挙動」「脆弱性バージョン照合」「設定確認」「機能」「検査制限」「参考情報」へ集計します。WARNの検査制限と不審な挙動を区別し、件数を感染数として扱わないでください。`REGEX_SCAN_TIMEOUT` には本文を含まない `ruleId` と処理時間が入り、`performance.steps` で遅い検査を確認できます。同じファイルのタイムアウトは、フォルダを絞るだけでは解消しない場合があります。
+
+v0.1.26の `coverage.summary.nextActions` は、サイズ超過・正規表現タイムアウト・依存関係の上限など、同時に発生した理由をすべて案内します。各項目に理由・件数・代表パス・対処が入り、従来の `nextAction` にもまとめた文章を残します。読み込んだJSONを `$r` とした場合は次で確認できます。
+
+```powershell
+$r.coverage.summary.nextActions | Format-List reason, count, paths, action
+$r.performance.activities | Format-Table activity, attempts, elapsedMs, maxElapsedMs, partition
+$r.performance.slowSteps | Format-Table step, elapsedMs, timedOut, path -Wrap
+```
+
+計時の `Enumeration` は列挙、`ProjectDiscovery` は子プロジェクト探索、`TargetSelection` は依存候補選択、`Reading` は本文の読み取り・解読、`FileProcessing` はファイルごとの処理です。`partition=true` の項目は重複せず、合計が `partitionElapsedMs`、それ以外の実行時間が `otherElapsedMs` です。`Reading` と個別検査の `steps` は内訳に含まれるため、合計へ再加算しません。レポート整形・書き込み時間は計時対象外です。`slowSteps` は2秒以上かかった検査のうち遅い順に最大20件を保存し、プロファイルパスを伏せ、本文・正規表現を含めません。分類・構文・文字列マスクの再利用と検査呼び出しの削減で高速化していますが、実PCでの短縮率は対象によって変わります。
 
 ## 9. このチェッカーでできないこと
 
@@ -320,7 +400,7 @@ AI skill や README の中に危険なコマンド例が書かれている場合
 
 ### Q. どのモードを使えばよいですか？
 
-最初は `1. Recommended project scan` を使ってください。PCの主要箇所を広めに見たい時は `7`、端末ログまで見る必要がある時だけ `9` を使います。
+現在作業フォルダには `1`、別プロジェクトの指定には `2` を使ってください。PCの主要箇所を広めに見たい時は `7`、端末ログまで見る必要がある時だけ `9` を使います。
 
 ## 15. コマンドで使う場合
 

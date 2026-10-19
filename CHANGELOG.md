@@ -2,6 +2,110 @@
 
 User-visible changes are documented here beginning with version 0.1.15. Earlier development history remains available in the Git commit history.
 
+## [0.1.27] - 2026-10-16
+
+### Fixed
+
+- Allows 25 minutes for the full Scanner contract regression matrix after its expanded suite reached the previous 15-minute job limit. Updates the exact reviewed workflow source hash used for self-reference classification.
+- Preserves the exact bytes of the three `bytes-sha256` fixtures on Windows Git checkouts with `core.autocrlf=true`, preventing fixture integrity failures without changing sample contents or expected hashes.
+- Corrects the PC test procedure to verify full fixture integrity in the maintenance suite and bounded parent-scan completion separately from the number of enumerated fixture paths.
+- Anchors credential candidates and checks bounded send neighborhoods in both directions. Caches bounded regex objects, adds a necessary-literal preflight for the exact shipped host-marker expression, and records each local rule timeout while continuing subsequent rules.
+- Indexes PowerShell bindings, reuses lexical-scope results and prevents root/function cache collisions with type/start/end identities. Adds an ASCII incident-marker preflight without changing non-ASCII regex case semantics.
+- Skips command-free MCP inventories and bounds command extraction by node count, depth, fragment count and text length. Escaped JSON keys remain parsed; exhausted extraction and malformed command-bearing JSON are reported as incomplete coverage.
+- Counts distinct paths separately from enumeration/skip events. Keeps manifest probes from incrementing skipped-file counters, excludes verified fixture markers from project/budget counting, and avoids sampling events for nonexistent targeted paths. Integrity warnings remain enabled.
+- Refines four reviewed self-test posture markers to INFO using exact distribution-relative paths, normalized source hashes and rule identities. Modified sources, copied files, active behavior and exact artifact checks retain normal analysis.
+
+### Reporting and validation
+
+- Prints severity totals alongside finding classes. Aligns start/finish timestamps and elapsed time to one monotonic origin, and adds bounded redacted slow-activity records for reading, file processing and analysis.
+- Adds Windows PowerShell 5.1 synthetic regressions for compiler-shaped input, many bindings, escaped/deep/wide JSON, timeout continuation, source identity, counters and timing. Updates CI, README, the PC procedure and Japanese/English manuals. The IOC baseline remains 2026-10-06; real-host performance is not claimed.
+
+## [0.1.26] - 2026-10-16
+
+### Fixed
+
+- Parses original PowerShell source when classifying fetch/execute, combining proven passive spans without reparsing blanked syntax. Mixed scalar/inline patterns and Pattern tables no longer turn a scanner-induced parse error into DANGER; active and unproven consumers remain checked at original locations.
+- Removes repeated backtracking in quoted credential-property matching. A credential subrule timeout in runtime-code analysis records incomplete coverage and allows the later execution checks to continue. Other timeouts identify the affected rule or containing step; the two-second bound remains unchanged.
+- Anchors the credential recipient binding to the read's immediate prefix rather than the first preceding newline-delimited assignment. Restores the existing PowerShell auth-file transfer fixture while retaining overwrite checks.
+- Classifies plugin-cache workflow copies as INFO references with activation unknown. Active repository workflow posture and other applicable code/IOC checks remain in force.
+- Recognizes `_cacache/content-v2` beneath standard or custom cache roots and skips blob-directory contents without decoding or inferring file counts. Ordinary source outside that structural cache subtree remains checked.
+- Adds `coverage.summary.nextActions` for all concurrent failure groups and sampling limits, preserving the existing combined `nextAction` string. TXT lists each reason, count and representative path.
+
+### Performance and validation
+
+- Reuses path-role classifications and original parsed syntax, initializes statistic-name lookups once, routes metadata checks only to applicable file types, and reuses static code masks. Negative token prefilters and native padding reduce unnecessary full-bundle masking work.
+- Adds `performance.activities` for enumeration, project discovery, target selection, reading/decoding and file processing, plus partition/other elapsed time. Reading and check steps are nested measurements; report formatting and output writes are excluded. `performance.slowSteps` retains at most 20 slowest redacted path/step records without source or regex text.
+- Adds Windows PowerShell 5.1 synthetic regressions for the five reported issues, positive detection retention, timeout isolation, report fields and bounded timing retention; integrates them into CI and the PC procedure. README and Japanese/English manuals describe the new fields. Menu scopes, severity/exit codes and the October 6 IOC baseline are unchanged.
+
+## [0.1.25] - 2026-10-15
+
+### Fixed
+
+- Records execution phases, timestamps, duration and unique queued files left unprocessed. Ctrl+C/pipeline stops retain an interrupted report when PowerShell can finish its finally block. Interrupted runs cannot report completed critical scope; unstarted npm/dependency checks no longer report not-found or within-limit coverage. Existing completion-status values and severity/exit-code contracts remain compatible.
+- Extends passive PowerShell data proof to ordinary single-quoted pattern bindings and inline patterns in classifier scopes without I/O, execution, reflection/capture or unknown calls. Unknown, rebound and active consumers remain analyzed.
+- Skips Zstd-signature, ZIP-container and binary-probed Brotli data before text decoding, after applicable IOC/hash checks. A bounded 4 KiB probe never decompresses content; readable text with these extensions remains analyzed. Compression skips are aggregated into one INFO.
+- Distinguishes cached MCP command configs from enabled configuration. Unpinned cached npx/uvx selectors are CAUTION capabilities with activation unknown; strong command compounds remain detectable.
+- Adds a stable hashed regex rule identity and timeout timing without pattern/input text, plus bounded per-step performance aggregates. The two-second timeout is unchanged.
+
+### Usability and validation
+
+- Adds finding-class counts to distinguish security evidence, version matches, configuration review, capabilities and coverage limitations. Budget/discovery-limit warnings are limitations rather than security posture claims.
+- Clarifies current-folder versus selected-folder menu entries and PC confirmation scopes without renumbering or expanding them. Reports label scope as planned and show execution separately from severity.
+- Adds Windows PowerShell 5.1 regressions for real synthetic pipeline cancellation, incomplete phases, pending-file accounting, compressed/text probes, retained hash detection, cached/pinned/active MCP commands and timeout privacy. Extends scalar-pattern regressions and updates CI, README and Japanese/English manuals. The October 6 IOC baseline is unchanged.
+
+## [0.1.24] - 2026-10-14
+
+### Fixed
+
+- Requires bounded credential-read/send flow for AI tooling instead of whole-file token-name inventories, URLs and POST strings. Script findings retain the credential-access line; pagination `.cursor` properties are not credential paths.
+- Checks actual developer-tool write/copy destinations and simple local bindings rather than nearby planned-operation targets or payload text.
+- Separates statically proven regex-only PowerShell here-string examples from generic npm behavior and domain/IP text findings, retaining INFO evidence and original offsets. Unknown consumers, capture/reflection, malformed syntax and active examples remain analyzed; names do not grant exemptions.
+- Unwraps file/directory causes to distinguish sharing violations, access denial, missing/long/invalid paths, decoding and other I/O failures. Grouped coverage adds bounded exception-type/HRESULT metadata without messages or contents.
+- Keeps `scanComplete=false` for non-critical candidate read failures and dependency/cache sampling limits, consistent with PARTIAL. Security-critical candidate coverage remains separately reported.
+
+### Validation and documentation
+
+- Adds Windows PowerShell 5.1 synthetic regressions for passive/active examples, original finding lines, destination binding, wrapped exceptions, a real local sharing violation and recovery, and size limits. Artifacts are retained under `reports/`.
+- Adds the suite to CI and the PC procedure; updates README and Japanese/English beginner and illustrated manuals. The IOC baseline remains the October 6 review; this change does not refresh advisories.
+
+## [0.1.23] - 2026-10-06
+
+### Added
+
+- Adds the reviewed October supplement: 20 exact npm/Python package-version pairs, 16 artifact SHA-256 indicators, Mini Shai-Hulud Action references, a separate conflibot CVE reference advisory, two INFO theme ID watchlists, and four contextual endpoint markers.
+- Adds bounded npm native-build/runtime, Python distribution-header/RECORD, IDE payload, and local CI BASH_ENV bridge candidates with merged owner, selection, and critical-coverage metadata.
+- Adds static GYP sandbox-escape/process compounds, credential-to-encoded-DNS flows, sckit/stage0 loader compounds, and conversation/tool-result secondary-transfer checks. Target code, expressions, imports, payloads, and network queries are never executed.
+- Adds optional finding provenance fields to TXT/JSON and selection, limit, hash, and Python-header counters.
+- Adds a Windows PowerShell 5.1 synthetic regression runner for the new IOC/rule/selection/report contracts. Artifacts stay under the repository reports directory. The existing boundary runner supports `-KeepArtifacts` for validation without cleanup.
+
+### Changed
+
+- Python distribution identities use normalized case and punctuation; installed METADATA is parsed only through a bounded header reader and description text is not scanned as installed-package evidence.
+- Known-hash candidates remain inspectable with their owning check, including Packages-only Python binaries and IdeExtensions-only explicit VSIX/ZIP files. Multiple hash indicators for one inspected file share one calculation.
+- Action advisory body validation cannot be overwritten by a fresh header. Historical Action entries and the built-in advisory survive an invalid or old-schema local section.
+
+### Publication status
+
+- All seven bounded datasets were compared with their source registers on 2026-10-06, keeping 30-day expiry contracts. The evidence record distinguishes direct corroboration from retained historical provenance. All 443 Keyv names and 2,235 pairs were independently corroborated in OSV malware records without changing the approved snapshot digest or original source statuses.
+
+### Fixed
+
+- Accepts Python PEP 440 short releases such as `pycparser 3.0` and `pip 24.0`; preserves epoch and local/pre/post/dev identity during IOC matching instead of extracting a partial npm-style version. Equivalent release padding and spellings normalize consistently in installed metadata and local IOC data.
+- Rejects folded/duplicate identity and malformed METADATA headers, and matches Poetry/uv package identities within one literal package block. Python version/name suffixes and unrelated lock entries no longer provide false exact IOC evidence. A focused Windows PowerShell 5.1 regression suite covers these contracts.
+- Treats OCR `.traineddata` and CMS signature `.p7s` as binary artifacts after hash checks, avoiding text size/encoding warnings. Required oversize hash candidates still retain critical incomplete coverage.
+- Repairs the pre-existing sample README hash in the fixture trust manifest; all 158 fixture entries are validated by a dedicated maintenance regression suite.
+- Rejects future review dates, missing/empty required sections, and malformed entries. Node.js conflicts, invalid or duplicate advisories, and missing built-in entries block readiness; built-in staleness cannot mask a missing/invalid local dataset.
+- Removes the two Jscrambler wrapper pairs explicitly excluded by the trusted report and includes the reported `dist/` directory in setup/intro hash selectors. Adds the public Keyv contract alongside the approved historical marker, with shared-RPC proximity still required.
+- Creates future security-boundary artifacts under `reports/` so retained synthetic fixtures do not enter ordinary source traversal. Existing retained directories are preserved.
+- Bounds CI workflow bridge selection at 2,048 lines while keeping the 128 KiB byte cap; late bridge detection and explicit critical coverage failure on over-limit workflows have synthetic regression coverage.
+
+### Documentation and validation procedure - 2026-10-09
+
+- Updates Japanese and English user/illustrated manuals for v0.1.23, adds grouped CAUTION review steps, and labels the June PNGs as historical.
+- Keeps PC-test artifacts under ignored `reports/` and excludes all retained reports from repository self-scans. Report privacy checks read only the current test outputs; publication checks skip known secret-file bodies and reparse paths.
+- Validates the seven IOC datasets, sample manifest, and evidence register as UTF-8 in CI and the PC-test procedure. Missing or malformed required JSON fails without printing its contents.
+- Replaces private artifact links with local-only path labels and links historical records to the completed October 9 validation.
+
 ## [0.1.22] - 2026-08-26
 
 ### Added

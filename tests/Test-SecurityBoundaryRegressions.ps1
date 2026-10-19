@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$KeepArtifacts)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -7,7 +7,7 @@ $scannerPath = Join-Path $repoRoot 'Scan-DevSupplyChain.ps1'
 $launcherPath = Join-Path $repoRoot 'run-checker.bat'
 $windowsPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $cmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
-$testRoot = Join-Path $PSScriptRoot ('.security-boundary-regression-' + [Guid]::NewGuid().ToString('N'))
+$testRoot = Join-Path $repoRoot ('reports/security-boundary-regression-' + [Guid]::NewGuid().ToString('N'))
 
 function Assert-SecurityContract {
     param(
@@ -631,6 +631,16 @@ jobs:
     $fileBudgetReport = Get-Content -LiteralPath $fileBudgetJson -Raw | ConvertFrom-Json
     Assert-SecurityContract -Condition ($fileBudgetReport.completionStatus -eq 'incomplete-critical' -and $fileBudgetReport.coverage.summary.completionLabel -eq 'INCOMPLETE (critical coverage)' -and [int]$fileBudgetReport.coverage.summary.criticalFailures -ge 1) -Message 'Run-wide MaxFiles exhaustion was not retained as a critical unknown-scope failure.'
 
+    # Profile-only scans do not opt into the running scanner's own reports directory.
+    # Use an unchanged scanner copy so these redirected profile fixtures are outside that directory.
+    $environmentScannerRoot = Join-Path $testRoot 'environment-scanner'
+    $environmentScannerPath = Join-Path $environmentScannerRoot 'Scan-DevSupplyChain.ps1'
+    Write-Utf8NoBom -LiteralPath $environmentScannerPath -Text $scannerSource
+    foreach ($iocName in @('known-packages.json','known-files.json','known-extensions.json','known-actions.json','suspicious-patterns.json','known-node-runtimes.json','campaign-keyv-chaindrop-20260806.json')) {
+        $iocText = [IO.File]::ReadAllText((Join-Path $repoRoot ('iocs\' + $iocName)))
+        Write-Utf8NoBom -LiteralPath (Join-Path $environmentScannerRoot ('iocs\' + $iocName)) -Text $iocText
+    }
+
     $profileRoot = Join-Path $testRoot 'profile'
     $appDataRoot = Join-Path $profileRoot 'AppData\Roaming'
     $localAppDataRoot = Join-Path $profileRoot 'AppData\Local'
@@ -660,7 +670,7 @@ jobs:
         }
         $insideText = Join-Path $testRoot 'environment-inside.txt'
         $insideJson = Join-Path $testRoot 'environment-inside.json'
-        $insideExit = Invoke-SyntheticScan -ScriptPath $scannerPath -Arguments @(
+        $insideExit = Invoke-SyntheticScan -ScriptPath $environmentScannerPath -Arguments @(
             '-UserProfile',
             '-Checks', 'AiMcp',
             '-TextOut', $insideText,
@@ -690,7 +700,7 @@ jobs:
         }
         $outsideText = Join-Path $testRoot 'environment-outside.txt'
         $outsideJson = Join-Path $testRoot 'environment-outside.json'
-        $outsideExit = Invoke-SyntheticScan -ScriptPath $scannerPath -Arguments @(
+        $outsideExit = Invoke-SyntheticScan -ScriptPath $environmentScannerPath -Arguments @(
             '-UserProfile',
             '-MajorLocations',
             '-Checks', 'AiMcp',
@@ -712,7 +722,10 @@ jobs:
     Write-Host 'Security boundary regression tests passed.'
 }
 finally {
-    if (Test-Path -LiteralPath $testRoot) {
+    if ($KeepArtifacts) {
+        Write-Output ("Synthetic regression artifacts retained: {0}" -f $testRoot)
+    }
+    elseif (Test-Path -LiteralPath $testRoot) {
         Remove-Item -LiteralPath $testRoot -Recurse -Force
     }
 }

@@ -1,13 +1,23 @@
 # 図解マニュアル: Dev Supply Chain IOC Checker
 
 対象: Windowsで開発用フォルダや主要な開発環境を安全に確認したい人
-更新日: 2026-08-26
+対象バージョン: **0.1.27**。更新日: **2026-10-16**。
 
-まずは下のPNGを見てください。この1枚で、特徴、使い方、検査モード、結果の見方、安全上の注意が分かるようにしています。現行v0.1.22でもメニュー番号は変わりません。`2. Scan selected path` のパス入力後に、通常の `Recommended` または確認必須の `Deep` を選べます。`IdeExtensions` はVS Code互換拡張に加えてJetBrainsプラグインも対象にし、`Recommended`はプロジェクトに明記されたNode.jsバージョンも静的に確認します。v0.1.22ではWindows PowerShell 5.1の起動先と環境変数由来の自動探索範囲を安全側に固定し、v0.1.21のNode.js別表示と `PARTIAL (non-critical)` も維持します。
+v0.1.27は重大度別件数を併記します。`ConfigReview` は分類で、WARN件数は `Findings by severity` を見ます。自己テスト参照4件はパス・内容ハッシュ・ルールの一致時だけINFOです。変更されたファイルとほかの挙動は通常検査します。メニュー3・4・5には共通検査も含まれます。
 
-![Dev Supply Chain IOC Checker 図解使い方マニュアル](assets/dev-supplychain-checker-manual-ja-20260629.png)
+ローカルIOCのタイムアウト後も後続ルールを続け、MCP解析の上限や不正JSONも未完了へ記録します。件数は重複を除いたパス数、再訪は `fileEnumerationEvents` / `fileSkipEvents` です。検証済みサンプルの目印はプロジェクト数・予算から外し、未知・改変ファイルは残します。
 
-注: 上記PNGはv0.1.22以前に作成されたため、旧4段階表記、旧完了表示、旧自動探索範囲が残っている場合があります。現在の正式な重要度、完了状態、範囲は、このページ下部の表とMermaid図です。
+`performance.slowActivities` は遅い読み取り・ファイル処理・解析の上位20件です。`slowSteps` と合わせて原因を絞ります。時刻と経過時間の起点をそろえ、合計には `partition=true` の活動だけを使います。実PCの速度は再測定していません。メニュー範囲と2026-10-06のIOC基準は維持します。
+
+v0.1.26は、元ソースの構文と検査用文字列の根拠を組み合わせ、正規表現定義を実行コードと取り違える誤検知を修正します。キャッシュ内のCI設定は有効化不明の参考情報としてINFOへ分類します。`_cacache\content-v2` の本文は独自配置でも除外し、同時に発生した未完了理由を `coverage.summary.nextActions` にすべて表示します。メニュー番号・範囲とIOC基準は変わりません。
+
+v0.1.25では、重大度と `Execution`（実行状態）を分けます。Ctrl+C中断時に保存できた結果は `interrupted` / `INTERRUPTED` です。未着手のnpm検査は `not-started` と表示します。キャッシュ内のMCP設定は有効化不明として扱い、圧縮データの本文スキップはINFOへ集約します。
+
+v0.1.24は、受動的な検査用文字列と実際の送信・設定書込を区別する精度を改善します。INFOの根拠があってもファイル全体が安全とは断定しません。未完了時は `coverage.candidateFailures` / `directoryFailures` の `failureType` を確認します。`file-in-use` は占有、`access-denied` はアクセス拒否、`path-too-long` は長いパスの例外原因です。`exceptionTypes` / `hresults` は補助メタデータで、例外メッセージは出しません。非重大の読取失敗や依存関係・キャッシュの検査上限でも `scanComplete=false` とPARTIALになります。
+
+下の図と表が現行の手順です。メニュー番号は変わらず、`2. Scan selected path` のパス入力後に通常の `Recommended` または確認必須の `Deep` を選べます。v0.1.23で追加した2026-10-06のIOC、native build/runtime経路、Pythonメタデータの照合も引き続き使います。5段階の重要度、Node.jsの端末・プロジェクト別表示、`PARTIAL (non-critical)` を使って結果を確認します。
+
+旧PNGは末尾の履歴資料へ分けています。現在の操作は、このページのMermaid図・本文と[初心者向けマニュアル](user-manual-ja.md)を参照してください。
 
 安全性の説明だけを配布先へ渡したい場合は、[安全性と設計上の約束](safety-model-ja.md)も参照してください。
 
@@ -22,7 +32,9 @@ flowchart TD
     C --> F["秘密値を伏せたTXT・JSONレポート"]
     D --> F
     E --> F
-    F --> G{"completionStatus"}
+    F --> X{"executionStatus"}
+    X -->|interrupted| K["未着手・中断の範囲を確認する"]
+    X -->|completed / error| G{"completionStatus"}
     G -->|complete| H["DANGER → WARN → CAUTION → INFO の順に確認"]
     G -->|partial-non-critical| I["非重大の未検査範囲を確認"]
     G -->|incomplete-critical / error| J["完了した陰性結果として扱わない"]
@@ -82,15 +94,18 @@ flowchart TD
 
 1. 調べたいプロジェクトフォルダをエクスプローラーで開きます。
 2. このツールの `run-checker.bat` を起動します。
-3. メニューで `1` を選びます。
+3. メニューで `2` を選び、調べたいプロジェクトのフルパスと `1. Recommended traversal` を入力します。
 4. スキャンが終わるまで待ちます。
 5. `reports` フォルダに作成された `.txt` レポートを開きます。
-6. まず `[SUMMARY]` と `[PRIORITY FINDINGS]` を確認します。
+6. まず `Execution` と `Completion`、次に `[SUMMARY]` と `[PRIORITY FINDINGS]` を確認します。
+
+`1` は起動時の現在作業フォルダが対象です。BATのダブルクリックではチェッカー自身のフォルダになることがあります。`2` は指定フォルダ、`3`・`4`・`5`・`8` は現在作業フォルダ、`6`・`7`・`9` は確認を伴うPC側の検査です。番号と実際の検査範囲は変更していません。
 
 レポート例:
 
 ```text
 OverallResult: CAUTION
+Execution: completed; UnfinishedPhases=
 Completion: COMPLETE; ScanComplete=True
 Node.js installed: inspected=1; evaluated=1; vulnerable=0; notAffected=1; readFailures=0
 Node.js project refs: observed=1; evaluated=1; vulnerable=1; notAffected=0; unresolved=0
@@ -110,10 +125,10 @@ OK:     1
 | 表示 | 意味 | 最初にすること |
 |---|---|---|
 | `DANGER` | 強く確認すべき候補 | 削除せず、内容と場所を確認 |
-| `WARN` | より強い不審パターン、既知リスク、弱い設定 | 優先して理由を読む |
-| `CAUTION` | 単独では低信号の存在・能力・設定 | 時間のある時に内容を読む |
+| `WARN` | 不審パターン、既知リスク、弱い設定、重要な検査制限 | 種類と理由を優先して読む |
+| `CAUTION` | 単独では低信号の存在・能力・設定 | 用途と有効化の有無を確認 |
 | `INFO` | 参考情報 | 必要に応じて確認 |
-| `OK` | スキャン完了や問題なし | 通常は対応不要 |
+| `OK` | 対象チェックの候補なし等の参考結果 | 実行・完了状態も確認 |
 
 `DANGER` は「感染確定」ではありません。ただし、優先して確認すべきサインです。
 
@@ -125,7 +140,7 @@ OK:     1
 | `partial-non-critical` | 非重大とした処理または境界内解析の一部が未完了。`coverage.summary` を確認します。 |
 | `incomplete-critical` / `error` | 完了した陰性結果として扱いません。記録された不足を確認し、対象を狭めて再実行します。 |
 
-本文の各正規表現処理は2秒で打ち切ります。`REGEX_SCAN_TIMEOUT` ではそのファイルの該当処理だけを飛ばして残りを続けますが、結果は `complete` になりません。対象が非重大候補なら `partial-non-critical`、重大候補なら `incomplete-critical` です。このツールはディスク全体、メモリ、実行中process、実通信、全依存関係・全CVE、オンラインでの発行元・真正性を検査せず、感染も安全も確定しません。
+本文の各正規表現処理は2秒で打ち切ります。`REGEX_SCAN_TIMEOUT` の後も他の検査とファイルは続行しますが、該当ステップの残りは省略される場合があり、結果は `complete` になりません。runtimeコードの秘密情報取得サブルールでは後続の取得・実行検査を維持します。対象が非重大候補なら `partial-non-critical`、重大候補なら `incomplete-critical` です。このツールはディスク全体、メモリ、実行中process、実通信、全依存関係・全CVE、オンラインでの発行元・真正性を検査せず、感染も安全も確定しません。
 
 ## 5. まず見るべき場所
 
@@ -197,6 +212,20 @@ TXTレポートでは、次の順に見ると分かりやすいです。
 
 `WARN` は「すぐ危険確定」ではありません。
 
+`findingClassSummary` は「指標・挙動」「バージョン照合」「設定確認」「機能」「検査制限」「参考情報」に分けます。`SCAN_INTERRUPTED` や検査上限のWARNは検査制限です。`execution.phases` の `not-started` は未着手、`interrupted` は中断、`failed` は処理失敗です。中断時の `completionStatus` は既存の `incomplete-critical` になり、重大候補の処理を完了したとは判断しません。
+
+`queuedFilesUnprocessed` は列挙済みの未処理件数で、未列挙の範囲は含みません。`startedAt`・`finishedAt`・`elapsedMs` で実行時間を確認できます。Ctrl+Cでも終了処理を実行できた場合にレポートを保存します。ウィンドウを閉じる操作では保存を保証できません。
+
+`REGEX_SCAN_TIMEOUT` は `ruleId` と時間を記録し、本文や正規表現は表示しません。`performance.steps` に遅い検査の集計があります。同じファイルのタイムアウトは、対象フォルダを絞るだけでは直らない場合があります。
+
+| 新しい確認項目 | 読み方 |
+|---|---|
+| `coverage.summary.nextActions` | サイズ超過・タイムアウト・検査上限などの対処一覧。1つ直しても別の理由が残る場合があります。 |
+| `performance.activities` | 列挙、子プロジェクト探索、依存候補選択、本文の読み取り・解読、ファイル処理の時間。 |
+| `partitionElapsedMs` / `otherElapsedMs` | 重複しない活動の合計と、それ以外の実行時間。`partition=true` の項目だけを合計します。 |
+| `Reading` / `performance.steps` | 他の活動に含まれる内訳です。合計へ再加算しません。レポート整形・書き込みは計時対象外です。 |
+| `performance.slowSteps` | 2秒以上の遅い検査を最大20件、遅い順に記録します。パスは伏せ字化し、本文は含めません。 |
+
 Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、このツールでは原則`WARN`です。これは上流の脆弱性深刻度と、実際にそのPC/プロジェクトで悪用可能かという判断を混同しないためです。`Node.js installed` はグローバル／既知配置のバイナリ、`Node.js project refs` はDockerfileや`.nvmrc`などの指定です。後者の警告だけなら、インストール済みNode.jsが古いという意味ではありません。`notAffected` は同梱オフライン基準に一致しなかったという限定的な結果です。
 
 よくある `WARN` の例:
@@ -214,6 +243,8 @@ Node.jsの公式`Critical`/`High`にバージョンが一致した場合も、�
 - 外部送信先が自分の想定どおりか
 
 ## 9. CAUTION が出た時
+
+件数が多い場合は、[初心者向けマニュアル](user-manual-ja.md)の「CAUTIONが多い場合の精査」で、カテゴリ別の集計コマンドとライフサイクルスクリプト・WASM・不可視文字の確認点を参照してください。
 
 `CAUTION` は確認を勧める低信号の候補です。単独では感染や悪用を示しません。
 
@@ -344,3 +375,11 @@ run-checker.bat current C:\Users\yourname\Documents\GitHub\some-repo
 - `OK`: スキャン完了または問題候補なし
 
 このツールは感染を確定するものでも、完全な安全を証明するものでもありません。安全に一次確認し、次に見るべき場所を絞るための道具です。
+
+## 旧版のPNG（履歴資料）
+
+以下は2026-06-29の図版です。主図にはv0.1.9と旧4段階の重要度があり、現行のCAUTION、完了状態、探索範囲を説明する資料としては使いません。現在の使い方は本ページの図と表を参照してください。
+
+- [旧版の概要図](assets/dev-supplychain-checker-manual-ja-20260629.png)
+- [旧版のA4図解・1ページ目](assets/dev-supplychain-checker-a4-user-manual-imagegen-ja-page1-20260629.png)
+- [旧版のA4図解・2ページ目](assets/dev-supplychain-checker-a4-user-manual-imagegen-ja-page2-20260629.png)

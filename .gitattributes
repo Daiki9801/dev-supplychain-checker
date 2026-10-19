@@ -20,3 +20,8 @@ auth.json export-ignore
 tests/samples/** export-ignore
 tests/samples/manifest.json -export-ignore
 tests/samples/README.md -export-ignore
+
+# Preserve bytes-sha256 fixtures exactly, including on autocrlf Windows checkouts.
+tests/samples/npm-cache-static-metadata/AppData/Local/npm-cache/_cacache/content-v2/sha512/aa/blob -text
+tests/samples/npm-cache-blob/.npm-cache/_cacache/content-v2/sha512/aa/bb/cache-blob -text
+tests/samples/vscode-extension-bad/.vscode/extensions/nrwl.angular-console-18.95.0/native.node -text

@@ -1,15 +1,25 @@
 {
-  "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-08-14",
-  "sourceSet": "historical-codfish-and-github-actions-advisory-delta-review-20260814",
+  "schemaVersion": "0.1.23",
+  "lastUpdated": "2026-10-06",
+  "sourceSet": "curated-codfish-mini-shai-hulud-and-actions-advisory-review-20261006",
+  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
   "sourceUrls": [
     "https://api.github.com/advisories?ecosystem=actions&type=malware",
-    "https://api.github.com/advisories?ecosystem=actions&type=reviewed"
+    "https://api.github.com/advisories?ecosystem=actions&type=reviewed",
+    "https://www.aikido.dev/blog/compromised-github-action-codfish-steals-secrets",
+    "https://socket.dev/blog/mini-shai-hulud-actions",
+    "https://github.com/advisories/GHSA-2qvg-qr73-mqxp"
   ],
-  "scope": "Immutable known-bad commits and historically affected mutable refs, plus a 2026-07-15 through 2026-08-14 public GitHub Actions advisory delta review.",
-  "reviewNotes": "The public Actions advisory delta queries returned no records. The codfish repository tag endpoint was unavailable during review, so mutable historical refs remain WARN and are not represented as current remote targets.",
+  "scope": "Curated immutable known-bad commits, historically affected mutable refs, and bounded reference-version advisories; public Actions delta checked from 2026-08-14 through 2026-10-06.",
+  "reviewNotes": "All shipped entries were compared with their incident reports. The Actions delta returned zero malware advisories and one reviewed conflibot advisory already included. Historical refs remain WARN; current remote tag targets and availability are not asserted.",
+  "supplementLastReviewed": "2026-10-06",
+  "supplementScope": "S09 bad commit/historical ref and S10 reference-version advisory, included in the complete bounded dataset review recorded above.",
   "expiresAfterDays": 30,
+  "advisories": [
+    {"id":"CVE-2026-55158","repository":"wktk/conflibot","upstreamSeverity":"CRITICAL","published":"2026-08-17","sourceUrl":"https://github.com/advisories/GHSA-2qvg-qr73-mqxp","sourceId":"S10","affectedRanges":[{"maxExclusive":"1.2.1"}],"fixedVersions":["1.2.1","2.0.0"],"conditions":["pull_request_target","attacker-controlled-head-ref"]}
+  ],
   "actions": [
+    {"repository":"actions-cool/issues-helper","compromisedCommits":["a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d"],"compromisedRefs":["v2.2.1"],"sourceId":"S09","notes":"Mini Shai-Hulud: reported malicious immutable commit and historical ref. Re-enabled September 16 and disabled again September 25; current availability is not asserted."},
     {
       "repository": "codfish/semantic-release-action",
       "compromisedCommits": [

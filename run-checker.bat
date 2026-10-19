@@ -100,16 +100,21 @@ if /I "%MODE%"=="full" goto ScanFull
 :Menu
 echo Dev Supply Chain IOC Checker
 echo.
-echo 1. Recommended project scan
-echo 2. Scan selected path
-echo 3. Package / Node runtime risks
-echo 4. AI / MCP / IDE config risks only
-echo 5. CI/CD and hooks risks only
-echo 6. npm global/cache static check
-echo 7. Major PC locations scan
-echo 8. Custom checks for current folder
-echo 9. Comprehensive bounded scan ^(target + major locations + profile + endpoint^)
+echo 1. Recommended project scan - current folder
+echo 2. Scan selected path - choose folder, then Recommended or Deep
+echo 3. Package / Node runtime risks - current folder
+echo 4. AI / MCP / IDE config risks only - current folder
+echo 5. CI/CD and hooks risks only - current folder
+echo 6. npm global/cache static check - PC metadata; confirm
+echo 7. Major PC locations scan - PC folders/profile; confirm
+echo 8. Custom checks for current folder - advanced
+echo 9. Comprehensive bounded scan ^(target + major locations + profile + endpoint^) - confirm
 echo 10. Exit
+echo.
+echo Start with 1 for the current folder, or 2 to select your project folder.
+echo Modes 6, 7, and 9 read PC locations outside the project. Mode 9 also reads endpoint logs.
+echo Deep in mode 2 is separate and requires confirmation.
+echo Ctrl+C interrupts the scan; review Execution and Completion in any saved report.
 echo.
 set "MODE="
 set /p MODE=Select mode: 
@@ -431,7 +436,13 @@ exit /b %VALIDATION_EXIT%
 :Finish
 set "EXITCODE=%ERRORLEVEL%"
 echo.
-echo Scan finished with exit code %EXITCODE%.
+echo Scan process returned exit code %EXITCODE%.
+if "%EXITCODE%"=="0" echo No WARN/CAUTION/DANGER findings; also verify Completion.
+if "%EXITCODE%"=="1" echo Review WARN/CAUTION findings and any coverage limitations.
+if "%EXITCODE%"=="2" echo Review DANGER findings first; this is not automatic proof of infection.
+if "%EXITCODE%"=="3" echo Scanner or report failure; do not use this as a completed result.
+if "%EXITCODE%"=="4" echo Invalid input or declined confirmation.
+echo Severity and execution completion are separate; counts are findings, not infections.
 echo Reports are under: "%REPORTS%"
 echo.
 if not defined NO_PAUSE pause

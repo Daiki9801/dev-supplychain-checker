@@ -20,7 +20,7 @@ jobs:
   scanner-contract:
     name: Scanner contract
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -53,24 +53,61 @@ jobs:
         run: |
           .\tests\Test-SecurityBoundaryRegressions.ps1
 
+      - name: Check October security update regressions
+        shell: powershell
+        run: |
+          .\tests\Test-SecurityUpdate20261006.ps1
+
+      - name: Check IOC freshness and fixture integrity regressions
+        shell: powershell
+        run: |
+          .\tests\Test-IocMaintenance.ps1
+
+      - name: Check Python metadata and binary classification regressions
+        shell: powershell
+        run: |
+          .\tests\Test-PythonMetadataRegressions.ps1
+
+      - name: Check static triage and coverage diagnostics regressions
+        shell: powershell
+        run: |
+          .\tests\Test-StaticTriageRegressions.ps1
+
+      - name: Check interrupted execution, compressed data and cached MCP regressions
+        shell: powershell
+        run: |
+          .\tests\Test-ScanExecutionRegressions.ps1
+
+      - name: Check mixed passive patterns, cached CI, coverage actions and timing
+        shell: powershell
+        run: |
+          .\tests\Test-ScanTriagePerformanceRegressions.ps1
+          .\tests\Test-ScanReviewRegressions.ps1
+
       - name: Validate local JSON data
         shell: powershell
         run: |
-          $jsonFiles = @()
-          if (Test-Path -LiteralPath .\iocs) {
-            $jsonFiles += Get-ChildItem -LiteralPath .\iocs -Filter *.json -File -Force
-          }
-          if (Test-Path -LiteralPath .\tests\samples\manifest.json) {
-            $jsonFiles += Get-Item -LiteralPath .\tests\samples\manifest.json
-          }
-          foreach ($file in $jsonFiles) {
+          $requiredJsonPaths = @(
+            '.\iocs\campaign-keyv-chaindrop-20260806.json',
+            '.\iocs\known-actions.json',
+            '.\iocs\known-extensions.json',
+            '.\iocs\known-files.json',
+            '.\iocs\known-node-runtimes.json',
+            '.\iocs\known-packages.json',
+            '.\iocs\suspicious-patterns.json',
+            '.\tests\samples\manifest.json',
+            '.\docs\ioc-maintenance-20261006-evidence.json'
+          )
+          foreach ($relativePath in $requiredJsonPaths) {
             try {
-              Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json | Out-Null
+              Get-Content -LiteralPath $relativePath -Raw -Encoding UTF8 -ErrorAction Stop |
+                ConvertFrom-Json -ErrorAction Stop | Out-Null
             } catch {
-              Write-Error ("Invalid JSON: {0}: {1}" -f $file.FullName, $_.Exception.Message)
+              Write-Output ("Invalid or missing JSON: {0}" -f $relativePath)
               exit 1
             }
           }
+          Write-Output ("Validated {0} required JSON files as UTF-8." -f $requiredJsonPaths.Count)
 
       - name: Run synthetic sample scan only
         shell: powershell
