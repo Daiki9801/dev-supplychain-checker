@@ -8475,7 +8475,7 @@ function Test-VerifiedSelfTestMarkerReference {
     # Versioned, manually reviewed source identities. Only these four posture
     # markers are refined; executable behavior, hashes and other IOCs still run.
     $references=@{
-        '.github/workflows/validate.yml'=@{hash='ae3e63baac9c19faf9571b10165d75daccd9e20325aa37f0b322bfe19771450e';rules=@('glassworm-c2-marker')}
+        '.github/workflows/validate.yml'=@{hash='b1b83f46b8f916585d2b939eaeb4a84fa6314aa6191e053074988d3051e202f2';rules=@('glassworm-c2-marker')}
         'tests/Test-IocMaintenance.ps1'=@{hash='15c68d2bd8881c78ed54ca88d25266271446db952d0f5dd177cf1883656d14a2';rules=@('keyv_chaindrop_nodereal_contract_marker')}
         'tests/Test-SecurityUpdate20261006.ps1'=@{hash='40a942f4b7fec74dbfe50f65c2da9c0f7bd0fc54296559f08912fd928c9d357f';rules=@('supplychain_local_campaign_host_marker','virgil_secondary_transfer_endpoint_marker')}
     }

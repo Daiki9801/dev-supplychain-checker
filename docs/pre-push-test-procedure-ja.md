@@ -110,7 +110,7 @@ if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 
 - parser errorが0件。
 - 必須9 JSON（7 IOC、fixture manifest、項目別証拠記録）がUTF-8で例外なく読み込める。欠落・解析エラーを無視せず、ファイル名だけで失敗を報告する。
-- Git取得の38ケース（全Gitコマンドとworkspace照会をモック）、CIのPowerShellブロック解析、launcher scope契約、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
+- Git取得の39ケース（全Gitコマンドとworkspace照会をモック、複数Git候補の優先順位を含む）、CIのPowerShellブロック解析、launcher scope契約、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
 - Python短縮バージョン、PEP 440の同一性、METADATAヘッダー境界、ロックファイルの対応関係、OCR/署名バイナリとハッシュ検査の合成回帰が合格する。
 - 実行状態の回帰で合格メッセージが出る。`Test-ScanExecutionRegressions.ps1` はリポジトリ内の合成パイプラインだけを停止し、保存レポートの中断状態・未着手npm・圧縮判定と保持ハッシュ・キャッシュ内MCP・タイムアウト情報の秘匿を検証する。npmは明示的な合成ルートへ限定し、実プロファイル・端末ログ・実npm/Node配置は読まない。
 - `Test-ScanTriagePerformanceRegressions.ps1` が合格する。通常文字列とPattern表の混在、実行コードの検出維持、大きな引用符付きキー、サブルールのタイムアウト後の検査継続、同時に出る未完了理由、キャッシュ／有効CIの区別、独自npmキャッシュ、計時配列と最大20件の遅い検査記録をリポジトリ内の合成データだけで検証する。

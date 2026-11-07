@@ -1,8 +1,59 @@
 # IOC・HTTP2Shell・CI の最終レビュー
 
-**2026-11-07（JST）最終追補: Git直接取得への切替とCIの合成検証範囲の整理を実装し、ローカル11スイートが合格。公開判定は保留を継続する。** このworkflowからcheckout Actionとその同梱undiciの実行経路を除いた。作業ツリーの自己検査は完了・DANGER/WARN 0件。残る必須工程は、コミット対象の確定、候補SHAでの実GitHub Actions成功、更新した配布物の検証と公開承認。過去の出典・配布検証には未解決事項と適用時点の違いがあるため、以下で区別する。
+**2026-11-07（JST）配布・GitHub確認追補: 承認された31ファイルを `be18881` にコミットし、コミット由来のZIP検証・通常push・[draft PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10) の作成まで完了した。候補SHAのCIはmainとの履歴の競合で未実行のため、公開保留を継続する。** 追加のGit候補選択修正はローカル検証済み。以下が現在の状態で、それ以降の節は各段階の履歴を残している。
 
-## 最終追補: Git直接取得・CI範囲整理の実装
+## 配布・GitHub確認と残る履歴統合
+
+利用者が31ファイルのstage・1コミット、64ファイルのZIP作成・展開検証、1回の通常push、draft PR作成、最大60回のGitHub API読取とPR新規作成1回を明示承認した範囲で実行した。公開リポジトリへの送信を伴う。mainへのmerge、タグ、Release公開、force push、実PC走査は実行していない。
+
+| 実施項目 | 結果 |
+|---|---|
+| コミット | `be188812f2944b965f61c1c1390d57892b969362`。親は `8e911a6ef5a255cf7bd5a8d430da4175d7dbbd44`。承認済み31ファイルのGit blobを一覧と照合し、既存4指示・設計文書の差分も承認どおり含めた。`.codex/` と `reports/` は対象外 |
+| ZIP | `reports/git-checkout-20261107-9b3a7e95bca642fbaafb7d489e9dbbe7/dev-supplychain-checker-git-candidate.zip`。3,518,810 bytes、SHA-256 `9e7d33ef46c18f641b283ba6ac14fa307ed8829abe42e4d447bedfc1ca873f0b` |
+| 配布内容 | 64ファイル、展開後5,521,853 bytes。承認一覧・コミット・ZIP内・展開後の全ファイルのハッシュが一致。展開先は同フォルダーの `expanded-git-candidate/`。作成前の31原本も検証時に不変だった |
+| 展開後BAT | `run-checker.bat path <元リポジトリのtests/samples/clean-js> --no-pause` は終了0、完了、IOC current 7件、`releaseReady=true`、`distributionStatus=complete` |
+| 展開後PowerShell | `-Path <元リポジトリのtests/samples/node-runtime-safe> -Checks NodeRuntime,Http2Shell,ScannerSelf` は終了0、完了、IOC current 7件、HTTP2Shell基準 `current`。`executionSafety` のnetwork / externalCommands / targetCodeExecutionはすべて `none` |
+| GitHub | `codex/triage-performance-v0.1.27` への通常pushを1回実施し、main向けdraft PR #10を作成。候補SHAは `be18881`。mainやReleaseには反映していない |
+| CI | PRは `mergeable=false` / `mergeable_state=dirty`。候補SHAの `Scanner contract` は未実行。過去のmain・旧候補の成功を今回の成功として扱わない |
+
+配布生成では2件の問題を検出して修正した。Git実行ファイルの探索が複数候補を返し、初回はプロセスを起動できなかった。次に、`git archive` にも既存の `core.autocrlf=true` が適用され、61ファイルの改行が承認したLFバイト列と異なった。どちらも展開前に停止した。先頭Git候補を明示し、生成コマンドだけに `git -c core.autocrlf=false -c core.eol=lf archive --format=zip <SHA>` を指定して再生成したところ、全64ファイルが一致した。Git設定ファイルは変更していない。
+
+失敗時にこの作業で新規生成した一時ZIPを、内容・絶対パス・未追跡を確認して各1件、計2件削除した。既存ファイル削除0件、移動0件、改名0件、既存ファイルの丸ごと置換0件。成功したZIP、以前のZIP、展開物、原本、履歴は保持している。
+
+### 競合の根拠と追加の修正
+
+GitHub上のmainは `505a27843bb2e85a3c5af8b769c9705a875a1bd7`。PR #9で以前の変更がsquash取り込みされている。mainのtreeと、今回の親 `8e911a6` のtreeは、ともに **`40c0514ca5e9684edbaa9d91c721b1b6fac58990`** で一致した。ファイル内容・パス・Gitのファイルモードは同じだが履歴が異なるため、その後の変更を含むPR #10が競合している。`be18881` のtreeは `994717f849f31d02f6618103da6e37571cff6047`。
+
+配布生成で判明した複数Git候補の問題はCIにも該当するため、`.github/workflows/validate.yml` の実行ファイル探索を `Get-Command ... | Select-Object -First 1` に修正した。低優先度候補が実行されると失敗する合成回帰を追加し、スキャナーの自己参照用workflowハッシュとCHANGELOG・検証手順を更新した。今回追加した未コミット差分は、この5ファイルと本レポートの計6ファイル。
+
+Windows PowerShell **5.1.26100.9711** で、変更に関係する次の2スイートが終了0。先行する11スイートの合格記録は下の実装時点の節に残した。
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-CheckoutContract.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-ScanReviewRegressions.ps1
+```
+
+- `Test-CheckoutContract.ps1`: **39ケース、25 CIブロック、451 assertions**。
+- `Test-ScanReviewRegressions.ps1`: **22ケース、61 assertions**。更新したworkflowの自己参照、改変・コピーの拒否を確認。
+
+追加修正後の `-Path . -Checks Recommended` 自己検査も完了し、終了1、DANGER 0 / WARN 0 / CAUTION 1、IOC current 7件、`releaseReady=true`。CAUTIONは既存の手動workflow起動設定。`-ReportDir` に `reports/` 全体を指定して合成生成物を除外し、TXT/JSONは新規の `reports/ci-continuation-20261107-85c6d06176fe49d59576811e82f5c069/repository.*` に保存した。
+
+証跡はローカル専用の `reports/publication-next-20261107-4a328d9877a740d5b2421bbb39c5ade0/` に保存した。`commit-receipt.json`、`package-receipt.json`、`push-receipt.json`、`pull-request-receipt.json`、`ancestry-inspection.json`、`continuation-test-results.json` を参照。GitHub APIはこの時点でGET **14/60回**、PR作成 **1/1回**を使用。必要な既存認証はGit/APIのメモリ内で利用し、秘密値の表示・保存はしていない。
+
+### 次に必要な操作と承認範囲
+
+すでに承認された1コミット・1pushは完了した。今回必要になった追加のfetch・履歴統合・コミット・pushは、その回数と操作の範囲を超えるため未実行。正確な6ファイルと配布64ファイル、新規出力先を `reports/ci-continuation-20261107-85c6d06176fe49d59576811e82f5c069/continuation-plan.json` に確定し、次の一連の操作を追加承認の対象とする。
+
+1. mainの固定SHA `505a27843bb2e85a3c5af8b769c9705a875a1bd7` を1回fetchし、取得したtreeが `8e911a6` と一致すること、ローカル・リモートの候補先端が `be18881` のままであることを再確認する。不一致なら停止する。
+2. 作業ブランチ上で `git merge --strategy=ours --no-ff --no-commit <mainの固定SHA>` により、すでに内容を含むmainの履歴を接続する。上記tree一致を前提に、現在のファイル内容を保つための操作。mainブランチへのmergeではない。既存コミットを改変せず、確定6ファイルだけをstageしてmerge commitを1件作成する。
+3. 新コミットと一覧を照合し、新規 `dev-supplychain-checker-candidate-v2.zip` と `expanded-candidate-v2/` を同じ追補フォルダー内に作成する。64ファイルを展開し、合成BAT・NodeRuntime/HTTP2Shell検証を行う。既存ZIP・展開物を置換しない。
+4. 検証が成功した新コミットを同じ作業ブランチへ通常push 1回。draft PR #10を維持し、既承認のAPI読取残数内で最終候補の `Scanner contract` を確認する。CIの失敗や想定外のリモート変更があれば停止して報告する。
+
+この技術ゲートが成功しても、mainへのmerge、タグ、Release公開には別の承認が必要。一般IOCの期限は2026-12-07、HTTP2Shell基準は2026-11-15 UTCからstale。Actions可変タグ15件と旧41組のアーティファクト独立確認は未完であり、公開説明にこの範囲を残す。実PCの自動探索は今回も検証していない。
+
+## 実装時点の記録: Git直接取得・CI範囲整理
+
+**2026-11-07（JST）最終追補: Git直接取得への切替とCIの合成検証範囲の整理を実装し、ローカル11スイートが合格。公開判定は保留を継続する。** このworkflowからcheckout Actionとその同梱undiciの実行経路を除いた。作業ツリーの自己検査は完了・DANGER/WARN 0件。残る必須工程は、コミット対象の確定、候補SHAでの実GitHub Actions成功、更新した配布物の検証と公開承認。過去の出典・配布検証には未解決事項と適用時点の違いがあるため、以下で区別する。
 
 利用者の実装依頼に基づくオフライン作業。Git取得処理のモックを実行し、実際のGit初期化・fetch・checkout、外部照会、依存追加、実PC走査、ステージ、コミット、push、PR作成、公開は行っていない。作業開始・終了時のHEADは `8e911a6`、ブランチは `codex/triage-performance-v0.1.27` のまま。
 

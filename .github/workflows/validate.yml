@@ -56,7 +56,7 @@ jobs:
               @(Get-ChildItem -LiteralPath $workspace -Force -ErrorAction Stop).Count -ne 0) {
             throw 'Checkout requires an empty, ordinary workspace; existing files are never cleaned.'
           }
-          $git = Get-Command -Name git.exe -CommandType Application -ErrorAction Stop
+          $git = Get-Command -Name git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
           $versionText = [string](& $git.Path version)
           if ($LASTEXITCODE -ne 0 -or $versionText -notmatch '\Agit version (?<version>[0-9]+\.[0-9]+\.[0-9]+)(?:\.windows\.[0-9]+)?\z') {
             throw 'Unable to determine the Git version for checkout.'

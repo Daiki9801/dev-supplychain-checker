@@ -27,7 +27,13 @@ Assert-Checkout ($checkoutGuard.ToString() -notmatch 'Invoke-WebRequest|Invoke-R
 # All executable discovery, Git execution and path queries below are mocks.
 # No actual Git command, network connection or host path probe runs.
 & {
-    function Get-Command { param($Name,$CommandType,$ErrorAction); if ($case.missing) { throw 'synthetic missing Git' }; return @{Path='git.exe'} }
+    function Get-Command {
+        param($Name,$CommandType,$ErrorAction)
+        if ($case.missing) { throw 'synthetic missing Git' }
+        if ($case.multiple) { return @(@{Path='git.exe'},@{Path='unused-git.exe'}) }
+        return @{Path='git.exe'}
+    }
+    function unused-git.exe { throw 'The lower-priority Git executable must not run.' }
     function Get-Item {
         param($LiteralPath,[switch]$Force,$ErrorAction)
         if ($case.missingWorkspace) { throw 'synthetic missing workspace' }
@@ -55,6 +61,7 @@ Assert-Checkout ($checkoutGuard.ToString() -notmatch 'Invoke-WebRequest|Invoke-R
     foreach($name in $baseEnvironment.Keys) { $savedEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process') }
     $cases=@(
         @{name='push';pass=$true;count=7},
+        @{name='multiple Git applications';multiple=$true;pass=$true;count=7},
         @{name='pull-request merge SHA';environment=@{GITHUB_EVENT_NAME='pull_request'};pass=$true;count=7},
         @{name='manual';environment=@{GITHUB_EVENT_NAME='workflow_dispatch'};pass=$true;count=7},
         @{name='minimum Git';version='git version 2.32.0';pass=$true;count=7},
