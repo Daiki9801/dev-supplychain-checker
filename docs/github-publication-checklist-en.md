@@ -40,7 +40,7 @@ Enable the most restrictive free-account settings available:
 - Dependabot security updates.
 - Secret scanning and push protection if available.
 
-Keep `actions/checkout` in `.github/workflows/validate.yml` pinned to a full commit SHA. Verify the SHA and release in the official GitHub repository before updating it.
+The workflow retrieves the public repository directly with Git and requires both the fetched commit and detached `HEAD` to match the event SHA. Preserve the Git 2.32.0+ minimum, empty workspace, unauthenticated HTTPS and no-fallback contract; verify `Scanner contract` on the final candidate SHA. Review provenance and bundled dependencies before introducing an external Action, and pin any such Action to a full commit SHA.
 
 Set a concise repository description, the MIT license, and relevant topics such as `windows`, `powershell`, `security`, `ioc`, and `supply-chain`. Add a website or social link only if it is an official distribution channel you control.
 

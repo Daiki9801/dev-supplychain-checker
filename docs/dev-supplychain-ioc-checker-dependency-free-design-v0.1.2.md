@@ -1,5 +1,7 @@
 # Dev Supply Chain IOC Checker v0.1.2 依存なし実装 詳細設計書
 
+> **履歴資料（初期設計 v0.1.2）**: 本書は初期設計の背景を保存した資料であり、現行版の仕様や承認規則を定義するものではありません。作業指示は [AGENTS.md](../AGENTS.md)、現行の実装・重要度・ランチャー構成は [README.md](../README.md) と [CHANGELOG.md](../CHANGELOG.md)、レビューは [Codex Review Checklist](codex-review-checklist.md)、検証は [Push前のPCテスト手順](pre-push-test-procedure-ja.md) を参照してください。本文中の旧BAT名、旧重要度、初期コマンド制約を現行実装へ再導入しないでください。
+
 作成日: 2026-06-03  
 版: v0.1.2-dependency-free-design  
 対象: Windows 開発端末 / ローカル AI 開発環境 / GitHub リポジトリ / VS Code 系 IDE / npm / PyPI / Composer / MCP / CI/CD  

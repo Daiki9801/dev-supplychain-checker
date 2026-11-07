@@ -53,7 +53,9 @@ An exact installed-package or structurally parsed lockfile match is `DANGER`. A 
 
 The snapshot records the SHA-256 of the supplied BAT and report. The 2026-08-14 review confirmed Aikido's 16 explicitly listed package families and three payload hashes. On 2026-10-06, all 443 names and 2,235 exact pairs were independently corroborated in non-withdrawn OSV malware records; the pair-to-advisory mapping is in the evidence record. Aikido's aggregate of at least 444 packages across 1,381 versions still differs from the supplied snapshot. No speculative count correction or source CSV reconstruction was performed. The original supplied-source `reviewStatus` and hashes remain unchanged, with OSV corroboration recorded separately. The 30-day review window remains in force.
 
-## Current Manual Baseline (reviewed 2026-10-06)
+## Current Manual Baseline (reviewed 2026-11-07)
+
+The [November source ledger](../docs/ioc-maintenance-20261107-ja.md) records the comparison of all seven datasets, including the 2,235 Keyv pairs against current OSV records. This refresh adds eight exact versions for `@cherrydotfun/miniapp-sdk` and `filipt`.
 
 The bounded baseline includes manually reviewed public vendor and security-research reporting for:
 
@@ -67,9 +69,9 @@ The bounded baseline includes manually reviewed public vendor and security-resea
 - The `codfish/semantic-release-action` compromised commits and historically affected mutable refs. Exact bad commits are `DANGER`; historical refs remain `WARN` because the scanner cannot resolve their current target offline.
 - GlassWASM/OpenVSX WASM, VSIX, and native installer hashes, plus the `dodod.lat` campaign domain and a marker-only wallet identifier.
 - Python Miasma/Hades-style `*-setup.pth`, `_index.js`, `.bun_ran`, and Bun bootstrap behavior.
-- Node.js official Critical releases from 2020 onward and High releases within the manually maintained 365-day window as of 2026-10-06. These are static version indicators, not proof that vulnerability preconditions are reachable.
+- Node.js official Critical releases from 2020 onward and High releases within the manually maintained 365-day window. These are static version indicators, not proof that vulnerability preconditions are reachable.
 
-The Node.js runtime baseline uses only official Node.js security-release pages: February 2020, September 2020, February 2021, December 2025/January 2026, March 2026, June 2026, and July 2026. All 13 entries and the current official vulnerability index were compared on 2026-10-06. High advisories older than the declared 365-day retention window are removed; Critical history is retained. Each advisory entry stores its exact source URL, publication date, affected half-open ranges, fixed versions by major, and additional conditions. Version boundaries remain unchanged and match the built-in baseline.
+The Node.js runtime baseline uses official Node.js security-release pages and version-tag evidence. The review retains the 13 entries through July and adds four High entries from October. High advisories older than the declared 365-day retention window are removed; Critical history is retained. Each entry stores its source URL, publication date, half-open affected ranges, fixed versions by major, and conditions. Shipped advisory fingerprints match the built-in baseline.
 
 The 2026-08-14 refresh used official OSV npm/PyPI snapshots, GitHub's public global-advisory API, public npm package metadata, the official Node.js July 2026 security release, Aikido's Keyv and GlassWorm reports, and AFINE's GlassWorm research. GitHub's public API rate limit prevented exhaustive pagination of every npm/PyPI malware advisory; therefore `known-packages.json` remains explicitly curated rather than claiming ecosystem-wide completeness. The public GitHub Actions delta query returned no additions, while the historical `codfish/semantic-release-action` tag endpoint was unavailable; immutable commit IOCs were retained and mutable historical refs remain `WARN`. Every exact IOC should be removed or downgraded only when a trusted correction shows that the value was inaccurate.
 

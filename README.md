@@ -4,7 +4,9 @@ Dependency-free Windows developer environment supply-chain IOC checker.
 
 This tool is a BAT launcher plus a single Windows PowerShell 5.1-compatible scanner. It performs offline, read-only static checks against project files, package metadata, explicitly declared Node.js runtime versions, CI/CD workflows, MCP/AI-agent configs, IDE extensions, and optional endpoint telemetry.
 
-Current scanner version: **0.1.27**. Repository: [Daiki9801/dev-supplychain-checker](https://github.com/Daiki9801/dev-supplychain-checker).
+Current scanner version: **0.1.28**. Repository: [Daiki9801/dev-supplychain-checker](https://github.com/Daiki9801/dev-supplychain-checker).
+
+v0.1.28 adds special menu **11: HTTP2Shell / CVE-2026-111497** with a selected-folder audit and a separately confirmed known-PC-metadata mode. It evaluates static Node.js, Bun, Brotli/Python and .NET version references and inventories embedded-decoder uncertainties. Reports separate component evidence, unobserved runtime use, unestablished input reachability and pending remediation verification. The November 7 review refreshes the [seven shipped IOC datasets](docs/ioc-maintenance-20261107-ja.md) and the [separate HTTP2Shell baseline](docs/http2shell-audit-ja.md).
 
 v0.1.27 adds severity totals beside finding-class counts: `ConfigReview` is a classification count, not the number of WARNs. Four reviewed marker references in this distribution's own tests/workflow become INFO only when their exact relative path, normalized source SHA-256 and rule match. Changed sources and external copies receive normal analysis; active behavior and exact artifact checks remain enabled.
 
@@ -100,6 +102,8 @@ The beginner manuals include commands to group and review CAUTION findings witho
 
 Menu `1` scans the current working folder; double-clicking the BAT may make this checker folder the target. Use `2` to enter another project folder and start with Recommended traversal. Entries `3`, `4`, `5` and `8` also use the working folder by default. Entries `6`, `7` and `9` identify broader PC scope and require confirmation; their numbers and scopes are unchanged.
 
+Menu `11` opens the HTTP2Shell special audit. `run-checker.bat http2shell <path> [--no-pause]` scans the selected project/application folder. `run-checker.bat http2shellpc` discloses known PC application/runtime metadata scope, requires `YES`, and rejects `--no-pause`. Exit remains menu `10`. Binaries and compressed data are never executed or decompressed; no live processes or loaded DLLs are inspected.
+
 Beginner-friendly Japanese manual:
 
 - [IT初心者向け 使い方マニュアル](docs/user-manual-ja.md)
@@ -128,14 +132,16 @@ Valid `-Checks` values are:
 
 - `Recommended`: default project-local static checks, including declared/pinned Node.js versions and already-enumerated `node.exe` files. Does not read npm global/cache or search host Node.js locations.
 - `MajorRecommended`: `Recommended` plus static npm global package roots and bounded known-path/PATH Node.js installations.
-- `AllSafe`: all non-telemetry static checks, including static npm global/cache.
-- `Packages`, `LifecycleScripts`, `NodeRuntime`, `InvisibleUnicode`, `CiCd`, `AiMcp`, `IdeExtensions`, `HooksAndTasks`, `SecretsInventory`, `NpmGlobal`, `NpmCache`, `ScannerSelf`.
+- `AllSafe`: all general non-telemetry static checks, including static npm global/cache; excludes the dedicated opt-in `Http2Shell` audit.
+- `Packages`, `LifecycleScripts`, `NodeRuntime`, `InvisibleUnicode`, `CiCd`, `AiMcp`, `IdeExtensions`, `HooksAndTasks`, `SecretsInventory`, `NpmGlobal`, `NpmCache`, `Http2Shell`, `ScannerSelf`.
+
+`Http2Shell` is not enabled by any check macro. Use `-Path <folder> -Checks Http2Shell,ScannerSelf` for an explicit folder, or add the separately opt-in `-Http2ShellHost` switch for bounded known application/runtime metadata. The latter never implies UserProfile, MajorLocations, EndpointTelemetry or Deep. It requires explicit human host-scope approval when used by an agent. JSON `http2ShellAssessment` and TXT summaries retain source IDs, the CISA KEV listing date, evidence kinds, component/version status and unresolved usage/input/remediation axes. Upstream affected versions are WARN, upstream fixed references are INFO, and unknown/constraint/vendor-build cases are CAUTION; version text never establishes DANGER or completed remediation. Source/API text is not copied into these findings. The 2026-11-07 baseline requests another review after seven days.
 
 `InvisibleUnicode` reports an isolated invisible control as `CAUTION` and adds bounded handling for consecutive Variation Selector clusters. It recognizes the known GlassWorm `codePointAt` decoder shape only when the same locally bound code-point variable performs both selector-range checks and byte-offset mappings. A decoder signature without an observed selector cluster is at most `WARN`; unrelated APIs elsewhere in a large bundle are not combined into `DANGER`. The scanner safely maps `U+FE00-U+FE0F` and `U+E0100-U+E01EF` clusters to bytes in memory and checks decoded UTF-8 only for static execution or secret-access markers. Analysis iterates only matched selectors instead of every character; analyzed selector matches and each cluster's static decode buffer are capped at 8,192. Over-limit input records incomplete candidate coverage after a bounded tail-cluster check. Decoded payload text is never executed or copied into reports.
 
 `UserProfile` and `EndpointTelemetry` are still explicit mode switches, not `-Checks` names.
 
-Reports include a machine-readable `scanScope` object and an `iocData` freshness inventory. `scanScope` distinguishes bounded comprehensive triage from Deep or full-disk traversal. `iocData.releaseReady` is `false` whenever a shipped IOC dataset is stale, missing, or invalid; historical exact indicators remain active, but maintainers should refresh the affected data before publishing a release. `releaseReady=true` covers only the documented bounded datasets and never claims that the checker is a complete live threat feed.
+Reports include a machine-readable `scanScope` object and an `iocData` freshness inventory. `scanScope` distinguishes bounded comprehensive triage from Deep or full-disk traversal. `iocData.releaseReady` is `false` whenever a shipped IOC dataset is stale, missing, invalid, or not checked by the selected checks. `requiredCount=7`, `notCheckedCount` and `notCheckedDatasets` distinguish unexamined data from missing files without expanding the selected scan scope. Historical exact indicators remain active, but maintainers should refresh the affected data before publishing a release. The publication gate requires a `Recommended` run with `scanComplete=true`, `completionStatus=complete`, `currentCount=7` and `releaseReady=true`; HTTP2Shell separately requires `http2ShellAssessment.baselineStatus=current`. `releaseReady=true` covers only the documented bounded datasets and never claims that the checker is a complete live threat feed.
 
 Run the single BAT launcher:
 
@@ -244,6 +250,8 @@ These files are offline data only; the scanner does not fetch or refresh IOC dat
 
 The current local baseline includes manually reviewed indicators for Axios/plain-crypto-js, GlassWorm/GlassWASM/OpenVSX, recent AsyncAPI/Jscrambler/Injective and related npm incidents, Python hook campaigns, compromised GitHub Action refs, selected C2 or persistence markers, a bounded Node.js runtime advisory set (official Critical releases from 2020 onward plus the maintained recent-High window), and the fixed 2026-08 Keyv ChainDrop campaign snapshot.
 
+The 2026-11-07 review adds eight exact npm/PyPI malware versions and four October Node.js High advisories, including the Brotli decoder CVE. The [November source ledger](docs/ioc-maintenance-20261107-ja.md) records current corroboration and the provenance of retained historical indicators.
+
 The supplement reviewed on 2026-10-06 adds 20 exact package/version pairs, 16 artifact hashes, Mini Shai-Hulud Action references, the conflibot `CVE-2026-55158` reference advisory, two theme ID watchlists, and four contextual endpoint markers. A subsequent [complete bounded corpus comparison](docs/ioc-maintenance-20261006-ja.md) reviewed all seven datasets on that date with unchanged 30-day expiry contracts, removed two inaccurate Jscrambler wrapper pairs, and fixed payload path selectors. Readiness concerns the documented corpus review and integrity; it does not independently reverify every retained historical artifact. See the [item-level evidence](docs/ioc-maintenance-20261006-evidence.json), [implementation plan](docs/security-update-20261006-detailed-implementation-plan-ja.md), and [local IOC guidance](iocs/README.md).
 
 The Windows PowerShell 5.1 synthetic runner is `tests/Test-SecurityUpdate20261006.ps1`; it retains create-new artifacts under `reports`. See the [initial implementation validation record](docs/security-update-20261006-validation-ja.md) for the tested scope and performance comparison.
@@ -286,7 +294,13 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Scan-DevSupply
 
 The `tests/samples` directory contains hand-written synthetic fixtures for source-level regression tests. They were not downloaded, are not real malware, and are expected to produce `CAUTION`/`WARN`/`DANGER` findings when scanned directly. Parent-directory and Major PC scans skip only manifest-verified fixture files matching the currently running checker distribution. Unrelated projects named `tests/samples`, unknown sample files, modified sample files, and fake scanner folders are scanned normally.
 
-Test-only redirection of Node.js/npm host roots requires the explicit `-SyntheticValidation` switch and an existing root under this checkout's `tests/samples` or `reports` directory. Ambient test-root environment variables are ignored during normal scanner use and cleared by `run-checker.bat`.
+Test-only redirection of Node.js/npm/HTTP2Shell host roots requires the explicit `-SyntheticValidation` switch and an existing root under this checkout's `tests/samples` or `reports` directory. Ambient test-root environment variables are ignored during normal scanner use and cleared by `run-checker.bat`.
+
+CI retrieves this public repository with runner-provided Git 2.32.0 or newer, without a checkout Action or its bundled JavaScript dependencies. It validates the repository/event, requires an empty ordinary workspace, fetches only `GITHUB_SHA`, verifies the fetched commit, checks out detached, and verifies `HEAD` before running repository code. Git uses isolated configuration and public HTTPS with no token, credential helper, redirect, REST/archive fallback, submodule update or LFS download. Git failures stop the job. Forks must review and change the explicit repository identity and URL. The minimum Git version is a configuration compatibility requirement, not a claim that every newer Git build is vulnerability-free.
+
+`tests/Test-CheckoutContract.ps1` mocks Git and workspace probes; it does not perform local Git mutations or contact a remote. It also parses every inline CI PowerShell step and checks for broad host-mode invocations/profile rewrites. `tests/Test-SecurityBoundaryRegressions.ps1` scans profile-shaped fixtures using explicit `-Path` roots and tests the automatic-root boundary helper with a synthetic profile argument. It never changes profile environment variables and always retains new GUID-named artifacts under `reports/` (`-KeepArtifacts` remains accepted for compatibility). These tests verify file handling and boundaries; they do not certify real UserProfile/MajorLocations discovery or endpoint telemetry. Those host scopes remain separately approved manual checks.
+
+Run `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-Http2ShellAudit.ps1` for the special audit's version-boundary, evidence-separation, metadata, report, launcher and fail-closed synthetic-host regressions. This test preserves new GUID-named artifacts under `reports/` and does not read real host installations. CI also runs it alongside the existing Windows PowerShell 5.1 suites.
 
 For non-technical users, distribute an archive that omits the fixture bodies and keeps only `tests\samples\manifest.json` plus `tests\samples\README.md`. This repository's `.gitattributes` applies that rule to GitHub-generated source archives.
 

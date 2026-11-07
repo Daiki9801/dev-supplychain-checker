@@ -1,5 +1,9 @@
 # Codex Appで Dev Supply Chain IOC Checker を作成させる方法 v0.1.1-reviewed
 
+> **履歴資料（初期実装 v0.1.1）**: 本書は当時の設計・実装プロンプトを保存した資料です。現在の作業指示は [AGENTS.md](../AGENTS.md)、実装契約は [README.md](../README.md) と [CHANGELOG.md](../CHANGELOG.md)、レビューは [Codex Review Checklist](codex-review-checklist.md)、検証は [Push前のPCテスト手順](pre-push-test-procedure-ja.md) を参照してください。
+>
+> 本文の AGENTS.md テンプレート、Git・Node・Python の一律禁止、3種類のBATランチャー、4段階の重要度は初期版の記述です。現在の AGENTS.md をこのテンプレートで置き換えたり、旧プロンプトを現行の指示として貼り付けたりしないでください。現行版は単一の `run-checker.bat` と `DANGER / WARN / CAUTION / INFO / OK` を使用します。読み取り専用Gitや既存のローカル検証ツールは現行 AGENTS.md の範囲で利用でき、Git変更・依存導入・外部アクセス・実ホスト走査には指定された人の承認が必要です。
+
 対象設計書: `dev-supplychain-ioc-checker-dependency-free-design-v0.1.2.md`
 
 本書は、Codex Appで **BATランチャー + Windows PowerShell 5.1互換・依存なし静的スキャナー** を安全に実装させるための手順書です。

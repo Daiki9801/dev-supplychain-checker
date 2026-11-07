@@ -39,7 +39,7 @@ $gitattributes = [System.IO.File]::ReadAllText($gitattributesPath)
 
 Assert-Contract -Condition ([bool]($launcher -match '(?m)^set "POWERSHELL_EXE=%SystemRoot%\\System32\\WindowsPowerShell\\v1[.]0\\powershell[.]exe"\r?$')) -Message 'Launcher does not pin Windows PowerShell 5.1 to the expected system path.'
 Assert-Contract -Condition (-not [bool]($launcher -match '(?im)^\s*powershell[.]exe(?:\s|$)')) -Message 'Launcher still invokes powershell.exe through the current-directory executable search path.'
-Assert-Contract -Condition ([regex]::Matches($launcher, '(?im)^\s*"%POWERSHELL_EXE%"\s+-NoLogo').Count -eq 18) -Message 'Not every launcher PowerShell invocation uses the pinned executable path.'
+Assert-Contract -Condition ([regex]::Matches($launcher, '(?im)^\s*"%POWERSHELL_EXE%"\s+-NoLogo').Count -eq 21) -Message 'Not every launcher PowerShell invocation uses the pinned executable path.'
 Assert-Contract -Condition (-not [bool]($scanner -match 'Test-IsStandaloneCheckerReferenceText')) -Message 'A filename/marker-based legacy checker exemption remains in the scanner.'
 Assert-Contract -Condition (-not [bool]($scanner -match "Join-Path \`$script:BaseDir '[.]github\\workflows\\validate[.]yml'")) -Message 'The active validation workflow is still trusted only by scanner-relative path.'
 Assert-Contract -Condition (-not [bool]($scanner -match "Join-Path \`$script:BaseDir 'tests\\Test-LauncherScopeContracts[.]ps1'")) -Message 'The active launcher contract is still trusted only by scanner-relative path.'
@@ -58,6 +58,7 @@ foreach ($testRootVariable in @(
     'DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS',
     'DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS',
     'DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS'
+    'DEV_SUPPLYCHAIN_CHECKER_TEST_HTTP2SHELL_ROOTS'
 )) {
     Assert-Contract -Condition ([bool]($launcher -match ('(?m)^set "' + [regex]::Escape($testRootVariable) + '="\r?$'))) -Message ("Launcher does not clear inherited test-only root variable: {0}" -f $testRootVariable)
 }

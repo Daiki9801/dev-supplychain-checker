@@ -5,6 +5,7 @@ rem Test-only host-root overrides are never inherited by distributed launcher ru
 set "DEV_SUPPLYCHAIN_CHECKER_TEST_NODE_RUNTIME_ROOTS="
 set "DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_GLOBAL_ROOTS="
 set "DEV_SUPPLYCHAIN_CHECKER_TEST_NPM_CACHE_ROOTS="
+set "DEV_SUPPLYCHAIN_CHECKER_TEST_HTTP2SHELL_ROOTS="
 
 set "BASE=%~dp0"
 set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -25,7 +26,7 @@ if not exist "%POWERSHELL_EXE%" (
   exit /b 3
 )
 
-"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('help','/?','-h','--help','current','path','deep','packages','ai','cicd','npmstatic','major','userprofile','full','--no-pause'); if((-not [string]::IsNullOrEmpty($env:MODE) -and $allowed -inotcontains $env:MODE) -or (-not [string]::IsNullOrEmpty($env:ARG3) -and $env:ARG3 -ine '--no-pause') -or (-not [string]::IsNullOrEmpty($env:ARG4)) -or (-not [string]::IsNullOrEmpty($env:TARGET) -and $env:TARGET.IndexOf([char]34) -ge 0)){exit 4}"
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('help','/?','-h','--help','current','path','deep','packages','ai','cicd','npmstatic','major','userprofile','full','http2shell','http2shellpc','--no-pause'); if((-not [string]::IsNullOrEmpty($env:MODE) -and $allowed -inotcontains $env:MODE) -or (-not [string]::IsNullOrEmpty($env:ARG3) -and $env:ARG3 -ine '--no-pause') -or (-not [string]::IsNullOrEmpty($env:ARG4)) -or (-not [string]::IsNullOrEmpty($env:TARGET) -and $env:TARGET.IndexOf([char]34) -ge 0)){exit 4}"
 if errorlevel 1 (
   echo ERROR: Unsupported mode, extra argument, or quoted target path.
   exit /b 4
@@ -96,6 +97,8 @@ if /I "%MODE%"=="npmstatic" goto ScanNpmStatic
 if /I "%MODE%"=="major" goto ScanMajor
 if /I "%MODE%"=="userprofile" goto ScanUserProfile
 if /I "%MODE%"=="full" goto ScanFull
+if /I "%MODE%"=="http2shell" goto ScanHttp2Shell
+if /I "%MODE%"=="http2shellpc" goto ScanHttp2ShellHost
 
 :Menu
 echo Dev Supply Chain IOC Checker
@@ -110,6 +113,7 @@ echo 7. Major PC locations scan - PC folders/profile; confirm
 echo 8. Custom checks for current folder - advanced
 echo 9. Comprehensive bounded scan ^(target + major locations + profile + endpoint^) - confirm
 echo 10. Exit
+echo 11. Special audit: HTTP2Shell / CVE-2026-111497 - folder or confirmed PC metadata
 echo.
 echo Start with 1 for the current folder, or 2 to select your project folder.
 echo Modes 6, 7, and 9 read PC locations outside the project. Mode 9 also reads endpoint logs.
@@ -118,7 +122,7 @@ echo Ctrl+C interrupts the scan; review Execution and Completion in any saved re
 echo.
 set "MODE="
 set /p MODE=Select mode: 
-"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('1','2','3','4','5','6','7','8','9','10'); if($allowed -notcontains $env:MODE){exit 4}"
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "$allowed=@('1','2','3','4','5','6','7','8','9','10','11'); if($allowed -notcontains $env:MODE){exit 4}"
 if errorlevel 1 (
   echo Unknown selection.
   goto Menu
@@ -134,6 +138,7 @@ if "%MODE%"=="7" goto ScanMajor
 if "%MODE%"=="8" goto PromptCustomChecks
 if "%MODE%"=="9" goto ScanFull
 if "%MODE%"=="10" exit /b 0
+if "%MODE%"=="11" goto PromptHttp2Shell
 
 echo Unknown selection.
 goto Menu
@@ -147,12 +152,14 @@ echo   run-checker.bat deep ^<path^>
 echo   run-checker.bat packages [path] [--no-pause]
 echo   run-checker.bat ai [path] [--no-pause]
 echo   run-checker.bat cicd [path] [--no-pause]
+echo   run-checker.bat http2shell [path] [--no-pause]
+echo   run-checker.bat http2shellpc  ^(known PC metadata; confirmation required^)
 echo   run-checker.bat npmstatic
 echo   run-checker.bat major
 echo   run-checker.bat userprofile
 echo   run-checker.bat full [path]  ^(bounded comprehensive scan; not full-disk or Deep^)
 echo.
-echo deep, npmstatic, major, userprofile, and full modes require typing YES and do not support --no-pause.
+echo deep, npmstatic, major, userprofile, full, and http2shellpc modes require typing YES and do not support --no-pause.
 exit /b 0
 
 :PromptPath
@@ -422,6 +429,61 @@ if errorlevel 1 (
   -MajorLocations ^
   -UserProfile ^
   -EndpointTelemetry ^
+  -Checks "%CHECKS%" ^
+  -ReportDir "%REPORTS%" ^
+  -LauncherPath "%~f0"
+goto Finish
+
+:PromptHttp2Shell
+echo.
+echo HTTP2Shell / CVE-2026-111497 - offline metadata audit
+echo 1. Choose a project or application folder
+echo 2. Known PC application/runtime metadata - confirmation required
+set "H2S_MODE="
+set /p H2S_MODE=Audit scope [1]:
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if(@('','1','2') -notcontains $env:H2S_MODE){exit 4}"
+if errorlevel 1 exit /b 4
+if "%H2S_MODE%"=="2" goto ScanHttp2ShellHost
+set "TARGET="
+set /p TARGET=Folder to audit:
+if not defined TARGET exit /b 0
+goto ScanHttp2Shell
+
+:ScanHttp2Shell
+set "CHECKS=Http2Shell,ScannerSelf"
+if not defined TARGET set "TARGET=%CD%"
+goto RunPath
+
+:ScanHttp2ShellHost
+set "CHECKS=Http2Shell,ScannerSelf"
+if defined TARGET (
+  echo ERROR: http2shellpc accepts no target argument; use http2shell for a folder.
+  exit /b 4
+)
+echo.
+echo HTTP2Shell inspects bounded known PC application and runtime metadata.
+echo Scope: Program Files Node/Git/curl/.NET/Chrome/Edge/WebView2, local PATH directories,
+echo profile Bun/CLI locations, Claude-Data, selected Claude/Codex editor extensions,
+echo Anaconda/Miniconda metadata, and common local editor/Claude installations.
+echo Packaged WindowsApps, arbitrary environments, archives and embedded decoders need explicit folder/vendor review.
+echo It does not inspect processes, loaded DLLs, registry, event logs or credential contents.
+echo Binaries, package scripts, Brotli streams and fonts are never executed or decompressed.
+echo Version metadata cannot establish input reachability or completed remediation.
+echo Scanner path: "%SCRIPT%"
+echo Target path: bounded known PC application/runtime metadata
+echo Report dir: "%REPORTS%"
+echo Checks: "%CHECKS%"
+if defined NO_PAUSE (
+  echo Non-interactive execution is not allowed for HTTP2Shell PC metadata audit.
+  exit /b 4
+)
+set "CONFIRM="
+set /p CONFIRM=Type YES to continue:
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -Command "if($env:CONFIRM -ieq 'YES'){exit 0}else{exit 1}"
+if errorlevel 1 exit /b 0
+"%POWERSHELL_EXE%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ^
+  -File "%SCRIPT%" ^
+  -Http2ShellHost ^
   -Checks "%CHECKS%" ^
   -ReportDir "%REPORTS%" ^
   -LauncherPath "%~f0"

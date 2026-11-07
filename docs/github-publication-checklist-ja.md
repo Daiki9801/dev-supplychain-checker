@@ -40,7 +40,7 @@ Settings で以下を有効にする。
 - Dependabot security updates: On
 - Secret scanning: On if available
 - Push protection: On if available
-- `.github/workflows/validate.yml` の `actions/checkout` は完全なcommit SHAへ固定したままにする。更新時はGitHub公式リポジトリでSHAとリリースを確認する。
+- `.github/workflows/validate.yml` は公開HTTPSのGit直接取得を使い、取得したcommitとdetached `HEAD` がイベントSHAに一致することを要求する。Git 2.32.0以上・空のworkspace・認証なし・フォールバックなしの契約を維持し、最終候補SHAで `Scanner contract` の成功を確認する。外部Actionを将来追加する場合は、その出典と同梱依存関係をレビューして完全なcommit SHAへ固定する。
 
 RepositoryのAbout欄には、短い説明、MIT license、対象トピック（例: `windows`, `powershell`, `security`, `ioc`, `supply-chain`）を設定する。公開WebサイトやSNSは、このツールの公式配布先として管理できる場合だけ登録する。
 
