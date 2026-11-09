@@ -47,4 +47,4 @@ git diff --check
 
 通常の合成サンプルと NodeRuntime／HTTP2Shell の併用走査は両方とも `scanComplete=true`、`completionStatus=complete`、`iocData.releaseReady=true`。`currentCount=7`、期限超過・欠落・不正は 0。通常サンプルの終了コード 2 は検出用 fixture による。併用走査は終了コード 0、`http2ShellAssessment.baselineStatus=current`。
 
-`Test-SecurityBoundaryRegressions.ps1` は `-UserProfile` を呼ぶため今回の自動検証から除外した。前提が整った環境でのコマンドは `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-SecurityBoundaryRegressions.ps1 -KeepArtifacts`。 [レビュー手順](codex-review-checklist.md)
+この文書の初回照合時点では、`Test-SecurityBoundaryRegressions.ps1` が `-UserProfile` を呼ぶため自動検証から除外した。その後、明示した合成ルートだけを使う方式へ改修し、ローカル144 assertionsと、候補 `01effcb` の [Windows CI](https://github.com/Daiki9801/dev-supplychain-checker/actions/runs/42353763124) が合格した。現在のコマンドは `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-SecurityBoundaryRegressions.ps1`。実PCの自動探索は検証していない。 [最終レビュー](final-review-20261107-ja.md) [レビュー手順](codex-review-checklist.md)

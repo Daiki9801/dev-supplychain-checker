@@ -1,8 +1,54 @@
 # IOC・HTTP2Shell・CI の最終レビュー
 
-**2026-11-07（JST）配布・GitHub確認追補: 承認された31ファイルを `be18881` にコミットし、コミット由来のZIP検証・通常push・[draft PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10) の作成まで完了した。候補SHAのCIはmainとの履歴の競合で未実行のため、公開保留を継続する。** 追加のGit候補選択修正はローカル検証済み。以下が現在の状態で、それ以降の節は各段階の履歴を残している。
+## 2026-11-09 マージ判断の追補
 
-## 配布・GitHub確認と残る履歴統合
+利用者から「残件対応を行いマージし完成させる」との指示を受け、[PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10) をmainへ統合する工程に進める。11月7日に合格したスキャナー・BAT・CI・IOCデータは変更せず、未コミットだった下記の完了記録を含めて文書5ファイルを整えた。CHANGELOGの実ランナー未確認という記述、IOCレビューの旧境界テストの説明、Push前手順の版番号を現在の実装に合わせ、READMEにも出典の確認限界を明記した。
+
+GitHubで対象head `01effcb`、main `505a278`、競合なしを再確認した。Secret scanningとpush protectionは有効で、秘密値を含めないAPI照会による未解決アラートは0件。リポジトリが許可する方式はsquash mergeだけであるため、設定を変えずにその方式を使用する。更新後のPRの先端を固定してCI成功を確認したうえで、draftを解除してマージし、main側のCIも確認する。マージの確定状態・コミットは [PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10)、実行結果は [Validateの記録](https://github.com/Daiki9801/dev-supplychain-checker/actions/workflows/validate.yml) を一次記録とする。
+
+今回のマージは、Actions可変タグ15件の現行実体や旧41組の配布アーティファクトを独立確認したという判断ではない。これらは出典上の限界としてREADMEと本レポートに残し、IOC値・確認日・信頼度を変更しない。一般IOCの期限2026-12-07とHTTP2Shell基準が2026-11-15 UTCからstaleになる条件は、11月9日時点でも期限内。実PC走査、タグ付与、Releaseの作成・添付・公開は今回のマージ作業に含めない。
+
+11月9日のローカル点検では、文書5ファイルのUTF-8 BOMなし・LFと73件のローカル参照が正常で、`git diff --check` が合格した。Windows PowerShell 5.1による `tests/samples/node-runtime-safe` の `NodeRuntime,Http2Shell,ScannerSelf` 走査は終了0・complete、IOC current 7件、`releaseReady=true`、HTTP2Shell基準 `current`。TXT/JSONと以後の実行証跡はローカル専用の `reports/merge-completion-20261109-b52af145cdcd49c3ae74cbe2f00f088b/` に保持する。
+
+以下の11月7日の承認待ち・未コミットという記述は当時の履歴であり、上記のマージ指示とPRの状態を優先する。コードが変わらない文書追補なので、ローカルでは参照・差分の点検と日付に依存する合成走査を行い、PR・mainのCIでプロジェクト全体の契約を検証する。新しい配布候補は文書差分を反映したコミットから生成し、全64エントリの照合と、実行物が11月7日に展開検証済みのものと同一であることを確認する。既存のZIP・展開物は保持する。
+
+## 2026-11-07 検証済み候補の記録
+
+**2026-11-07 17:15 JST 最終結果: Git直接取得への切替、mainとの履歴の競合解消、候補コミット `01effcb` の配布検証・push・実CI確認まで完了した。`Scanner contract` は全27ステップ成功。** checkout同梱undiciを使わない取得経路が実ランナーで成立した。技術的な配布・CIゲートは合格し、mainへの反映・タグ・Release公開は承認待ち。以下の完了状態を最新とし、後続の節は各段階の履歴を残す。
+
+## 最終候補と検証結果
+
+| 項目 | 確定結果 |
+|---|---|
+| 候補コミット | [`01effcbf8913962a4a6c1c9cdab360e5805abdc3`](https://github.com/Daiki9801/dev-supplychain-checker/commit/01effcbf8913962a4a6c1c9cdab360e5805abdc3)、tree `9fd43e06c30e169279660e2fd4f5ac972c3cc38c` |
+| 履歴統合 | mainの固定SHA `505a27843bb2e85a3c5af8b769c9705a875a1bd7` をfetchし、取り込み済み `8e911a6` とのtree完全一致をローカルでも確認。作業ブランチへ内容を保つmergeを行い、承認済み6ファイルを追加コミットした。親は `be18881` と `505a278`。221エントリすべてを照合し、計画外の内容・モード変更0件 |
+| PR | [#10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10)、open / draft、head `01effcb`、base `505a278`。CI終了後の確認で `mergeable=true` / `mergeable_state=clean`。mainとの差分は承認済み31ファイルに一致 |
+| 実CI | [Validate run 42353763124](https://github.com/Daiki9801/dev-supplychain-checker/actions/runs/42353763124)、attempt 1、候補head `01effcb`。`windows-latest` の `Scanner contract` が2026-11-07 08:13:36 UTCにsuccess。準備・完了を含む27ステップすべてsuccess、失敗・skipなし |
+| CIで成立した取得経路 | `Fetch event commit with Git` が成功。Git版・workspace・取得SHA・HEADの検査を通過してから、PowerShell構文、取得契約、HTTP2Shell、境界、IOC、Python、triage、各世代の合成回帰、レポート・BAT安全性、公開用表記の検査が成功した |
+| 最終ZIP | `reports/ci-continuation-20261107-85c6d06176fe49d59576811e82f5c069/dev-supplychain-checker-candidate-v2.zip`。**3,521,493 bytes**、SHA-256 **`8d0dcabcc9e82d07c6e57a1ea6bf27db98b835073c0a44e57421d16013b1f1ea`** |
+| 配布一致 | コミットから生成した64ファイル、展開後 **5,530,588 bytes**。承認一覧・ZIP内・`expanded-candidate-v2/` 展開後のSHA-256がすべて一致。ZIP作成・走査後も元の64ファイルが不変であることを確認 |
+| 展開物の実行 | 合成 `clean-js` に対するBATと、合成 `node-runtime-safe` に対するPowerShellの `NodeRuntime,Http2Shell,ScannerSelf` がともに終了0・complete。IOC current 7件、`releaseReady=true`、HTTP2Shell基準 `current`、配布状態complete。network / externalCommands / targetCodeExecutionはすべて `none` |
+| ローカル回帰・差分 | Windows PowerShell 5.1で取得契約39ケース・451 assertions、自己参照22ケース・61 assertionsが合格。先行11スイートも合格。自己検査はDANGER/WARN 0件。`git diff --check` とmain固定SHAからの候補差分の検査も合格 |
+
+実行した追加Git操作は、承認どおり固定SHAのfetch 1回、作業ブランチ上のmerge 1回、6ファイルのstageとmerge commit 1件、通常push 1回。PR #10は維持し、追加のPR作成・本文更新は行っていない。既存コミットとZIPは保持した。追加操作での削除・移動・改名・既存ファイルの丸ごと置換は各0件。この対応全体では前段で新規生成した失敗ZIP2件だけを削除し、既存ファイルの削除は0件。
+
+最終証跡はローカル専用の `reports/ci-continuation-20261107-85c6d06176fe49d59576811e82f5c069/` に保持した。承認対象は `continuation-plan.json` と `continuation.patch`、結果は `commit-receipt.json`、`package-receipt.json`、`push-receipt.json`、`ci-final-42353763124-1.json`。GitHub照会は合計 **GET 29/60回、PR作成 1/1回**で終了した。既存認証をGit/API内部で利用し、秘密値を表示・保存していない。
+
+### 残る承認事項と検証の限界
+
+| 区分 | 必要な判断・対象 |
+|---|---|
+| mainへ反映する場合 | draft PR #10をレビュー可能にする変更と、候補 `01effcb` のmainへのmergeを明示承認する。今回の履歴統合は作業ブランチ内だけで、mainは `505a278` のまま。反映前に先端・CI・差分を再確認する |
+| タグ・Releaseを公開する場合 | タグ名、対象コミット、Release本文、添付物を確定して別途承認する。検証済み添付候補は上記ZIPとSHA-256。`iocData.releaseReady=true` やCI成功だけでは公開承認と扱わない |
+| IOCの公開説明 | Actions可変タグ15件の現行実体と旧41組のアーティファクト独立確認が未完である範囲を、公開説明として受け入れる判断が必要。追加調査を要求する場合は、停止した403照会の再試行条件・対象・回数を別途承認する。確認済みと誤記しない |
+| 公開時点の鮮度 | 一般IOCの期限は2026-12-07。HTTP2Shell基準は2026-11-15 UTCからstaleになる。公開日が延びる場合は再評価し、日付だけを延長しない |
+| 結果追記をPR・配布にも含める場合 | この最終結果の追記はCI終了後のローカル変更で、候補 `01effcb` と検証済みZIPには含まれない。本レポート1ファイルの追加stage・commit・pushと、それを含む新しい配布候補の検証が別途必要。今回承認された追加1コミット・1pushは完了済み |
+
+実PCの `UserProfile` / `MajorLocations` / `EndpointTelemetry`、実環境のHTTP2Shell監査は未実行。今回の結果は明示した合成ルートとCIの範囲であり、実PCの安全性を判定しない。スキャナー本体の依存不要・offline-only・read-only契約は維持した。
+
+## 履歴: 最初の配布・GitHub確認と履歴統合の提案
+
+**2026-11-07（JST）配布・GitHub確認追補: 承認された31ファイルを `be18881` にコミットし、コミット由来のZIP検証・通常push・[draft PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10) の作成まで完了した。候補SHAのCIはmainとの履歴の競合で未実行のため、公開保留を継続する。** 追加のGit候補選択修正はローカル検証済み。以下は追加承認前の状態を記録した履歴。
 
 利用者が31ファイルのstage・1コミット、64ファイルのZIP作成・展開検証、1回の通常push、draft PR作成、最大60回のGitHub API読取とPR新規作成1回を明示承認した範囲で実行した。公開リポジトリへの送信を伴う。mainへのmerge、タグ、Release公開、force push、実PC走査は実行していない。
 
