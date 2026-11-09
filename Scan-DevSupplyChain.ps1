@@ -10,6 +10,7 @@ param(
     [switch]$Deep,
     [switch]$MajorLocations,
     [switch]$EndpointTelemetry,
+    [switch]$Http2ShellHost,
     [string]$ReportDir,
     [string]$TextOut,
     [string]$JsonOut,
@@ -25,7 +26,7 @@ param(
 )
 
 $script:ScannerName = 'Dev Supply Chain IOC Checker'
-$script:ScannerVersion = '0.1.27'
+$script:ScannerVersion = '0.1.28'
 $script:KeyvChainDropApprovedPackageHash = '7da86fddcb4bc5c4352d3f2120903a07314ae2ce3071d980061862bcbc8aa497'
 $script:Context = $null
 $script:WarnedMaxFiles = $false
@@ -99,6 +100,7 @@ $script:LeafCheckOrder = @(
     'SecretsInventory',
     'NpmGlobal',
     'NpmCache',
+    'Http2Shell',
     'ScannerSelf'
 )
 
@@ -142,7 +144,7 @@ function Expand-CheckMacro {
             return @('Packages','LifecycleScripts','NodeRuntime','InvisibleUnicode','CiCd','AiMcp','IdeExtensions','HooksAndTasks','SecretsInventory','NpmGlobal','ScannerSelf')
         }
         'AllSafe' {
-            return @($script:LeafCheckOrder)
+            return @($script:LeafCheckOrder | Where-Object { $_ -ne 'Http2Shell' })
         }
         default {
             return @($CheckName)
@@ -216,6 +218,7 @@ function Test-EnabledChecksRequireProjectPath {
             return $true
         }
     }
+    if ((Test-CheckEnabled 'Http2Shell') -and -not $Http2ShellHost) { return $true }
     return $false
 }
 
@@ -321,7 +324,8 @@ function Test-IsPathUnderRoot {
 function Get-SafeAutomaticProfileRoot {
     param(
         [string]$CandidatePath,
-        [string]$EnvironmentName
+        [string]$EnvironmentName,
+        [string]$UserProfileRoot = $env:USERPROFILE
     )
     if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
         return $null
@@ -330,12 +334,12 @@ function Get-SafeAutomaticProfileRoot {
     $reason = $null
     $candidate = $null
     $profile = $null
-    if ([string]::IsNullOrWhiteSpace($env:USERPROFILE) -or
-        -not [System.IO.Path]::IsPathRooted($env:USERPROFILE)) {
+    if ([string]::IsNullOrWhiteSpace($UserProfileRoot) -or
+        -not [System.IO.Path]::IsPathRooted($UserProfileRoot)) {
         $reason = 'user-profile-unavailable'
     }
     else {
-        $profile = Get-FullPathSafe $env:USERPROFILE
+        $profile = Get-FullPathSafe $UserProfileRoot
         if ([string]::IsNullOrEmpty($profile)) {
             $reason = 'user-profile-unavailable'
         }
@@ -1761,14 +1765,19 @@ function Set-IocDataSetStatus {
 }
 
 function Get-IocDataSummary {
+    $required = @('known-packages.json','known-files.json','known-extensions.json','known-actions.json','suspicious-patterns.json','known-node-runtimes.json','campaign-keyv-chaindrop-20260806.json')
     $datasets = @($script:Context.iocDataSets.Values | Sort-Object name)
+    $notChecked = @($required | Where-Object { -not $script:Context.iocDataSets.ContainsKey($_) })
     $stale = @($datasets | Where-Object { $_.status -eq 'stale' }).Count
     $missing = @($datasets | Where-Object { $_.status -eq 'missing' }).Count
     $invalid = @($datasets | Where-Object { $_.status -eq 'invalid' }).Count
     $current = @($datasets | Where-Object { $_.status -eq 'current' }).Count
     return [ordered]@{
-        status = $(if (($stale + $missing + $invalid) -eq 0) { 'current' } else { 'review-required' })
-        releaseReady = (($stale + $missing + $invalid) -eq 0)
+        status = $(if (($stale + $missing + $invalid + $notChecked.Count) -eq 0) { 'current' } else { 'review-required' })
+        releaseReady = (($stale + $missing + $invalid + $notChecked.Count) -eq 0 -and $current -eq $required.Count)
+        requiredCount = $required.Count
+        notCheckedCount = $notChecked.Count
+        notCheckedDatasets = $notChecked
         currentCount = $current
         staleCount = $stale
         missingCount = $missing
@@ -1791,6 +1800,8 @@ function Get-ScanScopeSummary {
     if (Test-CheckEnabled 'NpmGlobal') { Add-ListItem $included 'static-npm-global-metadata' }
     if (Test-CheckEnabled 'NpmCache') { Add-ListItem $included 'bounded-npm-cache-metadata' }
     if (Test-NodeRuntimeHostScopeRequested) { Add-ListItem $included 'known-path-and-PATH-node-runtime-metadata' }
+    if (Test-CheckEnabled 'Http2Shell') { Add-ListItem $included 'http2shell-offline-component-and-input-reference-audit' }
+    if ($Http2ShellHost) { Add-ListItem $included 'http2shell-bounded-known-application-runtime-metadata' }
     Add-ListItem $excluded 'full-disk-recursion'
     Add-ListItem $excluded 'reparse-point-targets'
     Add-ListItem $excluded 'known-credential-file-contents'
@@ -1829,6 +1840,7 @@ function Initialize-ScannerContext {
     $paths = New-ReportPaths
     $distribution = Get-ScannerDistributionInfo
     $checkSelection = Resolve-CheckSelection
+    if ($Http2ShellHost -and -not $checkSelection.enabled.ContainsKey('Http2Shell')) { throw '-Http2ShellHost requires -Checks Http2Shell.' }
     $script:Context = [ordered]@{
         generatedAt = (Get-Date).ToString('o')
         scannerError = $false
@@ -1870,7 +1882,8 @@ function Initialize-ScannerContext {
         nodeRuntimeUnresolvedPaths = New-ArrayList
         nodeRuntimeInventory = New-ArrayList
         nodeRuntimeInventoryKeys = @{}
-        nodeRuntimeDataLastUpdated = '2026-10-06'
+        http2Shell = [ordered]@{ entries=New-ArrayList; keys=@{}; inputSignals=New-ArrayList; signalKeys=@{}; omitted=0; hostScanPerformed=$false; hostDirectories=0; limits=@{} }
+        nodeRuntimeDataLastUpdated = '2026-11-07'
         nodeRuntimeLocalDataStatus = 'builtin-only'
         campaignIocData = [ordered]@{
             campaignId = 'keyv-chaindrop-2026-08'
@@ -2001,6 +2014,7 @@ function Initialize-ScannerContext {
             deep = [bool]$Deep
             majorLocations = [bool]$MajorLocations
             endpointTelemetry = [bool]$EndpointTelemetry
+            http2ShellHost = [bool]$Http2ShellHost
             syntheticValidation = [bool]$SyntheticValidation
         }
     }
@@ -2016,6 +2030,9 @@ function Initialize-ScannerContext {
     Add-Limitation 'Node.js runtime checks use static version metadata and explicit version declarations; binaries are not executed and metadata does not prove publisher authenticity.'
     Add-Limitation 'Node.js EOL status, complete semver range evaluation, and registry-backed CVE auditing are outside scope.'
     Add-Limitation 'Absence of findings does not prove the host is clean.'
+    if (Test-CheckEnabled 'Http2Shell') {
+        Add-Limitation 'HTTP2Shell is an offline CVE-2026-111497 component/reference audit, not an HTTP/2 protocol test. Static metadata does not establish running/loaded components, attacker input reachability, vendor backports, authenticity, or completed remediation. Embedded copies, archives, ASAR and native addons need vendor evidence.'
+    }
     if ($SyntheticValidation) {
         Add-Limitation 'SyntheticValidation is active. Host-root checks accept only explicit test roots under this checker distribution tests/samples or reports directory.'
     }
@@ -2035,6 +2052,7 @@ function Initialize-ScanExecution {
     if ($UserProfile) { Add-ListItem $names 'UserProfile' }
     if ($MajorLocations) { Add-ListItem $names 'MajorLocations' }
     if ($EndpointTelemetry) { Add-ListItem $names 'EndpointTelemetry' }
+    if ($Http2ShellHost) { Add-ListItem $names 'Http2ShellHost' }
     if (Test-CheckEnabled 'NpmGlobal') { Add-ListItem $names 'NpmGlobal' }
     if (Test-CheckEnabled 'NpmCache') { Add-ListItem $names 'NpmCache' }
     $phases = [ordered]@{}
@@ -2061,6 +2079,7 @@ function Invoke-ScanPhase {
             Project='Selected project folder'; UserProfile='User profile configurations'
             MajorLocations='Major developer locations'; EndpointTelemetry='Endpoint logs and startup metadata'
             NpmGlobal='npm global metadata'; NpmCache='npm cache metadata'
+            Http2ShellHost='HTTP2Shell known application/runtime metadata'
         }
         $number=[Array]::IndexOf([string[]]@($script:Context.execution.phases.Keys),$Name)+1
         Write-Host ("Phase {0}/{1}: {2}" -f $number,$script:Context.execution.phases.Count,$labels[$Name])
@@ -2140,6 +2159,7 @@ function Get-CheckExecutionStatus {
     $names = if ($CheckName -in @('NpmGlobal','NpmCache','EndpointTelemetry')) { @($CheckName) }
         elseif ($CheckName -eq 'ScannerSelf') { @('LoadIocs','Project','UserProfile','MajorLocations') }
         elseif ($CheckName -eq 'NodeRuntime') { @('NodeRuntimeMetadata','Project','UserProfile','MajorLocations') }
+        elseif ($CheckName -eq 'Http2Shell') { @('Project','UserProfile','MajorLocations','Http2ShellHost') }
         else { @('Project','UserProfile','MajorLocations') }
     $states = @($names | Where-Object { $script:Context.execution.phases.Contains($_) } | ForEach-Object { $script:Context.execution.phases[$_].status })
     if ($states.Count -eq 0) { return 'not-applicable' }
@@ -2729,6 +2749,7 @@ function Write-Reports {
     $capabilitySummary = Get-CapabilitySummary
     $nodeRuntimeSummary = Get-NodeRuntimeSummary
     $nodeRuntimeAssessment = Get-NodeRuntimeAssessment
+    $http2ShellAssessment = Get-Http2ShellAssessment
     $scanScopeSummary = Get-ScanScopeSummary
     $iocDataSummary = Get-IocDataSummary
     $coverageStatusSummary = Get-CoverageStatusSummary
@@ -2802,6 +2823,7 @@ function Write-Reports {
         capabilitySummary = @($capabilitySummary)
         nodeRuntimeSummary = @($nodeRuntimeSummary)
         nodeRuntimeAssessment = $nodeRuntimeAssessment
+        http2ShellAssessment = $http2ShellAssessment
         syntheticSamples = [ordered]@{
             status = Get-SyntheticSampleStatus
             manifestStatus = Get-SyntheticSampleManifestStatusForReport
@@ -2872,8 +2894,18 @@ function Write-Reports {
     Add-ListItem $lines ("NodeRuntimeData: {0}; LastUpdated={1}" -f $script:Context.nodeRuntimeLocalDataStatus, $script:Context.nodeRuntimeDataLastUpdated)
     Add-ListItem $lines ("NodeRuntimeInstalled: Inspected={0}; VersionsEvaluated={1}; Vulnerable={2}; NotAffected={3}; VersionReadFailures={4}" -f $nodeRuntimeAssessment.installedBinaries.inspected,$nodeRuntimeAssessment.installedBinaries.versionsEvaluated,$nodeRuntimeAssessment.installedBinaries.vulnerable,$nodeRuntimeAssessment.installedBinaries.notAffected,$nodeRuntimeAssessment.installedBinaries.versionReadFailures)
     Add-ListItem $lines ("NodeRuntimeProjectReferences: Observed={0}; VersionsEvaluated={1}; Vulnerable={2}; NotAffected={3}; Unresolved={4}" -f $nodeRuntimeAssessment.projectReferences.observed,$nodeRuntimeAssessment.projectReferences.versionsEvaluated,$nodeRuntimeAssessment.projectReferences.vulnerable,$nodeRuntimeAssessment.projectReferences.notAffected,$nodeRuntimeAssessment.projectReferences.unresolved)
+    if ($http2ShellAssessment.enabled) {
+        Add-ListItem $lines ("HTTP2Shell: CVE-2026-111497; Baseline={0}; Reviewed={1}; Components={2}; AffectedVersionMatches={3}; FixedVersionReferences={4}; Unknown={5}; InputCandidates={6}; RemediationConfirmed=0" -f $http2ShellAssessment.baselineStatus,$http2ShellAssessment.lastReviewed,$http2ShellAssessment.entries.Count,$http2ShellAssessment.summary.affectedVersionMatches,$http2ShellAssessment.summary.fixedVersionReferences,$http2ShellAssessment.summary.unknown,$http2ShellAssessment.inputSignals.Count)
+        Add-ListItem $lines ("  CISA KEV listed: {0}; added={1}" -f $http2ShellAssessment.knownExploitation.listed,$http2ShellAssessment.knownExploitation.dateAdded)
+        foreach ($entry in $http2ShellAssessment.entries) {
+            Add-ListItem $lines ("  HTTP2Shell component={0}; version={1}; assessment={2}; evidenceKind={3}; usage={4}; inputReachability={5}; remediation={6}; path={7}; line={8}" -f $entry.component,$entry.version,$entry.componentAssessment,$entry.evidenceKind,$entry.usageStatus,$entry.inputReachability,$entry.remediationStatus,$entry.path,$entry.line)
+        }
+        foreach ($signal in $http2ShellAssessment.inputSignals) { Add-ListItem $lines ("  HTTP2Shell inputCandidate={0}; reachability=not-established; path={1}; line={2}" -f $signal.kind,$signal.path,$signal.line) }
+        foreach ($source in $http2ShellAssessment.sources) { Add-ListItem $lines ("  HTTP2Shell source={0}; url={1}" -f $source.id,$source.url) }
+    }
     Add-ListItem $lines ("CampaignIocData: {0}; Packages={1}; Pairs={2}" -f $script:Context.campaignIocData.status,$script:Context.campaignIocData.packageCount,$script:Context.campaignIocData.packageVersionPairCount)
-    Add-ListItem $lines ("IocData: {0}; ReleaseReady={1}; Current={2}; Stale={3}; Missing={4}; Invalid={5}" -f $iocDataSummary.status,$iocDataSummary.releaseReady,$iocDataSummary.currentCount,$iocDataSummary.staleCount,$iocDataSummary.missingCount,$iocDataSummary.invalidCount)
+    Add-ListItem $lines ("IocData: {0}; ReleaseReady={1}; Current={2}; Stale={3}; Missing={4}; Invalid={5}; NotChecked={6}; Required={7}" -f $iocDataSummary.status,$iocDataSummary.releaseReady,$iocDataSummary.currentCount,$iocDataSummary.staleCount,$iocDataSummary.missingCount,$iocDataSummary.invalidCount,$iocDataSummary.notCheckedCount,$iocDataSummary.requiredCount)
+    if ($iocDataSummary.notCheckedCount -gt 0) { Add-ListItem $lines ('IocDataNotChecked: ' + ($iocDataSummary.notCheckedDatasets -join ', ') + '; use Recommended for the publication gate.') }
     Add-ListItem $lines 'NetworkAccess: none'
     Add-ListItem $lines 'ExternalCommands: none'
     Add-ListItem $lines 'TargetCodeExecution: none'
@@ -3116,6 +3148,7 @@ function Write-Reports {
             Write-Host ("Node.js installed: inspected={0}; evaluated={1}; vulnerable={2}; notAffected={3}; readFailures={4}" -f $nodeRuntimeAssessment.installedBinaries.inspected,$nodeRuntimeAssessment.installedBinaries.versionsEvaluated,$nodeRuntimeAssessment.installedBinaries.vulnerable,$nodeRuntimeAssessment.installedBinaries.notAffected,$nodeRuntimeAssessment.installedBinaries.versionReadFailures)
             Write-Host ("Node.js project refs: observed={0}; evaluated={1}; vulnerable={2}; notAffected={3}; unresolved={4}" -f $nodeRuntimeAssessment.projectReferences.observed,$nodeRuntimeAssessment.projectReferences.versionsEvaluated,$nodeRuntimeAssessment.projectReferences.vulnerable,$nodeRuntimeAssessment.projectReferences.notAffected,$nodeRuntimeAssessment.projectReferences.unresolved)
         }
+        if ($http2ShellAssessment.enabled) { Write-Host ("HTTP2Shell: affected version matches={0}; fixed upstream references={1}; unknown={2}; input candidates={3}; remediation confirmed=0; baseline={4}" -f $http2ShellAssessment.summary.affectedVersionMatches,$http2ShellAssessment.summary.fixedVersionReferences,$http2ShellAssessment.summary.unknown,$http2ShellAssessment.inputSignals.Count,$http2ShellAssessment.baselineStatus) }
         if (-not [bool]$script:Context.coverage.scanComplete -or $coverageStatusSummary.dependencyCoverageStatus -match 'partial|sampled' -or $coverageStatusSummary.npmCacheCoverageStatus -match 'partial|limit') {
             Write-Host ("Coverage: Dependencies={0}; NpmGlobal={1}; NpmCache={2}; NextAction={3}" -f $coverageStatusSummary.dependencyCoverageStatus,$coverageStatusSummary.npmGlobalCoverageStatus,$coverageStatusSummary.npmCacheCoverageStatus,$coverageStatusSummary.nextAction)
         }
@@ -3174,6 +3207,7 @@ function Load-BuiltinNodeRuntimeIocs {
     $mar2026 = 'https://nodejs.org/en/blog/vulnerability/march-2026-security-releases'
     $jun2026 = 'https://nodejs.org/en/blog/vulnerability/june-2026-security-releases'
     $jul2026 = 'https://nodejs.org/en/blog/vulnerability/july-2026-security-releases'
+    $oct2026 = 'https://nodejs.org/en/blog/vulnerability/october-2026-security-releases'
 
     Add-ListItem $items (New-NodeRuntimeAdvisory 'CVE-2019-15605' 'CRITICAL' '2020-02-06' $feb2020 @(
         (New-NodeRuntimeRange '10.0.0' '10.19.0'), (New-NodeRuntimeRange '12.0.0' '12.15.0'), (New-NodeRuntimeRange '13.0.0' '13.8.0')
@@ -3222,9 +3256,23 @@ function Load-BuiltinNodeRuntimeIocs {
         ) @((New-NodeRuntimeFixedVersion 22 '22.23.2'),(New-NodeRuntimeFixedVersion 24 '24.18.1'),(New-NodeRuntimeFixedVersion 26 '26.5.1')) $conditions)
     }
 
+    foreach ($id in @('CVE-2026-105482','CVE-2026-106069','CVE-2026-111497')) {
+        $conditions = switch ($id) {
+            'CVE-2026-105482' { @('dns-resolve','nul-hostname') }
+            'CVE-2026-106069' { @('tls-client','non-canonical-ipv4') }
+            'CVE-2026-111497' { @('node-zlib','untrusted-brotli-input') }
+        }
+        Add-ListItem $items (New-NodeRuntimeAdvisory $id 'HIGH' '2026-10-21' $oct2026 @(
+            (New-NodeRuntimeRange '22.0.0' '22.23.4'), (New-NodeRuntimeRange '24.0.0' '24.22.1'), (New-NodeRuntimeRange '26.0.0' '26.12.1')
+        ) @((New-NodeRuntimeFixedVersion 22 '22.23.4'),(New-NodeRuntimeFixedVersion 24 '24.22.1'),(New-NodeRuntimeFixedVersion 26 '26.12.1')) $conditions)
+    }
+    Add-ListItem $items (New-NodeRuntimeAdvisory 'CVE-2026-105483' 'HIGH' '2026-10-21' $oct2026 @(
+        (New-NodeRuntimeRange '24.20.0' '24.22.1'), (New-NodeRuntimeRange '26.6.0' '26.12.1')
+    ) @((New-NodeRuntimeFixedVersion 24 '24.22.1'),(New-NodeRuntimeFixedVersion 26 '26.12.1')) @('tls-client','fullwidth-ipv4'))
+
     return [ordered]@{
         schemaVersion = '0.1.14'
-        lastUpdated = '2026-10-06'
+        lastUpdated = '2026-11-07'
         expiresAfterDays = 30
         highRetentionDays = 365
         advisories = $items
@@ -4463,6 +4511,560 @@ function Scan-NodeRuntimeBinary {
     }
     catch { Add-ScanStat -Name 'nodeRuntimeVersionReadFailures' }
     return $true
+}
+
+function Get-Http2ShellSources {
+    return @(
+        [ordered]@{ id='H2S-CVE'; url='https://www.cve.org/CVERecord?id=CVE-2026-111497' },
+        [ordered]@{ id='H2S-CISA-KEV'; url='https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111497' },
+        [ordered]@{ id='H2S-BROTLI'; url='https://github.com/google/brotli/releases/tag/v1.2.1' },
+        [ordered]@{ id='H2S-BACKPORTS'; url='https://github.com/google/brotli/releases/tag/v1.1.1' },
+        [ordered]@{ id='H2S-BACKPORT10'; url='https://github.com/google/brotli/releases/tag/v1.0.10' },
+        [ordered]@{ id='H2S-NODE'; url='https://nodejs.org/en/blog/vulnerability/october-2026-security-releases' },
+        [ordered]@{ id='H2S-BUN'; url='https://github.com/oven-sh/bun/blob/bun-v1.4.4/scripts/build/deps/brotli.ts' },
+        [ordered]@{ id='H2S-PYTHON'; url='https://github.com/advisories/GHSA-9v8h-qqgm-4m35' },
+        [ordered]@{ id='H2S-DOTNET'; url='https://github.com/dotnet/announcements/issues/494' },
+        [ordered]@{ id='H2S-DOTNET-11'; url='https://github.com/dotnet/core/blob/main/release-notes/11.0/releases.json' },
+        [ordered]@{ id='H2S-ELECTRON'; url='https://releases.electronjs.org/releases.json' },
+        [ordered]@{ id='H2S-ELECTRON-LINK'; url='https://github.com/electron/electron/blob/v45.2.3/patches/node/build_add_gn_build_files.patch' },
+        [ordered]@{ id='H2S-CHROMIUM'; url='https://chromium.googlesource.com/chromium/src/+/152.0.7977.167/third_party/brotli/README.chromium' },
+        [ordered]@{ id='H2S-CHROMIUM-FIX'; url='https://github.com/google/brotli/blob/cfa184a997ac19454d5a3ae97f6d600aac2445a6/c/dec/decode.c' }
+    )
+}
+
+function Get-Http2ShellBaseline {
+    $lastReviewed = '2026-11-07'
+    $reviewAfterDays = 7
+    $age = ([DateTime]::UtcNow.Date - [DateTime]::ParseExact($lastReviewed,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)).Days
+    $status = if ($age -lt 0) { 'future-dated' } elseif ($age -gt $reviewAfterDays) { 'stale' } else { 'current' }
+    return [ordered]@{ lastReviewed=$lastReviewed; reviewAfterDays=$reviewAfterDays; status=$status }
+}
+
+function Test-Http2ShellBaseline {
+    $baseline = Get-Http2ShellBaseline
+    if ($baseline.status -ne 'current') {
+        Add-Finding -Severity 'WARN' -Category 'HTTP2SHELL_BASELINE_REVIEW_REQUIRED' -Title 'HTTP2Shell offline baseline needs review' -Path 'HTTP2Shell baseline' -PathType 'virtual' -Evidence ("lastReviewed={0}; reviewAfterDays={1}; status={2}; no online refresh was attempted." -f $baseline.lastReviewed,$baseline.reviewAfterDays,$baseline.status) -Recommendation 'Review the cited official advisories through a separately approved research process before relying on current version thresholds.' -RiskType 'limitation' -Check 'Http2Shell' -DetectionMethod 'metadata'
+    }
+}
+
+function Get-Http2ShellVersionAssessment {
+    param([string]$Component,[string]$Version)
+    $result=[ordered]@{status='unknown'; version='[unresolved]'; fixedVersion=''; sourceId='H2S-CVE'; upstreamSeverity='CRITICAL'}
+    if ([string]::IsNullOrWhiteSpace($Version) -or $Version.Length -gt 96) { return $result }
+    # Never include arbitrary manifest values, credentials or vendor strings in reports.
+    $versionText = $Version.Trim()
+    if ($Component -eq 'dotnet-runtime' -and $versionText -match '\A[vV]?(?<v>11\.0\.0-(?:preview|rc)\.[0-9]+\.[0-9]+\.[0-9]+)\z') {
+        $previewVersion = $Matches['v'].ToLowerInvariant()
+        $fixedPreview = '11.0.0-rc.3.26522.148'
+        $affectedPreviews = @(
+            '11.0.0-preview.1.26104.118','11.0.0-preview.2.26159.112','11.0.0-preview.3.26207.106',
+            '11.0.0-preview.4.26230.115','11.0.0-preview.5.26302.115','11.0.0-preview.6.26359.118',
+            '11.0.0-preview.7.26381.103','11.0.0-rc.1.26425.128','11.0.0-rc.2.26504.105'
+        )
+        if ($previewVersion -eq $fixedPreview -or $previewVersion -in $affectedPreviews) {
+            $result.status = if ($previewVersion -eq $fixedPreview) { 'upstream-fixed-version' } else { 'upstream-affected-version' }
+            $result.version = $previewVersion
+            $result.fixedVersion = $fixedPreview
+            $result.sourceId = 'H2S-DOTNET'
+            $result.upstreamSeverity = 'HIGH'
+        }
+        return $result
+    }
+    $match=[regex]::Match($versionText,'\A[vV]?(?<v>[0-9]{1,6}(?:\.[0-9]{1,6}){2,3})\z')
+    if (-not $match.Success) { return $result }
+    $parts=@($match.Groups['v'].Value -split '\.')
+    while ($parts.Count -lt 4) { $parts+= '0' }
+    try { $v=[version]([string]::Join('.',[string[]]$parts)) } catch { return $result }
+    $result.version=$match.Groups['v'].Value
+    switch ($Component) {
+        'brotli-native' {
+            $result.sourceId='H2S-BROTLI'
+            if ($v.Major -eq 1 -and $v.Minor -in @(0,1,2)) {
+                $patch=@{0=10;1=1;2=1}[$v.Minor]
+                $result.fixedVersion=('1.{0}.{1}' -f $v.Minor,$patch)
+                if ($v -ge [version]$result.fixedVersion) { $result.status='upstream-fixed-version' }
+                elseif ($v -ge [version]'1.0.3') { $result.status='upstream-affected-version' }
+            }
+        }
+        { $_ -in @('python-brotli','python-brotlicffi') } {
+            $result.sourceId='H2S-PYTHON'
+            $result.fixedVersion=if ($Component -eq 'python-brotlicffi') {'1.2.1.0'} else {'1.2.1'}
+            if ($v.Major -eq 1 -and $v.Minor -le 2) {
+                if ($v -ge [version]'1.2.1.0') { $result.status='upstream-fixed-version' }
+                elseif ($v -ge [version]'1.0.3.0') { $result.status='upstream-affected-version' }
+            }
+        }
+        'node' {
+            $result.sourceId='H2S-NODE'; $result.upstreamSeverity='HIGH'
+            $fixed=@{22='22.23.4';24='24.22.1';26='26.12.1'}
+            if ($fixed.ContainsKey($v.Major) -and $v.Revision -eq 0) {
+                $result.fixedVersion=$fixed[$v.Major]
+                $result.status=if ($v -lt [version]$result.fixedVersion) {'upstream-affected-version'} else {'upstream-fixed-version'}
+            }
+            # EOL, other major lines and vendor builds are deliberately unresolved.
+        }
+        'bun' {
+            $result.sourceId='H2S-BUN'; $result.fixedVersion='1.4.4'
+            if ($v.Major -eq 1 -and $v.Revision -eq 0) { $result.status=if ($v -lt [version]'1.4.4') {'upstream-affected-version'} else {'upstream-fixed-version'} }
+        }
+        'dotnet-runtime' {
+            $result.sourceId='H2S-DOTNET'; $result.upstreamSeverity='HIGH'
+            $fixed=@{8='8.0.33';9='9.0.22';10='10.0.14'}
+            if ($fixed.ContainsKey($v.Major) -and $v.Minor -eq 0 -and $v.Revision -eq 0) {
+                $result.fixedVersion=$fixed[$v.Major]
+                $result.status=if ($v -lt [version]$result.fixedVersion) {'upstream-affected-version'} else {'upstream-fixed-version'}
+            }
+        }
+        'electron' {
+            $result.sourceId='H2S-ELECTRON'
+            # Exact official builds linked to the reviewed Chromium decoder.
+            if ($result.version -in @(
+                '44.9.2','44.9.3','44.10.0','44.10.1','44.10.2',
+                '45.0.0','45.1.0','45.2.0','45.2.1','45.2.2','45.2.3'
+            )) {
+                $result.status='upstream-fixed-version'
+                $result.fixedVersion=$result.version
+            }
+        }
+    }
+    return $result
+}
+
+function Register-Http2ShellLimit {
+    param([string]$Path,[string]$Reason)
+    if ($script:Context.http2Shell.limits.ContainsKey($Reason)) { return }
+    $script:Context.http2Shell.limits[$Reason]=$true
+    Register-CoverageFailure -Scope 'candidate' -Path $Path -Kind 'http2shell-audit' -FailureType $Reason -Critical $true
+    Add-Finding -Severity 'WARN' -Category 'HTTP2SHELL_AUDIT_LIMIT_REACHED' -Title 'HTTP2Shell audit has incomplete coverage' -Path $Path -Evidence ("reason={0}; remaining scope was not established." -f $Reason) -Recommendation 'Narrow the target and review the remaining metadata or obtain vendor build evidence.' -RiskType 'limitation' -Confidence 'high' -Check 'Http2Shell' -DetectionMethod 'metadata'
+}
+
+function Add-Http2ShellComponent {
+    param([string]$Component,[string]$Version,[string]$Path,[string]$EvidenceKind,$Line=1)
+    if (-not (Test-CheckEnabled 'Http2Shell')) { return }
+    $assessment=Get-Http2ShellVersionAssessment -Component $Component -Version $Version
+    $key=($Path+'|'+$Component+'|'+$assessment.version+'|'+$EvidenceKind+'|'+$Line).ToLowerInvariant()
+    if ($script:Context.http2Shell.keys.ContainsKey($key)) { return }
+    if ($script:Context.http2Shell.entries.Count -ge 200) {
+        $script:Context.http2Shell.omitted++
+        Register-Http2ShellLimit -Path $Path -Reason 'inventory-limit'
+        return
+    }
+    $script:Context.http2Shell.keys[$key]=$true
+    $isConstraint=$EvidenceKind -in @('manifest-constraint','runtime-minimum-reference','text-fallback')
+    $status=if ($isConstraint) {'unresolved-reference'} else {$assessment.status}
+    $severity=if ($status -eq 'upstream-affected-version') {'WARN'} elseif ($status -eq 'upstream-fixed-version') {'INFO'} else {'CAUTION'}
+    $remediation=if ($status -eq 'upstream-affected-version') {'update-review-required'} elseif ($status -eq 'upstream-fixed-version') {'runtime-verification-required'} else {'vendor-evidence-required'}
+    $entry=[ordered]@{
+        component=$Component; version=$assessment.version; path=(ConvertTo-RedactedPath $Path); line=$Line
+        evidenceKind=$EvidenceKind; componentAssessment=$status; upstreamFixedVersion=$assessment.fixedVersion
+        usageStatus='not-observed'; inputReachability='not-established'; remediationStatus=$remediation
+        sourceId=$assessment.sourceId; upstreamSeverity=$assessment.upstreamSeverity
+    }
+    Add-ListItem $script:Context.http2Shell.entries $entry
+    $category=if ($status -eq 'upstream-affected-version') {'HTTP2SHELL_AFFECTED_VERSION_REFERENCE'} elseif ($status -eq 'upstream-fixed-version') {'HTTP2SHELL_FIXED_VERSION_REFERENCE'} else {'HTTP2SHELL_COMPONENT_REVIEW_REQUIRED'}
+    $riskType=if ($status -eq 'upstream-affected-version') {'vulnerability'} else {'inventory'}
+    $vulnerability=if ($riskType -eq 'vulnerability') { [ordered]@{advisoryIds=@('CVE-2026-111497');upstreamSeverity=$assessment.upstreamSeverity;detectedVersion=$assessment.version;evidenceKind=$EvidenceKind;fixedVersionForMajor=$assessment.fixedVersion;conditionStatus='not-established'} } else {$null}
+    Add-Finding -Severity $severity -Category $category -Title 'HTTP2Shell component version/reference assessment' -Path $Path -Line $Line -Evidence ("CVE-2026-111497; component={0}; version={1}; assessment={2}; evidenceKind={3}; usage=not-observed; inputReachability=not-established; remediation={4}. Metadata does not prove authenticity, vendor backports or the loaded decoder." -f $Component,$assessment.version,$status,$EvidenceKind,$remediation) -Recommendation 'Review the cited upstream fix and vendor build/SBOM. Trace selected runtime and untrusted Brotli inputs; verify rebuild/redeployment and restart separately. Do not execute an unknown binary or an exploit to check its version.' -RiskType $riskType -Confidence 'medium' -Check 'Http2Shell' -DetectionMethod 'metadata' -SourceId $assessment.sourceId -UpstreamSeverity $assessment.upstreamSeverity -Vulnerability $vulnerability
+}
+
+function Add-Http2ShellInputSignal {
+    param([string]$Path,[string]$Kind,$Line=1)
+    $key=($Path+'|'+$Kind).ToLowerInvariant()
+    if ($script:Context.http2Shell.signalKeys.ContainsKey($key)) { return }
+    if ($script:Context.http2Shell.inputSignals.Count -ge 100) { Register-Http2ShellLimit -Path $Path -Reason 'input-signal-limit'; return }
+    $script:Context.http2Shell.signalKeys[$key]=$true
+    Add-ListItem $script:Context.http2Shell.inputSignals ([ordered]@{path=(ConvertTo-RedactedPath $Path);line=$Line;kind=$Kind;reachability='not-established'})
+    Add-Finding -Severity 'INFO' -Category 'HTTP2SHELL_INPUT_REVIEW_CANDIDATE' -Title 'Brotli input/API reference needs manual reachability review' -Path $Path -Line $Line -Evidence ("kind={0}; static reference only; comments, examples and compression-only uses may be present. No decoder or runtime was executed; attacker input reachability was not established." -f $Kind) -Recommendation 'Trace the actual request, response, file or font path to its selected decoder. An isolated string or API name is not proof of exposure.' -RiskType 'inventory' -Check 'Http2Shell' -DetectionMethod 'static-file'
+}
+
+function Get-Http2ShellAssessment {
+    $enabled=Test-CheckEnabled 'Http2Shell'
+    $baseline = Get-Http2ShellBaseline
+    $entries=@($script:Context.http2Shell.entries.ToArray())
+    return [ordered]@{
+        enabled=[bool]$enabled; advisoryId='CVE-2026-111497'; lastReviewed=$baseline.lastReviewed; reviewAfterDays=$baseline.reviewAfterDays
+        baselineStatus=$(if ($enabled) {$baseline.status} else {'not-selected'})
+        knownExploitation=[ordered]@{sourceId='H2S-CISA-KEV'; listed=$true; dateAdded='2026-10-27'}
+        sources=@(Get-Http2ShellSources); hostScopeRequested=[bool]$Http2ShellHost; hostScanPerformed=[bool]$script:Context.http2Shell.hostScanPerformed
+        summary=[ordered]@{
+            componentObservations=$entries.Count
+            affectedVersionMatches=@($entries | Where-Object {$_.componentAssessment -eq 'upstream-affected-version'}).Count
+            fixedVersionReferences=@($entries | Where-Object {$_.componentAssessment -eq 'upstream-fixed-version'}).Count
+            unknown=@($entries | Where-Object {$_.componentAssessment -notin @('upstream-affected-version','upstream-fixed-version')}).Count
+            runningComponentsObserved=0; remediationConfirmed=0
+        }
+        limits=[ordered]@{inventory=200;inputSignals=100;hostDirectories=500;entriesOmitted=[int]$script:Context.http2Shell.omitted;reasons=@($script:Context.http2Shell.limits.Keys | Sort-Object)}
+        entries=$entries; inputSignals=@($script:Context.http2Shell.inputSignals.ToArray())
+        interpretation='Observations are neither product counts nor proof of compromise. Version references and input signals are not joined into a runtime/exposure claim. Fixed upstream references still require vendor authenticity, selected/loaded copy and restart/rebuild/redeployment evidence.'
+    }
+}
+
+function Get-Http2ShellPackageComponent {
+    param([string]$Ecosystem,[string]$Name)
+    $nameKey=$Name.ToLowerInvariant() -replace '[-_.]+','-'
+    if ($Ecosystem -eq 'python') {
+        switch ($nameKey) { 'brotli' {return 'python-brotli'} 'brotlicffi' {return 'python-brotlicffi'} 'pillow' {return 'pillow-native-review'} 'fonttools' {return 'font-decoder-review'} }
+    }
+    if ($Ecosystem -eq 'npm') {
+        switch ($nameKey) { 'electron' {return 'electron'} '@anthropic-ai/claude-code' {return 'claude-code-embedded-runtime'} '@openai/codex' {return 'codex-embedded-runtime'} }
+        if ($nameKey -match '^(?:@napi-rs/)?(?:brotli(?:-wasm|-dec-wasm)?|iltorb|shrink-ray-current)$') {return 'brotli-wrapper-review'}
+    }
+    return ''
+}
+
+function Scan-Http2ShellArtifact {
+    param([System.IO.FileInfo]$File)
+    if (Test-IsReparsePoint $File) { Register-Http2ShellLimit -Path $File.FullName -Reason 'path-boundary-rejected'; return }
+    if ($File.Extension -in @('.br','.woff2')) { Add-Http2ShellInputSignal -Path $File.FullName -Kind 'compressed-file-or-font'; return }
+    $name=$File.Name.ToLowerInvariant()
+    $component=switch ($name) {
+        'node.exe' {'node'} 'bun.exe' {'bun'} 'electron.exe' {'electron'} 'claude.exe' {'claude-code-or-desktop-embedded-runtime'} 'codex.exe' {'codex-embedded-runtime'}
+        'code.exe' {'editor-embedded-runtime'} 'cursor.exe' {'editor-embedded-runtime'} 'windsurf.exe' {'editor-embedded-runtime'}
+        'chrome.exe' {'browser-embedded-runtime'} 'msedge.exe' {'browser-embedded-runtime'} 'msedgewebview2.exe' {'webview-embedded-runtime'}
+        'curl.exe' {'curl-brotli-linkage-review'} 'git.exe' {'git-bundled-curl-review'} 'dotnet.exe' {'dotnet-host-runtime-selection-review'}
+        default { if ($name -match '(?:brotli|woff2|_imaging)' -and $File.Extension -in @('.dll','.node','.pyd','.so','.dylib')) {'native-decoder-copy-review'} }
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$component)) { return }
+    if (-not (Test-SecurityCandidateBoundary -Path $File.FullName)) { Register-Http2ShellLimit -Path $File.FullName -Reason 'path-boundary-rejected'; return }
+    $version=''
+    try {
+        $info=[Diagnostics.FileVersionInfo]::GetVersionInfo($File.FullName)
+        # Product identity is used only for selection and is never copied to reports.
+        $identity=[string]$info.ProductName+'|'+[string]$info.FileDescription
+        if ($component -eq 'node' -and $identity -notmatch '(?i)node\.js') { $component='unverified-node-file' }
+        if ($component -eq 'bun' -and $identity -notmatch '(?i)\bbun\b') { $component='unverified-bun-file' }
+        if ($component -eq 'electron' -and $identity -notmatch '(?i)\belectron\b') { $component='unverified-electron-file' }
+        $version=[string]$info.ProductVersion
+        if ([string]::IsNullOrWhiteSpace($version)) { $version=[string]$info.FileVersion }
+    }
+    catch { Register-Http2ShellLimit -Path $File.FullName -Reason 'binary-metadata-read-failed' }
+    Add-Http2ShellComponent -Component $component -Version $version -Path $File.FullName -EvidenceKind 'binary-file-metadata'
+}
+
+function Add-Http2ShellPackageReference {
+    param([string]$Ecosystem,[string]$Name,[string]$Version,[string]$Path,[string]$EvidenceKind,$Line=1)
+    $component=Get-Http2ShellPackageComponent -Ecosystem $Ecosystem -Name $Name
+    if ($component) { Add-Http2ShellComponent -Component $component -Version $Version -Path $Path -EvidenceKind $EvidenceKind -Line $Line }
+}
+
+function Scan-Http2ShellNpmLock {
+    param([System.IO.FileInfo]$File,$Json)
+    $packages=Get-PropertyValue $Json 'packages'
+    $count=0
+    if ($null -ne $packages) {
+        foreach ($property in $packages.PSObject.Properties) {
+            if ($property.Name -eq '__dev_supplychain_root__') { continue }
+            $count++
+            if ($count -gt 8192) { Register-Http2ShellLimit -Path $File.FullName -Reason 'lock-entry-limit'; break }
+            $name=[string](Get-PropertyValue $property.Value 'name')
+            if (-not $name) { $name=($property.Name -split 'node_modules/')[-1] }
+            Add-Http2ShellPackageReference -Ecosystem 'npm' -Name $name -Version ([string](Get-PropertyValue $property.Value 'version')) -Path $File.FullName -EvidenceKind 'lockfile-exact'
+        }
+        return
+    }
+    $queue=New-Object Collections.Queue
+    $queue.Enqueue([ordered]@{dependencies=(Get-PropertyValue $Json 'dependencies');depth=0})
+    while ($queue.Count -gt 0) {
+        $item=$queue.Dequeue()
+        if ($null -eq $item.dependencies) { continue }
+        foreach ($property in $item.dependencies.PSObject.Properties) {
+            $count++
+            if ($count -gt 8192 -or $item.depth -ge 32) { Register-Http2ShellLimit -Path $File.FullName -Reason 'lock-entry-limit'; return }
+            Add-Http2ShellPackageReference -Ecosystem 'npm' -Name $property.Name -Version ([string](Get-PropertyValue $property.Value 'version')) -Path $File.FullName -EvidenceKind 'lockfile-exact'
+            $nested=Get-PropertyValue $property.Value 'dependencies'
+            if ($null -ne $nested) { $queue.Enqueue([ordered]@{dependencies=$nested;depth=($item.depth+1)}) }
+        }
+    }
+}
+
+function Scan-Http2ShellText {
+    param([System.IO.FileInfo]$File,[string]$Text)
+    $name=$File.Name.ToLowerInvariant()
+    $path=$File.FullName -replace '/', '\'
+    if ($name -in @('.nvmrc','.node-version','.bun-version')) {
+        $component=if ($name -eq '.bun-version') {'bun'} else {'node'}
+        Add-Http2ShellComponent -Component $component -Version (Get-FirstNonCommentNodeRuntimeValue $Text) -Path $File.FullName -EvidenceKind 'version-manager-pin'
+    }
+    if ($name -in @('.tool-versions','.mise.toml','mise.toml') -or $name -like 'dockerfile*' -or $path -match '\\.github\\workflows\\[^\\]+\.ya?ml$') {
+        $lines=$Text -split "`r?`n"
+        for ($i=0;$i -lt $lines.Count;$i++) {
+            $line=$lines[$i]; $component=''; $value=''; $kind='version-manager-pin'; $evidenceLine=$i+1
+            if ($name -eq '.tool-versions') {
+                $m=[regex]::Match($line,'^\s*(?<component>nodejs|bun)\s+(?<value>[^\s#]+)')
+                if ($m.Success) { $component=if ($m.Groups['component'].Value -eq 'bun') {'bun'} else {'node'}; $value=$m.Groups['value'].Value }
+            }
+            elseif ($name -in @('.mise.toml','mise.toml')) {
+                $m=[regex]::Match($line,'^\s*(?<component>node|nodejs|bun)\s*=\s*["''](?<value>[^"'']+)["'']')
+                if ($m.Success) { $component=if ($m.Groups['component'].Value -eq 'bun') {'bun'} else {'node'}; $value=$m.Groups['value'].Value }
+            }
+            elseif ($name -like 'dockerfile*') {
+                $m=[regex]::Match($line,'(?i)^\s*FROM\s+(?:--platform=\S+\s+)?(?<component>node|oven/bun):(?<value>[^\s@]+)')
+                if ($m.Success) {
+                    $component=if ($m.Groups['component'].Value -eq 'node') {'node'} else {'bun'}; $value=$m.Groups['value'].Value; $kind='container-image-reference'
+                    $value=[regex]::Replace($value,'-(?:alpine[0-9.]*|bookworm|bullseye|slim)(?:-slim)?$','')
+                }
+            }
+            elseif ($line -match '(?i)\buses\s*:\s*(?:actions/setup-node|oven-sh/setup-bun)@') {
+                $component=if ($line -match '(?i)oven-sh/setup-bun') {'bun'} else {'node'}; $kind='ci-runtime-reference'
+                for ($j=$i+1;$j -le [Math]::Min($i+12,$lines.Count-1);$j++) {
+                    if ($lines[$j] -match '^\s*-\s*(?:uses|run|name)\s*:') { break }
+                    $m=[regex]::Match($lines[$j],'^\s*(?:node|bun)-version\s*:\s*["'']?(?<value>[^\s"''#]+)')
+                    if ($m.Success) { $value=$m.Groups['value'].Value; $evidenceLine=$j+1; break }
+                }
+            }
+            if ($component) { Add-Http2ShellComponent -Component $component -Version $value -Path $File.FullName -EvidenceKind $kind -Line $evidenceLine }
+        }
+    }
+    $isJson=$name -in @('package.json','package-lock.json','npm-shrinkwrap.json','global.json') -or $name.EndsWith('.runtimeconfig.json') -or $name.EndsWith('.deps.json') -or ($path -match '\\conda-meta\\[^\\]+\.json$')
+    if ($isJson) {
+        try {
+            $json=if ($name -in @('package-lock.json','npm-shrinkwrap.json')) { ConvertFrom-NpmLockJson -Text $Text } else { ConvertFrom-Json -InputObject $Text -ErrorAction Stop }
+            if ($json -isnot [Management.Automation.PSCustomObject]) { throw 'metadata-root-not-object' }
+            if ($name -eq 'package.json') {
+                foreach ($field in @('volta','engines')) {
+                    foreach ($component in @('node','bun')) {
+                        $value=[string](Get-PropertyValue (Get-PropertyValue $json $field) $component)
+                        if ($value) { Add-Http2ShellComponent -Component $component -Version $value -Path $File.FullName -EvidenceKind $(if ($field -eq 'engines') {'manifest-constraint'} else {'version-manager-pin'}) }
+                    }
+                }
+                $manager=[string](Get-PropertyValue $json 'packageManager')
+                if ($manager -match '^bun@(.+)$') { Add-Http2ShellComponent -Component 'bun' -Version $matches[1] -Path $File.FullName -EvidenceKind 'package-manager-reference' }
+                Add-Http2ShellPackageReference -Ecosystem 'npm' -Name ([string](Get-PropertyValue $json 'name')) -Version ([string](Get-PropertyValue $json 'version')) -Path $File.FullName -EvidenceKind 'package-metadata'
+                foreach ($section in @('dependencies','devDependencies','optionalDependencies')) {
+                    $dependencies=Get-PropertyValue $json $section
+                    if ($null -eq $dependencies) { continue }
+                    foreach ($property in $dependencies.PSObject.Properties) {
+                        $kind=if ($null -ne (ConvertTo-NodeRuntimeVersion ([string]$property.Value))) {'manifest-exact'} else {'manifest-constraint'}
+                        Add-Http2ShellPackageReference -Ecosystem 'npm' -Name $property.Name -Version ([string]$property.Value) -Path $File.FullName -EvidenceKind $kind
+                    }
+                }
+            }
+            elseif ($name -in @('package-lock.json','npm-shrinkwrap.json')) { Scan-Http2ShellNpmLock -File $File -Json $json }
+            elseif ($name -eq 'global.json') {
+                Add-Http2ShellComponent -Component 'dotnet-sdk-runtime-selection-review' -Version ([string](Get-PropertyValue (Get-PropertyValue $json 'sdk') 'version')) -Path $File.FullName -EvidenceKind 'sdk-reference'
+            }
+            elseif ($name.EndsWith('.runtimeconfig.json')) {
+                $options=Get-PropertyValue $json 'runtimeOptions'
+                foreach ($framework in @((Get-PropertyValue $options 'framework'))+@((Get-PropertyValue $options 'frameworks'))) {
+                    if ($null -eq $framework) { continue }
+                    if ([string](Get-PropertyValue $framework 'name') -in @('Microsoft.NETCore.App','Microsoft.AspNetCore.App')) {
+                        Add-Http2ShellComponent -Component 'dotnet-runtime' -Version ([string](Get-PropertyValue $framework 'version')) -Path $File.FullName -EvidenceKind 'runtime-minimum-reference'
+                    }
+                }
+                foreach ($framework in @((Get-PropertyValue $options 'includedFrameworks'))) {
+                    if ($null -ne $framework -and [string](Get-PropertyValue $framework 'name') -eq 'Microsoft.NETCore.App') {
+                        Add-Http2ShellComponent -Component 'dotnet-runtime' -Version ([string](Get-PropertyValue $framework 'version')) -Path $File.FullName -EvidenceKind 'bundled-runtime-reference'
+                    }
+                }
+            }
+            elseif ($name.EndsWith('.deps.json')) {
+                $libraries=Get-PropertyValue $json 'libraries'; $count=0
+                if ($null -ne $libraries) { foreach ($property in $libraries.PSObject.Properties) {
+                    if (++$count -gt 8192) { Register-Http2ShellLimit -Path $File.FullName -Reason 'lock-entry-limit'; break }
+                    $m=[regex]::Match($property.Name,'(?i)^(?:runtimepack\.)?Microsoft\.(?:NETCore\.App\.Runtime\.[^/]+|DotNet\.ILCompiler)/(?<version>[^/]+)$')
+                    if ($m.Success) { Add-Http2ShellComponent -Component 'dotnet-runtime' -Version $m.Groups['version'].Value -Path $File.FullName -EvidenceKind 'runtime-package-reference' }
+                } }
+            }
+            else {
+                $packageName=[string](Get-PropertyValue $json 'name')
+                $component=if ($packageName -in @('brotli','libbrotlicommon','libbrotlidec','libbrotlienc','libbrotli','brotli-bin')) {'brotli-native'} elseif ($packageName -eq 'brotli-python') {'python-brotli'} else {''}
+                if ($component) { Add-Http2ShellComponent -Component $component -Version ([string](Get-PropertyValue $json 'version')) -Path $File.FullName -EvidenceKind 'conda-package-metadata' }
+            }
+        }
+        catch { Register-Http2ShellLimit -Path $File.FullName -Reason 'metadata-parse-error' }
+    }
+    if ($name -in @('uv.lock','poetry.lock')) { Scan-PythonTextLock -File $File -Text $Text }
+    if ($name -eq 'pipfile.lock') { [void](Scan-PipfileLockJson -File $File -Text $Text) }
+    if ($name -in @('pnpm-lock.yaml','yarn.lock','bun.lock')) {
+        $entries=switch ($name) { 'pnpm-lock.yaml' {Get-PnpmLockEntries $Text} 'yarn.lock' {Get-YarnLockEntries $Text} 'bun.lock' {Get-BunTextLockEntries $Text} }
+        foreach ($entry in @($entries)) { Add-Http2ShellPackageReference -Ecosystem 'npm' -Name $entry.name -Version $entry.version -Path $File.FullName -EvidenceKind 'lockfile-exact' -Line $entry.line }
+    }
+    if ($name -match '^requirements.*\.txt$' -or $name -in @('pyproject.toml','pipfile')) {
+        $lineNumber=0
+        foreach ($line in ($Text -split "`r?`n")) {
+            $lineNumber++
+            $m=[regex]::Match($line,'(?i)^\s*["'']?(?<name>brotli|brotlicffi|pillow|fonttools)(?=[\s\[<>=!~;"'']|$)(?:\[[^\]\r\n]{0,128}\])?\s*(?<spec>[^#\r\n]*)')
+            if (-not $m.Success) { continue }
+            $exact=[regex]::Match($m.Groups['spec'].Value,'^==\s*(?<version>[0-9]+(?:\.[0-9]+){2,3})(?:\s*(?:;.*)?|["''],?\s*)$')
+            $kind=if ($exact.Success -and $name -match '^requirements.*\.txt$') {'manifest-exact'} else {'text-fallback'}
+            Add-Http2ShellPackageReference -Ecosystem 'python' -Name $m.Groups['name'].Value -Version $exact.Groups['version'].Value -Path $File.FullName -EvidenceKind $kind -Line $lineNumber
+        }
+    }
+    if ($name -eq 'pyvenv.cfg' -and $Text -match '(?im)^\s*include-system-site-packages\s*=\s*true\s*$') {
+        Add-Http2ShellComponent -Component 'python-inherited-environment-review' -Path $File.FullName -EvidenceKind 'environment-boundary'
+        Register-Http2ShellLimit -Path $File.FullName -Reason 'inherited-python-environment-not-followed'
+    }
+    if ($name -eq '.version' -and $path -match '\\shared\\Microsoft\.NETCore\.App\\(?<version>[0-9]+\.[0-9]+\.[0-9]+(?:-(?:preview|rc)\.[0-9]+\.[0-9]+\.[0-9]+)?)\\\.version$') {
+        $runtimeVersion=$matches['version']
+        if ([regex]::IsMatch($Text,'(?m)^'+[regex]::Escape($runtimeVersion)+'\r?$')) { Add-Http2ShellComponent -Component 'dotnet-runtime' -Version $runtimeVersion -Path $File.FullName -EvidenceKind 'installed-runtime-metadata' }
+        else { Register-Http2ShellLimit -Path $File.FullName -Reason 'runtime-metadata-mismatch' }
+    }
+    if ($File.Extension -in @('.js','.mjs','.cjs','.ts','.tsx','.jsx','.py','.cs','.fs','.vb','.c','.cpp','.h')) {
+        $patterns=@(
+            @('brotli-decoder-api','(?i)\b(?:createBrotliDecompress|brotliDecompress(?:Sync)?|BrotliDecoder|BrotliStream|BrotliDecoderDecompress(?:Stream)?|BrotliDecompressBuffer)\b|\bbrotli(?:cffi)?\s*\.\s*(?:decompress|Decompressor)\b'),
+            @('dotnet-decompression-configuration','\b(?:AddRequestDecompression|UseRequestDecompression|AutomaticDecompression|DecompressionMethods\.(?:All|Brotli))\b'),
+            @('http-client-or-optional-python-decoder','\bfetch\s*\(|\b(?:requests|urllib3|httpx)\b'),
+            @('woff2-decoder-reference','(?i)\b(?:woff2_decompress|woff2\.decompress|WOFF2Font)\b')
+        )
+        foreach ($pattern in $patterns) {
+            $m=[regex]::Match($Text,$pattern[1])
+            if ($m.Success) { Add-Http2ShellInputSignal -Path $File.FullName -Kind $pattern[0] -Line (Get-LineNumberForIndex -Text $Text -Index $m.Index) }
+        }
+    }
+}
+
+function Add-Http2ShellMetadataFile {
+    param($List,[string]$RootPath,[string]$RelativePath)
+    $candidate=Join-Path $RootPath $RelativePath
+    if (Test-PathHasReparsePointBelowRoot -RootPath $RootPath -CandidatePath $candidate) { return }
+    if (Test-IsSecretInventoryFile $candidate) { return }
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { return }
+    Add-FileIfExists -List $List -FilePath $candidate -Kind 'http2shell-metadata' -OwnerCheck 'Http2Shell' -SelectionReason 'http2shell-targeted-metadata' -BoundaryRoot $RootPath -Critical $true
+}
+
+function Add-Http2ShellProjectMetadata {
+    param($List,[string]$RootPath)
+    if (Test-RunFileBudgetExhausted) { return }
+    foreach ($environment in @('','.venv','venv','env')) {
+        $prefix=if ($environment) {$environment+'\'} else {''}
+        Add-Http2ShellMetadataFile -List $List -RootPath $RootPath -RelativePath ($prefix+'pyvenv.cfg')
+        $site=Join-Path $RootPath ($prefix+'Lib\site-packages')
+        if (Test-PathHasReparsePointBelowRoot -RootPath $RootPath -CandidatePath $site) { continue }
+        if (-not (Test-Path -LiteralPath $site -PathType Container)) { continue }
+        try {
+            $count=0
+            foreach ($directory in [IO.Directory]::EnumerateDirectories($site)) {
+                if (++$count -gt 2000) { Register-Http2ShellLimit -Path $site -Reason 'python-metadata-directory-limit'; break }
+                if ([IO.Path]::GetFileName($directory) -notmatch '(?i)^(?:brotli|brotlicffi|pillow|fonttools)-[^\\]+\.dist-info$') { continue }
+                $relative=$directory.Substring($RootPath.TrimEnd('\').Length).TrimStart('\')+'\METADATA'
+                Add-Http2ShellMetadataFile -List $List -RootPath $RootPath -RelativePath $relative
+            }
+        }
+        catch { Register-Http2ShellLimit -Path $site -Reason 'python-metadata-enumeration-failed' }
+    }
+    foreach ($package in @('electron','@anthropic-ai\claude-code','@openai\codex','brotli','brotli-wasm','brotli-dec-wasm','iltorb','@napi-rs\brotli','shrink-ray-current')) {
+        Add-Http2ShellMetadataFile -List $List -RootPath $RootPath -RelativePath ('node_modules\'+$package+'\package.json')
+    }
+}
+
+function Get-Http2ShellDriveType {
+    param([string]$RootPath)
+    # DriveType uses the OS drive classification, without probing IsReady,
+    # directory attributes, volume information or files on the candidate drive.
+    try { return (New-Object IO.DriveInfo($RootPath)).DriveType }
+    catch { return [IO.DriveType]::Unknown }
+}
+
+function Test-Http2ShellLocalDrive {
+    param([string]$CandidatePath)
+    if ($CandidatePath -notmatch '^[A-Za-z]:\\') { return $false }
+    $type=Get-Http2ShellDriveType -RootPath ([IO.Path]::GetPathRoot($CandidatePath))
+    return ($type -in @([IO.DriveType]::Fixed,[IO.DriveType]::Removable,[IO.DriveType]::CDRom,[IO.DriveType]::Ram))
+}
+
+function Resolve-Http2ShellHostRoot {
+    param([string]$CandidatePath,[int]$Depth)
+    $full=[IO.Path]::GetFullPath($CandidatePath)
+    # Fail closed before any path metadata lookup, including mapped drives.
+    if (-not (Test-Http2ShellLocalDrive -CandidatePath $full)) { return $null }
+    $anchor=[IO.Path]::GetPathRoot($full)
+    if (Test-PathHasReparsePointBelowRoot -RootPath $anchor -CandidatePath $full) { return $null }
+    if (-not (Test-Path -LiteralPath $full -PathType Container)) { return $null }
+    return [ordered]@{path=$full;depth=$Depth}
+}
+
+function Get-Http2ShellHostRoots {
+    if (-not $Http2ShellHost) { return @() }
+    if ($SyntheticValidation) {
+        # Validate aliases before the shared helper probes directory existence.
+        # A lexical test-root prefix must not permit reads through an ancestor junction.
+        $rawRoots=[Environment]::GetEnvironmentVariable('DEV_SUPPLYCHAIN_CHECKER_TEST_HTTP2SHELL_ROOTS','Process')
+        foreach ($part in ($rawRoots -split ';')) {
+            if ([string]::IsNullOrWhiteSpace($part)) { continue }
+            $candidate=[IO.Path]::GetFullPath($part.Trim())
+            if (-not (Test-IsPathUnderRoot -CandidatePath $candidate -RootPath (Join-Path $script:BaseDir 'reports')) -and
+                -not (Test-IsPathUnderRoot -CandidatePath $candidate -RootPath (Join-Path $script:BaseDir 'tests\samples'))) { throw 'HTTP2Shell synthetic root is outside the allowed test directories.' }
+            if (-not (Test-Http2ShellLocalDrive -CandidatePath $candidate)) { throw 'HTTP2Shell synthetic root is not on a known local drive.' }
+            if (Test-PathHasReparsePointBelowRoot -RootPath ([IO.Path]::GetPathRoot($candidate)) -CandidatePath $candidate) { throw 'HTTP2Shell synthetic root contains a reparse point or cannot be validated.' }
+        }
+        $testRoots=Get-ValidationOnlyStaticRoots -EnvName 'DEV_SUPPLYCHAIN_CHECKER_TEST_HTTP2SHELL_ROOTS'
+        return @($testRoots.roots | ForEach-Object { [ordered]@{path=$_;depth=6} })
+    }
+    $candidates=New-ArrayList
+    foreach ($programRoot in @($env:ProgramFiles,${env:ProgramFiles(x86)})) {
+        if (-not $programRoot) { continue }
+        foreach ($relative in @('nodejs','dotnet\shared\Microsoft.NETCore.App','Git\mingw64\bin','Git\mingw64\libexec\git-core','Google\Chrome\Application','Microsoft\Edge\Application','Microsoft\EdgeWebView\Application')) {
+            Add-ListItem $candidates ([ordered]@{path=(Join-Path $programRoot $relative);depth=2})
+        }
+    }
+    if ($env:USERPROFILE) {
+        foreach ($relative in @('.bun\bin','.local\bin','.vscode\extensions','.vscode-insiders\extensions','anaconda3','miniconda3','AppData\Local\Claude-Data','AppData\Local\Programs\Claude','AppData\Local\Programs\Microsoft VS Code','AppData\Local\Programs\cursor','AppData\Local\Programs\Windsurf')) {
+            Add-ListItem $candidates ([ordered]@{path=(Join-Path $env:USERPROFILE $relative);depth=6})
+        }
+    }
+    foreach ($directory in @(([string]$env:PATH -split ';') | Select-Object -First 128)) {
+        if ($directory) { Add-ListItem $candidates ([ordered]@{path=$directory.Trim().Trim('"');depth=0}) }
+    }
+    $seen=@{}; $roots=New-ArrayList
+    foreach ($candidate in $candidates) {
+        try {
+            $full=[IO.Path]::GetFullPath($candidate.path)
+            if ($full -notmatch '^[A-Za-z]:\\.' -or $seen.ContainsKey($full.ToLowerInvariant())) { continue }
+            $root=Resolve-Http2ShellHostRoot -CandidatePath $full -Depth $candidate.depth
+            if ($null -eq $root) { continue }
+            $seen[$full.ToLowerInvariant()]=$true
+            Add-ListItem $roots $root
+        }
+        catch { Register-Http2ShellLimit -Path $candidate.path -Reason 'host-root-unreadable' }
+    }
+    return @($roots.ToArray())
+}
+
+function Scan-Http2ShellHost {
+    if (-not $Http2ShellHost -or -not (Test-CheckEnabled 'Http2Shell')) { return }
+    $roots=@(Get-Http2ShellHostRoots)
+    $script:Context.http2Shell.hostScanPerformed=$true
+    $visited=@{}
+    foreach ($root in $roots) {
+        Add-ListItem $script:Context.scanRoots (ConvertTo-RedactedPath $root.path)
+        $queue=New-Object Collections.Queue
+        $queue.Enqueue([ordered]@{path=$root.path;depth=0})
+        while ($queue.Count -gt 0) {
+            $directory=$queue.Dequeue()
+            if ($visited.ContainsKey($directory.path.ToLowerInvariant())) { continue }
+            $visited[$directory.path.ToLowerInvariant()]=$true
+            if ($script:Context.http2Shell.hostDirectories -ge 500 -or (Test-RunFileBudgetExhausted)) { Register-Http2ShellLimit -Path $root.path -Reason 'host-metadata-budget'; return }
+            $script:Context.http2Shell.hostDirectories++
+            if (-not (Test-Http2ShellLocalDrive -CandidatePath $directory.path)) { Register-Http2ShellLimit -Path $directory.path -Reason 'host-drive-no-longer-local'; continue }
+            if (Test-PathHasReparsePointBelowRoot -RootPath ([IO.Path]::GetPathRoot($directory.path)) -CandidatePath $directory.path) { continue }
+            try {
+                $directoryFiles=0
+                foreach ($filePath in [IO.Directory]::EnumerateFiles($directory.path)) {
+                    if (++$directoryFiles -gt 10000) { Register-Http2ShellLimit -Path $directory.path -Reason 'host-directory-entry-limit'; break }
+                    $leaf=[IO.Path]::GetFileName($filePath)
+                    if ($leaf -notmatch '(?i)^(?:(?:node|bun|electron|claude|codex|code|cursor|windsurf|chrome|msedge|msedgewebview2|curl|git|dotnet)\.exe|package\.json|pyvenv\.cfg|\.version|METADATA|[^\\]+\.(?:runtimeconfig|deps)\.json|(?:lib)?brotli[^\\]*\.(?:dll|pyd|node|json))$') { continue }
+                    if (Test-PathHasReparsePointBelowRoot -RootPath $root.path -CandidatePath $filePath) { continue }
+                    $file=Get-Item -LiteralPath $filePath -Force -ErrorAction Stop
+                    if (Reserve-ScanFile -FilePath $file.FullName -Kind 'http2shell-metadata' -OwnerCheck 'Http2Shell' -BoundaryRoot $root.path -Critical $true) {
+                        Add-ScanStat -Name 'filesEnumerated' -FilePath $file.FullName
+                        Scan-File -File $file
+                    }
+                    if (Test-RunFileBudgetExhausted) { Register-Http2ShellLimit -Path $root.path -Reason 'host-metadata-budget'; return }
+                }
+                if ($directory.depth -ge $root.depth) { continue }
+                $directoryChildren=0
+                foreach ($child in [IO.Directory]::EnumerateDirectories($directory.path)) {
+                    if (++$directoryChildren -gt 10000) { Register-Http2ShellLimit -Path $directory.path -Reason 'host-directory-entry-limit'; break }
+                    $leaf=[IO.Path]::GetFileName($child)
+                    if ($leaf -in @('.git','node_modules','__pycache__','cache','sessions','logs','history','environments','envs','pkgs')) { continue }
+                    if ($directory.depth -eq 0 -and ([IO.Path]::GetFileName($directory.path) -in @('extensions')) -and $leaf -notmatch '(?i)^(?:anthropic\.claude-code|openai\.chatgpt)-') { continue }
+                    if ($queue.Count -ge 500) { Register-Http2ShellLimit -Path $root.path -Reason 'host-metadata-budget'; return }
+                    $queue.Enqueue([ordered]@{path=$child;depth=($directory.depth+1)})
+                }
+            }
+            catch { Register-Http2ShellLimit -Path $directory.path -Reason 'host-metadata-unreadable' }
+        }
+    }
 }
 
 function Test-IsReparsePoint {
@@ -7873,9 +8475,9 @@ function Test-VerifiedSelfTestMarkerReference {
     # Versioned, manually reviewed source identities. Only these four posture
     # markers are refined; executable behavior, hashes and other IOCs still run.
     $references=@{
-        '.github/workflows/validate.yml'=@{hash='b68ceb0a261d56d0096d138af8a9a16e5d1c815473caf872ccd70ecb2da9e3f2';rules=@('glassworm-c2-marker')}
-        'tests/Test-IocMaintenance.ps1'=@{hash='608e130535a759fdf9b97074e57eda6c72efd95761f8425f5870279f43997ef2';rules=@('keyv_chaindrop_nodereal_contract_marker')}
-        'tests/Test-SecurityUpdate20261006.ps1'=@{hash='2fd05cf2f9e7a0c81f51bb165ead1d965b086c1ddbd490a1e6e682f78a0c395a';rules=@('supplychain_local_campaign_host_marker','virgil_secondary_transfer_endpoint_marker')}
+        '.github/workflows/validate.yml'=@{hash='b1b83f46b8f916585d2b939eaeb4a84fa6314aa6191e053074988d3051e202f2';rules=@('glassworm-c2-marker')}
+        'tests/Test-IocMaintenance.ps1'=@{hash='15c68d2bd8881c78ed54ca88d25266271446db952d0f5dd177cf1883656d14a2';rules=@('keyv_chaindrop_nodereal_contract_marker')}
+        'tests/Test-SecurityUpdate20261006.ps1'=@{hash='40a942f4b7fec74dbfe50f65c2da9c0f7bd0fc54296559f08912fd928c9d357f';rules=@('supplychain_local_campaign_host_marker','virgil_secondary_transfer_endpoint_marker')}
     }
     $root=[IO.Path]::GetFullPath($script:BaseDir).TrimEnd('\')+'\'
     if (-not $File.FullName.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)) { return $false }
@@ -8649,6 +9251,8 @@ function Add-KnownPackageFinding {
         $Line,
         [string]$EvidenceKind = 'text-fallback'
     )
+    if (Test-CheckEnabled 'Http2Shell') { Add-Http2ShellPackageReference -Ecosystem $Ecosystem -Name $Name -Version $Version -Path $Path -EvidenceKind $EvidenceKind -Line $Line }
+    if (-not (Test-CheckEnabled 'Packages')) { return }
     if ($null -eq $script:Context.iocs) { return }
     $normalizedVersion = if ($Ecosystem -ieq 'python') { ConvertTo-PythonPackageVersion $Version } else { Normalize-Version $Version }
     $ioc = Get-ExactPackageIocMatch -Ecosystem $Ecosystem -Name $Name -Version $normalizedVersion
@@ -8847,15 +9451,20 @@ function Scan-NpmPackageLockDependencyObject {
     }
 }
 
+function ConvertFrom-NpmLockJson {
+    param([string]$Text)
+    # Windows PowerShell 5.1 rejects the valid package-lock packages[""] root key.
+    # Rename only that structural key in-memory; package object boundaries and values stay intact.
+    $rootKeyPattern = New-Object System.Text.RegularExpressions.Regex('(?s)("packages"\s*:\s*\{\s*)""\s*:')
+    $jsonText = $rootKeyPattern.Replace($Text, '$1"__dev_supplychain_root__":', 1)
+    return (ConvertFrom-Json -InputObject $jsonText -ErrorAction Stop)
+}
+
 function Scan-NpmPackageLockJson {
     param([System.IO.FileInfo]$File, [string]$Text)
     Add-ScanStat -Name 'packageLockStructuralScans'
     try {
-        # Windows PowerShell 5.1 rejects the valid package-lock packages[""] root key.
-        # Rename only that structural key in-memory; package object boundaries and values stay intact.
-        $rootKeyPattern = New-Object System.Text.RegularExpressions.Regex('(?s)("packages"\s*:\s*\{\s*)""\s*:')
-        $jsonText = $rootKeyPattern.Replace($Text, '$1"__dev_supplychain_root__":', 1)
-        $json = $jsonText | ConvertFrom-Json -ErrorAction Stop
+        $json = ConvertFrom-NpmLockJson -Text $Text
         $packages = Get-PropertyValue $json 'packages'
         if ($null -ne $packages) {
             foreach ($property in @($packages.PSObject.Properties)) {
@@ -9711,6 +10320,7 @@ function Scan-PythonDistributionMetadata {
         return
     }
     Add-ScanStat -Name 'filesScanned' -FilePath $File.FullName
+    if (Test-CheckEnabled 'Http2Shell') { Add-Http2ShellPackageReference -Ecosystem 'python' -Name ([string]$header.name) -Version ([string]$header.version) -Path $File.FullName -Line ([int]$header.versionLine) -EvidenceKind 'installed-package-metadata' }
     if (Test-CheckEnabled 'Packages') {
         Add-KnownPackageFinding -Ecosystem 'python' -Name ([string]$header.name) -Version ([string]$header.version) -Path $File.FullName -Line ([int]$header.versionLine) -EvidenceKind 'installed-exact'
     }
@@ -10674,6 +11284,11 @@ function Scan-FileContent {
         return
     }
 
+    if (Test-CheckEnabled 'Http2Shell') {
+        if (Test-IsReparsePoint $File) { Register-Http2ShellLimit -Path $File.FullName -Reason 'path-boundary-rejected'; Add-ScanStat -Name 'filesSkipped'; return }
+        Invoke-ScannerStep -StepName 'Scan-Http2ShellArtifact' -File $File -ScriptBlock { Scan-Http2ShellArtifact -File $File }
+    }
+
     if (Test-KnownFileIocCheckEnabledForFile -File $File) {
         Invoke-ScannerStep -StepName 'Scan-KnownFileIocs' -File $File -ScriptBlock { Scan-KnownFileIocs -File $File }
     }
@@ -10694,14 +11309,14 @@ function Scan-FileContent {
         return
     }
 
-    if ((Test-CheckEnabled 'Packages') -and $File.Name.ToLowerInvariant() -eq 'bun.lockb') {
+    if (((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'Http2Shell')) -and $File.Name.ToLowerInvariant() -eq 'bun.lockb') {
         Add-ScanStat -Name 'filesSkipped'
         Register-CoverageFailure -Scope 'candidate' -Path $File.FullName -Kind 'lockfile' -FailureType 'unsupported-binary-lockfile' -Critical $true
-        Add-Finding -Severity 'WARN' -Category 'BUN_LOCKB_UNSUPPORTED' -Title 'Binary bun.lockb cannot be structurally inspected' -Path $File.FullName -Evidence 'The binary Bun lockfile was detected but not parsed by this dependency-free PowerShell scanner.' -Recommendation 'Correlate with another approved offline parser or a text lockfile; do not treat this scan as complete dependency coverage.' -RiskType 'limitation' -Confidence 'high' -Check 'Packages' -DetectionMethod 'metadata'
+        Add-Finding -Severity 'WARN' -Category 'BUN_LOCKB_UNSUPPORTED' -Title 'Binary bun.lockb cannot be structurally inspected' -Path $File.FullName -Evidence 'The binary Bun lockfile was detected but not parsed by this dependency-free PowerShell scanner.' -Recommendation 'Correlate with another approved offline parser or a text lockfile; do not treat this scan as complete dependency coverage.' -RiskType 'limitation' -Confidence 'high' -Check $(if (Test-CheckEnabled 'Packages') {'Packages'} else {'Http2Shell'}) -DetectionMethod 'metadata'
         return
     }
 
-    if (($File.Name -ieq 'METADATA') -and $File.FullName -match '(?i)[\\/]\S+\.dist-info[\\/]METADATA$' -and ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts'))) {
+    if (($File.Name -ieq 'METADATA') -and $File.FullName -match '(?i)[\\/]\S+\.dist-info[\\/]METADATA$' -and ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'Http2Shell'))) {
         Invoke-ScannerStep -StepName 'Scan-PythonDistributionMetadata' -File $File -ScriptBlock { Scan-PythonDistributionMetadata -File $File }
         return
     }
@@ -10734,6 +11349,9 @@ function Scan-FileContent {
     $fileName=$File.Name.ToLowerInvariant()
     $extension=$File.Extension.ToLowerInvariant()
     $normalizedPath=$File.FullName.ToLowerInvariant() -replace '/', '\'
+    if (Test-CheckEnabled 'Http2Shell') {
+        Invoke-ScannerStep -StepName 'Scan-Http2ShellText' -File $File -ScriptBlock { Scan-Http2ShellText -File $File -Text $text }
+    }
     if (Test-CheckEnabled 'NodeRuntime') {
         Invoke-ScannerStep -StepName 'Scan-NodeRuntimeReference' -File $File -ScriptBlock { Scan-NodeRuntimeReference -File $File -Text $text }
     }
@@ -10827,7 +11445,7 @@ function Scan-Project {
     try {
         if (Test-CheckEnabled 'NodeRuntime') { $script:Context.nodeRuntimeProjectScanPerformed = $true }
         $projectRoots = @()
-        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks') -or (Test-CheckEnabled 'NodeRuntime') -or (Test-CheckEnabled 'IdeExtensions') -or (Test-CheckEnabled 'CiCd')) {
+        if ((Test-CheckEnabled 'Packages') -or (Test-CheckEnabled 'LifecycleScripts') -or (Test-CheckEnabled 'HooksAndTasks') -or (Test-CheckEnabled 'NodeRuntime') -or (Test-CheckEnabled 'IdeExtensions') -or (Test-CheckEnabled 'CiCd') -or (Test-CheckEnabled 'Http2Shell')) {
             $projectRoots = @(Get-DiscoveredProjectRoots -RootPath $resolved)
         }
         $script:TargetedPerProjectFileLimit = Get-TargetedDependencyPerProjectFileLimit -ProjectCount $projectRoots.Count
@@ -10840,6 +11458,9 @@ function Scan-Project {
             }
         }
         $securityPriority = New-ArrayList
+        if (Test-CheckEnabled 'Http2Shell') {
+            foreach ($projectRoot in $projectRoots) { Add-Http2ShellProjectMetadata -List $securityPriority -RootPath $projectRoot }
+        }
         foreach ($projectRoot in $projectRoots) {
             foreach ($file in @(Get-PrioritySecurityFileList -RootPath $projectRoot)) { Add-ListItem $securityPriority $file }
             Scan-BoundedGitRefIocs -ProjectRoot $projectRoot
@@ -11675,6 +12296,7 @@ try {
             Scan-HostNodeRuntimes
         }
     }
+    if (Test-CheckEnabled 'Http2Shell') { Test-Http2ShellBaseline }
 
     if ([string]::IsNullOrEmpty($Path) -and -not $UserProfile -and -not $MajorLocations -and -not $EndpointTelemetry -and (Test-EnabledChecksRequireProjectPath)) {
         $Path = (Get-Location).Path
@@ -11697,6 +12319,10 @@ try {
     if ($EndpointTelemetry) {
         $script:CurrentPhase = 'Scan-EndpointTelemetryMode'
         Invoke-ScanPhase -Name 'EndpointTelemetry' -ScriptBlock { Scan-EndpointTelemetryMode }
+    }
+    if ($Http2ShellHost) {
+        $script:CurrentPhase = 'Scan-Http2ShellHost'
+        Invoke-ScanPhase -Name 'Http2ShellHost' -ScriptBlock { Scan-Http2ShellHost }
     }
     if (Test-CheckEnabled 'NpmGlobal') {
         $script:CurrentPhase = 'Scan-NpmGlobalStatic'

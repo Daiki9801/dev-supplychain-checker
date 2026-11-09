@@ -1,9 +1,9 @@
 {
   "schemaVersion": "0.1.14",
-  "lastUpdated": "2026-10-06",
-  "sourceSet": "official-nodejs-critical-history-and-recent-high-review-20261006",
-  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
-  "reviewNotes": "All 13 shipped advisories were compared with their seven official security-release pages. The official vulnerability index has no later security release than July 2026 as of review. High entries remain within the 365-day retention window; affected ranges and fixed versions are unchanged.",
+  "lastUpdated": "2026-11-07",
+  "sourceSet": "official-nodejs-critical-history-and-recent-high-review-20261107",
+  "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
+  "reviewNotes": "Rechecked the 13 existing advisories and added the four High advisories from the official October security release. Fixed tags and TLS regression boundaries were compared with upstream source. The November 11 release announcement did not yet contain published advisory ranges. All retained High entries are within 365 days.",
   "expiresAfterDays": 30,
   "highRetentionDays": 365,
   "advisories": [
@@ -229,6 +229,72 @@
         { "major": 26, "version": "26.5.1" }
       ],
       "conditions": ["permission-model", "path-prefix"]
+    },
+    {
+      "id": "CVE-2026-105482",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-10-21",
+      "source": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.4" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.1" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.12.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.4" },
+        { "major": 24, "version": "24.22.1" },
+        { "major": 26, "version": "26.12.1" }
+      ],
+      "conditions": ["dns-resolve", "nul-hostname"]
+    },
+    {
+      "id": "CVE-2026-106069",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-10-21",
+      "source": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.4" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.1" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.12.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.4" },
+        { "major": 24, "version": "24.22.1" },
+        { "major": 26, "version": "26.12.1" }
+      ],
+      "conditions": ["tls-client", "non-canonical-ipv4"]
+    },
+    {
+      "id": "CVE-2026-111497",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-10-21",
+      "source": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.4" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.1" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.12.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.4" },
+        { "major": 24, "version": "24.22.1" },
+        { "major": 26, "version": "26.12.1" }
+      ],
+      "conditions": ["node-zlib", "untrusted-brotli-input"]
+    },
+    {
+      "id": "CVE-2026-105483",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-10-21",
+      "source": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "24.20.0", "maxExclusive": "24.22.1" },
+        { "minInclusive": "26.6.0", "maxExclusive": "26.12.1" }
+      ],
+      "fixedVersions": [
+        { "major": 24, "version": "24.22.1" },
+        { "major": 26, "version": "26.12.1" }
+      ],
+      "conditions": ["tls-client", "fullwidth-ipv4"]
     }
   ]
 }

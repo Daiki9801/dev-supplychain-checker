@@ -1,5 +1,13 @@
 # Codex Review Checklist
 
+Use the current [AGENTS.md](../AGENTS.md) for contributor permissions and safety boundaries, [README.md](../README.md) and [CHANGELOG.md](../CHANGELOG.md) for the current scanner contract, and the [pre-push test procedure](pre-push-test-procedure-ja.md) for validation. The v0.1.1 implementation guide and v0.1.2 design document are historical context, not current instructions. Memories and past approvals do not authorize new host reads, external access, Git mutations, or settings changes.
+
+For Codex work, use `gpt-6.1-sol` with `high` as a starting point for ordinary implementation, `medium` for small documentation changes, and `xhigh` or `max` when a difficult review needs deeper reasoning. These are workflow defaults, not measured quality guarantees. Ultra delegates automatically; use delegation only within an explicitly authorized scope and the applicable agent instructions.
+
+Check the effective permissions when starting a new session. `on-request` does not require approval for every workspace operation, and automatic approval review does not substitute for explicit human approval required by AGENTS.md. Command-network restrictions do not cover web search, MCP, apps, or browser tools; keep those capabilities disabled for ordinary offline work and obtain bounded human approval before enabling an exception. Local settings cannot override administrator requirements or every workspace-managed plugin state.
+
+Validate only the affected behavior. Documentation-only changes need local reference and diff checks; scanner or launcher changes also need the applicable Windows PowerShell 5.1 parser, JSON, and synthetic regression checks. Inspect a test's resolved roots before execution; real-host validation remains approval-gated.
+
 Review the implementation for the following before using it on real projects.
 
 - Dependency-free: no added package manager dependencies or external modules.

@@ -353,11 +353,11 @@ foreach ($dataset in $packages.iocData.datasets) {
     $expectedStatus=if ($reviewDate.AddDays([int]$dataset.expiresAfterDays) -lt (Get-Date)) {'stale'} else {'current'}
     Assert-Update ($dataset.status -eq $expectedStatus) 'Dataset freshness does not follow its reviewed date and unchanged expiry period'
 }
-Assert-Update ($packages.iocData.releaseReady -eq ($packages.iocData.staleCount -eq 0)) 'Publication gate disagrees with dataset freshness'
+Assert-Update (-not $packages.iocData.releaseReady -and $packages.iocData.notCheckedCount -eq 1 -and $packages.iocData.notCheckedDatasets[0] -eq 'known-node-runtimes.json') 'Publication gate accepted an unchecked Node.js dataset'
 $node=[IO.File]::ReadAllText((Join-Path $repoRoot 'iocs/known-node-runtimes.json')) | ConvertFrom-Json
 $campaign=[IO.File]::ReadAllText((Join-Path $repoRoot 'iocs/campaign-keyv-chaindrop-20260806.json')) | ConvertFrom-Json
 Assert-Update ((Get-CampaignIocCanonicalHash $campaign.packages) -eq '7da86fddcb4bc5c4352d3f2120903a07314ae2ce3071d980061862bcbc8aa497') 'Keyv snapshot digest drift'
-Assert-Update ($node.lastUpdated -eq '2026-10-06' -and $campaign.lastReviewed -eq '2026-10-06' -and $node.expiresAfterDays -eq 30 -and $campaign.reviewAfterDays -eq 30) 'Reviewed Node/Keyv metadata or expiry contract drift'
+Assert-Update ($node.lastUpdated -ge '2026-10-06' -and $campaign.lastReviewed -ge '2026-10-06' -and $node.expiresAfterDays -eq 30 -and $campaign.reviewAfterDays -eq 30) 'Reviewed Node/Keyv metadata or expiry contract drift'
 Complete-Case T28
 Reset-HelperContext
 $script:Context.iocs=@{packages=New-ArrayList;files=New-ArrayList;extensions=New-ArrayList;patterns=New-ArrayList;actions=New-ArrayList;actionAdvisories=@($delta.advisories);domains=New-ArrayList;ips=New-ArrayList}

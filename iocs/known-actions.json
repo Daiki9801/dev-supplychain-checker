@@ -1,8 +1,8 @@
 {
   "schemaVersion": "0.1.23",
-  "lastUpdated": "2026-10-06",
-  "sourceSet": "curated-codfish-mini-shai-hulud-and-actions-advisory-review-20261006",
-  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
+  "lastUpdated": "2026-11-07",
+  "sourceSet": "curated-codfish-mini-shai-hulud-and-actions-advisory-review-20261107",
+  "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
   "sourceUrls": [
     "https://api.github.com/advisories?ecosystem=actions&type=malware",
     "https://api.github.com/advisories?ecosystem=actions&type=reviewed",
@@ -10,8 +10,8 @@
     "https://socket.dev/blog/mini-shai-hulud-actions",
     "https://github.com/advisories/GHSA-2qvg-qr73-mqxp"
   ],
-  "scope": "Curated immutable known-bad commits, historically affected mutable refs, and bounded reference-version advisories; public Actions delta checked from 2026-08-14 through 2026-10-06.",
-  "reviewNotes": "All shipped entries were compared with their incident reports. The Actions delta returned zero malware advisories and one reviewed conflibot advisory already included. Historical refs remain WARN; current remote tag targets and availability are not asserted.",
+  "scope": "Curated immutable known-bad commits, historically affected mutable refs, and bounded CVE reference-version advisories. The current public Actions delta covers 2026-10-07 through 2026-11-07.",
+  "reviewNotes": "Compared both Action incidents and the conflibot CVE with their sources. The delta contained no malware records and one pypi-publish trust-chain advisory outside the compromised-ref and CVE schema. Historical refs retain WARN. The sampled remote tags were inaccessible.",
   "supplementLastReviewed": "2026-10-06",
   "supplementScope": "S09 bad commit/historical ref and S10 reference-version advisory, included in the complete bounded dataset review recorded above.",
   "expiresAfterDays": 30,

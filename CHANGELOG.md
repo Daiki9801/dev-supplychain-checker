@@ -2,6 +2,26 @@
 
 User-visible changes are documented here beginning with version 0.1.15. Earlier development history remains available in the Git commit history.
 
+## [Unreleased]
+
+- Rejects mapped network and unknown drives before HTTP2Shell host path metadata probes; rechecks drive classification before directory traversal. Adds synthetic drive-type and probe-order regressions without contacting a share.
+- Shares the Windows PowerShell 5.1 npm root-key normalization between ordinary package scans and HTTP2Shell, with v2/v3 package-lock and shrinkwrap regressions.
+- Requires all seven shipped IOC datasets for `iocData.releaseReady=true`. Reports unchecked datasets separately and documents the complete publication gate.
+- Replaces the bundled JavaScript checkout Action with public HTTPS Git retrieval of the exact event SHA. Requires Git 2.32.0+, an empty workspace and isolated configuration; rejects fetch/identity failures without a token, archive fallback, branch fallback or cleanup. Selects the first resolved Git application when multiple installations are on PATH. Local mocks cover 39 cases; [Windows hosted-runner validation passed for 01effcb](https://github.com/Daiki9801/dev-supplychain-checker/actions/runs/42353763124).
+- Removes automated UserProfile/MajorLocations execution and profile environment rewrites from CI. Security boundary tests use explicit synthetic project paths and an internal profile-root parameter, retain artifacts without cleanup, and preserve content/inventory tests. A PowerShell AST check guards the CI steps against broad host-mode invocations; actual host discovery remains a separate manual check.
+- Rechecks the seven bounded IOC datasets against public sources on 2026-11-07 with their 30-day review periods. Adds eight exact npm/PyPI malware versions and four official Node.js High advisories. Records the evidence in `docs/ioc-maintenance-20261107-ja.md`.
+- Refreshes the seven-day HTTP2Shell baseline with CISA KEV evidence, exact .NET 11 preview/RC builds, and eleven verified Electron release-to-decoder mappings. Updates the Windows PowerShell 5.1 regression boundaries and clean Node.js fixture.
+
+## [0.1.28] - 2026-10-26
+
+### Added
+
+- Adds menu 11 and `http2shell` / confirmed `http2shellpc` launcher modes for an offline CVE-2026-111497 audit. Existing menu numbering/scopes remain unchanged. The dedicated `Http2Shell` check is excluded from every macro; known-host metadata requires `-Http2ShellHost` and the PC launcher rejects unattended use.
+- Adds a separately dated October 26 baseline for Brotli's three fixed C release lines, Node.js 22/24/26, Bun 1.x, Python Brotli/brotlicffi, .NET 8/9/10 runtimes, and the exact reviewed official Electron 44.9.3 source mapping. SDK/runtime-minimum references, EOL/preview/unreviewed versions, native addons and embedded app runtimes remain explicit review items.
+- Adds bounded targeted metadata selection and `http2ShellAssessment` in JSON/TXT. Component observations, unobserved selection/loading, unestablished input reachability and pending remediation verification are separate. Version matches do not become DANGER; no binaries, compression streams, fonts or target scripts are executed. No updates/remediation/network behavior is added.
+- Documents primary-source research, the new Microsoft .NET advisory, Python/C backport distinctions, Electron's Chromium Brotli linkage, host scope, limitations and manual completion evidence in `docs/http2shell-audit-ja.md`. The general October 6 IOC baseline is unchanged.
+- Adds Windows PowerShell 5.1 synthetic regressions and CI coverage for version boundaries, Python/.NET metadata, privacy, read-only behavior, launcher routing, report fields, malformed/inherited scope and synthetic-host roots with no real-host fallback. Actual user-profile, process and host-installation scans are not part of development validation.
+
 ## [0.1.27] - 2026-10-16
 
 ### Fixed

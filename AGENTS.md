@@ -13,12 +13,19 @@ The final tool must be:
 * Read-only.
 * Safe for security triage.
 
+## Current contributor references
+
+* Use [README.md](README.md) and [CHANGELOG.md](CHANGELOG.md) for the current scanner contract.
+* Use [Codex Review Checklist](docs/codex-review-checklist.md) for review and Codex workflow guidance, and [Push前のPCテスト手順](docs/pre-push-test-procedure-ja.md) for applicable Windows PowerShell 5.1, JSON, and synthetic regression checks.
+* The v0.1.1 implementation guide and v0.1.2 design document are historical references. Their copied prompts, AGENTS templates, old launcher names, and old severity definitions do not replace current instructions. Memories and historical approvals do not authorize new operations.
+
 ## Non-negotiable safety rules
 
 * Do not add external runtime dependencies to the delivered tool.
 * The delivered scanner itself must not make network calls or require network access.
 * During implementation, review, or testing, network access and external-service use are prohibited by default. They may be used only with prior, explicit human approval for the specific purpose or bounded operation. Such approval does not authorize adding network behavior to the scanner or changing its offline-only requirement.
 * Commands or tools that can access the network, including package managers, `curl`, `wget`, `iwr`, `irm`, `Invoke-WebRequest`, `Invoke-RestMethod`, `Start-BitsTransfer`, `certutil` URL retrieval, `bitsadmin`, MCP servers, app plugins, browser automation, connector tools, and remote file tools, require prior explicit human approval before use.
+* Automatic approval review is not the explicit human approval required by these rules. A technical approval or a trusted project does not authorize a new external-service operation, real-host read, Git mutation, or protected settings change.
 * Do not install packages or dependencies with npm, pnpm, yarn, bun, pip, or similar package managers unless the human explicitly approves that installation. Approved development-only tooling must not become a runtime dependency of the delivered scanner.
 * Local read-only Git inspection is allowed without approval, including `git status`, `git diff`, `git log`, `git show`, and `git rev-parse`.
 * Git operations that access a remote or modify repository/worktree/history state require prior explicit human approval. This includes, but is not limited to, `git clone`, `git fetch`, `git pull`, `git submodule update`, `git checkout`, `git switch`, `git restore`, `git reset`, `git add`, `git commit`, `git merge`, `git rebase`, and `git push`.
@@ -87,7 +94,7 @@ Invoke-WebRequest https://example.com
 * Skip likely binary files unless checking filename/hash metadata.
 * Enforce maximum file size limits.
 * Produce both TXT and JSON reports.
-* Use DANGER / WARN / INFO / OK severity.
+* Use DANGER / WARN / CAUTION / INFO / OK severity. WARN and CAUTION both retain exit code 1; DANGER retains exit code 2.
 * Findings must include category, title, path, line if available, evidence, and recommendation.
 * Redact user profile paths where practical.
 
@@ -95,7 +102,7 @@ Invoke-WebRequest https://example.com
 
 A task is complete only when:
 
-1. The requested files are created or modified.
+1. For implementation tasks, the requested files are created or modified. Read-only audits and reviews are complete when the requested evidence-backed report is delivered; they do not require file changes.
 2. The delivered scanner remains dependency-free, offline-only, and read-only.
 3. The implementation does not violate the safety rules.
 4. Targeted synthetic tests or sample runs pass where applicable; explicitly approved real-host validation may be used when relevant.

@@ -31,7 +31,8 @@ $allowlist = @(
     'Add-BuiltinPackageIoc','Add-BuiltinFileHashIoc','Get-SecurityUpdate20261006Iocs','Load-BuiltinIocs',
     'New-NodeRuntimeRange','New-NodeRuntimeFixedVersion','New-NodeRuntimeAdvisory',
     'Load-BuiltinNodeRuntimeIocs','Normalize-NodeRuntimeAdvisory','Get-NodeRuntimeAdvisoryFingerprint',
-    'Load-LocalNodeRuntimeIocs','Test-NodeRuntimeDataStaleness','Set-IocDataSetStatus','Get-IocDataSummary'
+    'Load-LocalNodeRuntimeIocs','Test-NodeRuntimeDataStaleness','Set-IocDataSetStatus','Get-IocDataSummary',
+    'Get-NodeRuntimeAdvisoryMatches','Test-NodeRuntimeVersionInRange','Get-NodeRuntimeFixedVersionForMajor','Get-NodeRuntimeConditionStatus'
 )
 $tokens = $null; $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repoRoot 'Scan-DevSupplyChain.ps1'), [ref]$tokens, [ref]$errors)
@@ -97,10 +98,31 @@ function Assert-BlockedDataset {
 }
 New-MaintenanceCase fresh { param($data) }
 Assert-Maintenance ((Get-IocDataSummary).releaseReady -and (Get-IocDataSummary).currentCount -eq 7) 'Fresh complete synthetic datasets failed publication gate'
+Assert-Maintenance ((Get-IocDataSummary).requiredCount -eq 7 -and (Get-IocDataSummary).notCheckedCount -eq 0) 'Complete IOC inventory was reported as unchecked'
+# A restricted check selection must never stand in for the seven-dataset gate.
+$completeData=$script:Context.iocDataSets
+foreach ($omitted in $shipped.Keys) {
+    $script:Context.iocDataSets=@{}
+    foreach ($name in $completeData.Keys) { if ($name -ne $omitted) { $script:Context.iocDataSets[$name]=$completeData[$name] } }
+    $summary=Get-IocDataSummary
+    Assert-Maintenance (-not $summary.releaseReady -and $summary.status -eq 'review-required' -and $summary.currentCount -eq 6) ('Unchecked dataset passed publication gate: '+$omitted)
+    Assert-Maintenance ($summary.notCheckedCount -eq 1 -and $summary.notCheckedDatasets[0] -eq $omitted -and $summary.missingCount -eq 0) 'Unchecked data was confused with missing data'
+}
+$script:Context.iocDataSets=@{}
+Assert-Maintenance (-not (Get-IocDataSummary).releaseReady -and (Get-IocDataSummary).notCheckedCount -eq 7) 'Empty IOC inventory passed publication gate'
+$script:Context.iocDataSets=$completeData
 Assert-Maintenance ($script:Context.campaignIocData.packageVersionPairCount -eq 2235) 'Complete campaign baseline was not loaded'
 $builtinFingerprints = @((Load-BuiltinNodeRuntimeIocs).advisories | ForEach-Object {Get-NodeRuntimeAdvisoryFingerprint (Normalize-NodeRuntimeAdvisory $_)})
 $localFingerprints = @($shipped['known-node-runtimes.json'].advisories | ForEach-Object {Get-NodeRuntimeAdvisoryFingerprint (Normalize-NodeRuntimeAdvisory $_)})
 Assert-Maintenance (@(Compare-Object $builtinFingerprints $localFingerprints).Count -eq 0) 'Built-in/local Node advisory parity failed'
+foreach ($boundary in @(
+    @('22.23.3',$false),@('24.19.0',$false),@('24.20.0',$true),@('24.22.1',$false),
+    @('26.5.1',$false),@('26.6.0',$true),@('26.12.1',$false)
+)) {
+    $matchesForVersion = @(Get-NodeRuntimeAdvisoryMatches (ConvertTo-NodeRuntimeVersion $boundary[0]))
+    $matched = 'CVE-2026-105483' -in @($matchesForVersion | ForEach-Object {$_.advisory.id})
+    Assert-Maintenance ($matched -eq $boundary[1]) ('Node.js TLS regression boundary failed for ' + $boundary[0])
+}
 
 foreach ($name in @('known-packages.json','known-files.json','known-extensions.json','known-actions.json','suspicious-patterns.json')) {
     $script:datasetUnderTest = $name

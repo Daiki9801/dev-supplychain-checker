@@ -1,14 +1,14 @@
 {
   "schemaVersion": "0.1.12",
-  "lastUpdated": "2026-10-06",
-  "sourceSet": "curated-contextual-marker-and-historical-domain-review-20261006",
-  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
-  "reviewNotes": "Every domain and bounded contextual regex was compared with the registered incident corpus and historical baseline. The Keyv article's contract differs from the previously approved marker; both are explicitly bounded to the shared NodeReal endpoint and remain WARN context. Historical domain/wallet and older marker provenance is retained; generic Solana, DHT, Calendar, or shared RPC infrastructure alone is not compromise evidence.",
+  "lastUpdated": "2026-11-07",
+  "sourceSet": "curated-contextual-marker-and-historical-domain-review-20261107",
+  "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
+  "reviewNotes": "Compared the three domain entries and eight patterns with the incident corpus and historical baseline. Current incident sources support the four contextual endpoints. Older domain, wallet, and compound markers retain historical provenance; shared infrastructure remains subject to the existing context boundaries.",
   "sourceUrls": [
     "https://www.aikido.dev/blog/keyv-and-friends-compromised-in-npm-supply-chain-attack",
     "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
     "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads",
-    "https://safedep.io/memtensor-sckit-worm-npm-pypi",
+    "https://safedep.io/blog/memtensor-sckit-worm-npm-pypi",
     "https://www.aikido.dev/blog/shai-hulud-npm-resurfaces",
     "https://github.com/advisories/GHSA-6j8f-g5mj-4wcj",
     "https://socket.dev/blog/glassworm-vscode-themes"

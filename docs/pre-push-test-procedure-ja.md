@@ -1,9 +1,9 @@
 # Push前のPCテスト手順
 
-- 対象バージョン: **0.1.27**
+- 対象バージョン: **0.1.28**
 - 対象OS: Windows 10 / 11
 - 実行環境: Windows PowerShell 5.1
-- 手順更新日: 2026-10-19
+- 手順更新日: 2026-11-09
 
 この手順は、最初にリポジトリ内の合成データだけで安全に検証し、その後、必要な範囲に限って実PCを読み取り専用で確認する構成です。スキャナーはネットワーク接続、対象コード実行、修復、削除、隔離、レジストリ変更を行いません。TXT/JSONレポートだけを作成します。
 
@@ -84,10 +84,12 @@ foreach ($relativePath in $requiredJsonPaths) {
 
 $winPS = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $regressionPaths = @(
+  '.\tests\Test-CheckoutContract.ps1',
   '.\tests\Test-LauncherScopeContracts.ps1',
   '.\tests\Test-SecurityBoundaryRegressions.ps1',
   '.\tests\Test-SecurityUpdate20261006.ps1',
   '.\tests\Test-IocMaintenance.ps1',
+  '.\tests\Test-Http2ShellAudit.ps1',
   '.\tests\Test-PythonMetadataRegressions.ps1',
   '.\tests\Test-StaticTriageRegressions.ps1',
   '.\tests\Test-ScanExecutionRegressions.ps1',
@@ -96,9 +98,6 @@ $regressionPaths = @(
 )
 foreach ($regressionPath in $regressionPaths) {
   $regressionArgs = @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$regressionPath)
-  if ($regressionPath -like '*Test-SecurityBoundaryRegressions.ps1') {
-    $regressionArgs += '-KeepArtifacts'
-  }
   & $winPS @regressionArgs
   if ($LASTEXITCODE -ne 0) { throw ("Regression failed: {0}" -f $regressionPath) }
 }
@@ -111,7 +110,7 @@ if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 
 - parser errorが0件。
 - 必須9 JSON（7 IOC、fixture manifest、項目別証拠記録）がUTF-8で例外なく読み込める。欠落・解析エラーを無視せず、ファイル名だけで失敗を報告する。
-- launcher scope契約と、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
+- Git取得の39ケース（全Gitコマンドとworkspace照会をモック、複数Git候補の優先順位を含む）、CIのPowerShellブロック解析、launcher scope契約、実行ファイル探索・scanner-self・環境ルート境界の合成回帰テストが合格する。
 - Python短縮バージョン、PEP 440の同一性、METADATAヘッダー境界、ロックファイルの対応関係、OCR/署名バイナリとハッシュ検査の合成回帰が合格する。
 - 実行状態の回帰で合格メッセージが出る。`Test-ScanExecutionRegressions.ps1` はリポジトリ内の合成パイプラインだけを停止し、保存レポートの中断状態・未着手npm・圧縮判定と保持ハッシュ・キャッシュ内MCP・タイムアウト情報の秘匿を検証する。npmは明示的な合成ルートへ限定し、実プロファイル・端末ログ・実npm/Node配置は読まない。
 - `Test-ScanTriagePerformanceRegressions.ps1` が合格する。通常文字列とPattern表の混在、実行コードの検出維持、大きな引用符付きキー、サブルールのタイムアウト後の検査継続、同時に出る未完了理由、キャッシュ／有効CIの区別、独自npmキャッシュ、計時配列と最大20件の遅い検査記録をリポジトリ内の合成データだけで検証する。
@@ -119,9 +118,13 @@ if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 
 `Test-ScanReviewRegressions.ps1` は大きなcompiler風テキスト、多数のPowerShell変数、escaped keyを持つJSON、深い／広いJSON、後続ルールの継続、自己参照ハッシュの改変・コピー拒否、件数、時刻と遅い活動の記録を検証します。入力コードは実行せず、生成物はGUID付きの `reports/` 配下へ保持します。`-BenchmarkOnly` は同じ合成入力形状によるヘルパー計時だけを保存します。
 
+`Test-SecurityBoundaryRegressions.ps1` も生成物を常に保持し、`-KeepArtifacts` は互換用です。プロファイル形状の合成ファイルを明示した `-Path` で検査し、自動ルートの境界関数には合成プロファイルを引数で渡します。`USERPROFILE` / `CODEX_HOME` 等の差し替えや `-UserProfile` / `-MajorLocations` / `-EndpointTelemetry` の自動実行は行いません。設定本文の検出・認証ファイルの内容非出力・境界拒否の検証と、実PCの自動探索確認を区別してください。Node/npm/HTTP2Shell の専用合成分岐は、`-SyntheticValidation` とリポジトリ内ルートの検証を引き続き必須とします。
+
 `Test-IocMaintenance.ps1` はmanifest内の158 fixtureを検証します。`bytes-sha256` の3ファイルは `.gitattributes` の正確なパスに `-text` を指定し、Windows checkoutの `core.autocrlf=true` でも実バイトを保持します。`Fixture hash mismatch` が出た場合は `git ls-files --eol tests/samples` と `git check-attr text -- <対象パス>` で改行・属性を確認してください。期待ハッシュの変更や検査の省略で解消しないでください。`text-lf-sha256` は従来どおりLF正規化後に検証します。
 
 ローカル合格はGitHubの必須チェック合格を代替しません。現行workflowはPR更新とmainへのpushで起動するため、Actions追加実行が未承認の場合はpush・mergeの前に承認を得てください。既存ログの読み取りだけではActionsは起動しません。
+
+CIの取得方式は公開HTTPSによるGit直接取得です。Git 2.32.0以上、空の通常ディレクトリ、固定したリポジトリ識別子、イベントSHAの取得前後照合を要求します。認証・REST/ZIP・ブランチ先端への代替はありません。実ランナーでは最終候補SHAの `Scanner contract` 成功と、3つの `bytes-sha256` fixtureの一致を確認してください。非公開リポジトリやSHAを取得できない場合は停止し、暗黙にトークンを追加しないでください。
 
 計時はJSONの `performance.activities` を確認します。`partition=true` の活動だけを合計し、`Reading`、`PowerShellContextProof`、`McpCommandExtraction`、`steps` は再加算しません。`otherElapsedMs` は未計測の実行時間で、レポート整形・書き込み時間は含みません。`slowSteps` と `slowActivities` はそれぞれ2秒以上の処理の上位最大20件です。開始・終了時刻と経過時間は同じ単調時計の起点を使います。速度比較は同じ合成入力・検査項目・PowerShellで行い、検出結果と完了状態も確認します。合成入力での短縮率を実PCの所要時間へそのまま適用しません。
 
@@ -223,15 +226,19 @@ if (@($safeNodeReport.nodeRuntimeAssessment.inventory.entries | Where-Object { $
 
 合成サンプルには意図的なDANGERが含まれるため、終了コード `2` は正常です。件数は検出追加により変わり得るので、固定件数ではなく完了性・安全契約・必須カテゴリを確認します。
 
-全7 IOC データセットは2026-10-06に出典台帳と照合済みです。[レビュー記録](ioc-maintenance-20261006-ja.md)と[項目別の確認根拠](ioc-maintenance-20261006-evidence.json)には、直接再確認できた値と保持した歴史的出典の制限を記録しています。いずれも有効期間は30日のままで、期限内かつ欠落・不正がなければ `iocData.releaseReady` は `true` になります。これは限定的な curated baseline 全体のレビュー・整合性判定で、全公開IOCの網羅性や各歴史的 artifact の独立再検証を保証しません。未来の日付、空 section、不正 entry、Node.js の競合・重複は公開判定を止めます。警告を消す目的だけで日付や期限を変更しないでください。
+全7 IOC データセットを 2026-11-07 に公開出典と再照合しました。直接確認した値と、既存の出典で保持する値を[レビュー記録](ioc-maintenance-20261107-ja.md)で区別しています。有効期間は30日です。全7件を確認する公開用の合成走査は `-Checks Recommended` で実行します。期限超過、欠落、不正、未来日付、空 section、Node.js の競合・重複は `iocData.releaseReady` を `false` にします。HTTP2Shell の7日基準は専用レポートの `http2ShellAssessment.baselineStatus` で確認します。
 
 ```powershell
 if ($null -eq $syntheticReport.iocData) { throw 'iocData summary is missing.' }
-if (-not [bool]$syntheticReport.iocData.releaseReady) {
+if (-not [bool]$syntheticReport.scanComplete -or $syntheticReport.completionStatus -ne 'complete' -or
+    [int]$syntheticReport.iocData.currentCount -ne 7 -or [int]$syntheticReport.iocData.notCheckedCount -ne 0 -or
+    -not [bool]$syntheticReport.iocData.releaseReady) {
   $blocked = @($syntheticReport.iocData.datasets | Where-Object { $_.status -ne 'current' } | ForEach-Object { "{0}:{1}" -f $_.name,$_.status })
   throw ("IOC publication freshness gate failed: {0}" -f ($blocked -join ', '))
 }
 ```
+
+`Http2Shell,ScannerSelf` などの専用走査は Node.js データを確認しないため、`notCheckedCount=1`、`notCheckedDatasets=["known-node-runtimes.json"]`、`releaseReady=false` になります。未確認は欠落と区別し、公開判定は上記の `Recommended` の完了状態・全7件・鮮度を組み合わせます。
 
 ## 4. レポート非上書きとBAT特殊文字テスト
 

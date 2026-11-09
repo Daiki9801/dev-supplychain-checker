@@ -1,10 +1,10 @@
 {
   "schemaVersion": "0.1.13",
   "defaultPlatform": "vscode",
-  "lastUpdated": "2026-10-06",
-  "sourceSet": "curated-platform-qualified-extension-and-historical-watch-review-20261006",
-  "reviewRecord": "docs/ioc-maintenance-20261006-ja.md",
-  "reviewNotes": "All 16 shipped entries were compared with the registered incident corpus and approved historical baseline. Current reports corroborate the oorzc/quartz identities, the two theme watch identities, and AFINE retains the original WakaTime/AutoImport identifiers. Nx Console and six older ID watch entries remain historical; no registry-wide absence-of-malware or fresh exact-version artifact verification is asserted.",
+  "lastUpdated": "2026-11-07",
+  "sourceSet": "curated-platform-qualified-extension-and-historical-watch-review-20261107",
+  "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
+  "reviewNotes": "Compared all 16 entries with the incident corpus and historical baseline. Current sources corroborate the oorzc/quartz, theme watch, WakaTime and AutoImport identities. Nx Console and six older ID watches retain their historical provenance. Open VSX metadata did not independently establish artifact identity or safety.",
   "sourceUrls": [
     "https://www.aikido.dev/blog/glassworm-returns-unicode-attack-github-npm-vscode",
     "https://afine.com/blogs/hunting-glassworm-open-source-detection-for-invisible-supply-chain-payloads",
