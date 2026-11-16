@@ -1,0 +1,730 @@
+{
+  "reviewedOn": "2026-11-16",
+  "scope": "Official Node.js Critical/recent High baseline and HTTP2Shell component-reference audit; no binary download or execution",
+  "requests": {
+    "attempted": 42,
+    "successful": 39,
+    "connectionFailures": 3,
+    "selfImposedLimit": 60
+  },
+  "node": {
+    "advisoryCount": 24,
+    "newAdvisories": [
+      {
+        "id": "CVE-2026-123864",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "22.0.0",
+            "maxExclusive": "22.23.5"
+          },
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 22,
+            "version": "22.23.5"
+          },
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "https-server",
+          "response-before-request-body-end",
+          "body-echo-or-storage"
+        ]
+      },
+      {
+        "id": "CVE-2026-123865",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "22.0.0",
+            "maxExclusive": "22.23.5"
+          },
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 22,
+            "version": "22.23.5"
+          },
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "http2-server",
+          "protocol-error-during-shutdown"
+        ]
+      },
+      {
+        "id": "CVE-2026-123866",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "22.0.0",
+            "maxExclusive": "22.23.5"
+          },
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 22,
+            "version": "22.23.5"
+          },
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "http2-server",
+          "backpressured-write",
+          "stream-teardown"
+        ]
+      },
+      {
+        "id": "CVE-2026-123872",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "22.0.0",
+            "maxExclusive": "22.23.5"
+          },
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 22,
+            "version": "22.23.5"
+          },
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "tls-server",
+          "tls12-renegotiation",
+          "per-host-client-certificate-policy"
+        ]
+      },
+      {
+        "id": "CVE-2026-123863",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "http2-server",
+          "response-before-request-body-end"
+        ]
+      },
+      {
+        "id": "CVE-2026-126051",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "tls-server",
+          "deferred-handshake-callback",
+          "socket-destroy-during-handshake"
+        ]
+      },
+      {
+        "id": "CVE-2026-123874",
+        "upstreamSeverity": "HIGH",
+        "published": "2026-11-11",
+        "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+        "affectedRanges": [
+          {
+            "minInclusive": "24.0.0",
+            "maxExclusive": "24.22.3"
+          },
+          {
+            "minInclusive": "26.0.0",
+            "maxExclusive": "26.13.1"
+          }
+        ],
+        "fixedVersions": [
+          {
+            "major": 24,
+            "version": "24.22.3"
+          },
+          {
+            "major": 26,
+            "version": "26.13.1"
+          }
+        ],
+        "conditions": [
+          "http2-server",
+          "respondWithFile-or-respondWithFD",
+          "reset-during-pending-write"
+        ]
+      }
+    ],
+    "rangeBasis": "The November announcement explicitly lists affected major lines. The lower bound is the start of each stated major line; this is the advisory scope, not a claim that every historical build was individually reproduced. Fixed versions are from the official security releases. EOL and unlisted majors are not inferred.",
+    "notIncluded": "Medium and Low advisories remain outside the existing Critical/recent High policy."
+  },
+  "http2Shell": {
+    "lastReviewed": "2026-11-16",
+    "reviewAfterDays": 7,
+    "staleFromUtc": "2026-11-24",
+    "electron": [
+      {
+        "version": "44.9.2",
+        "chromium": "152.0.7977.167",
+        "node": "24.22.0",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.9.3",
+        "chromium": "152.0.7977.167",
+        "node": "24.22.0",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.10.0",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.1",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.10.1",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.1",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.10.2",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.11.0",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.11.1",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.11.2",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "44.11.3",
+        "chromium": "152.0.7977.169",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.0.0",
+        "chromium": "156.0.8078.48",
+        "node": "24.22.0",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.1.0",
+        "chromium": "156.0.8078.49",
+        "node": "24.22.1",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.2.0",
+        "chromium": "156.0.8078.49",
+        "node": "24.22.1",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.2.1",
+        "chromium": "156.0.8078.75",
+        "node": "24.22.1",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.2.2",
+        "chromium": "156.0.8078.80",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.2.3",
+        "chromium": "156.0.8078.80",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.3.0",
+        "chromium": "156.0.8078.96",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.3.1",
+        "chromium": "156.0.8078.96",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.3.2",
+        "chromium": "156.0.8078.100",
+        "node": "24.22.2",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      },
+      {
+        "version": "45.3.3",
+        "chromium": "156.0.8078.100",
+        "node": "24.22.3",
+        "brotliRevision": "cfa184a997ac19454d5a3ae97f6d600aac2445a6"
+      }
+    ],
+    "dotnet11GA": "unknown; v11.0.0 decoder source did not establish the upstream block-switch error propagation fix; no claim about binary exploitability or vendor backports",
+    "remainingUnknowns": [
+      "Unlisted Electron builds",
+      "Vendor-bundled decoder copies",
+      "Runtime use and untrusted input reachability",
+      "Completed remediation"
+    ]
+  },
+  "sources": [
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:05:33.025224+00:00",
+      "status": 0,
+      "sha256": null,
+      "bytes": null,
+      "errorType": "URLError"
+    },
+    {
+      "url": "https://cveawg.mitre.org/api/cve/CVE-2026-123863",
+      "retrievedAtUtc": "2026-11-16T05:05:33.073387+00:00",
+      "status": 0,
+      "sha256": null,
+      "bytes": null,
+      "errorType": "URLError"
+    },
+    {
+      "url": "https://cveawg.mitre.org/api/cve/CVE-2026-123864",
+      "retrievedAtUtc": "2026-11-16T05:05:33.086839+00:00",
+      "status": 0,
+      "sha256": null,
+      "bytes": null,
+      "errorType": "URLError"
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:06:33.875382+00:00",
+      "status": 200,
+      "sha256": "e5860b0809369acc0792fc48b7aaa92e661042ece93828c49a869af0801872c2",
+      "bytes": 326951,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/release/v22.23.5",
+      "retrievedAtUtc": "2026-11-16T05:07:04.583865+00:00",
+      "status": 200,
+      "sha256": "1b579204a36afeab54a53bf5cc3a5811814f4c6dd49dee169e17194d962209aa",
+      "bytes": 292033,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/release/v24.22.3",
+      "retrievedAtUtc": "2026-11-16T05:07:07.160976+00:00",
+      "status": 200,
+      "sha256": "b6a1075e115c9290cb316a8ff03dda32dad44eab545dd25669215e827917343d",
+      "bytes": 295280,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/release/v26.13.1",
+      "retrievedAtUtc": "2026-11-16T05:07:10.131315+00:00",
+      "status": 200,
+      "sha256": "d895494fb3b1d01d562bd91681d2793bf1e1eab62bd290e8e35eb20d1bed1664",
+      "bytes": 295296,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/repos/google/brotli/releases/tags/v1.2.1",
+      "retrievedAtUtc": "2026-11-16T05:07:13.305397+00:00",
+      "status": 200,
+      "sha256": "0eb9cb840e680e26751fe499fa068f799a6cf5c355c678f33d95b7b8f139631a",
+      "bytes": 13466,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/repos/google/brotli/releases/tags/v1.1.1",
+      "retrievedAtUtc": "2026-11-16T05:07:13.638174+00:00",
+      "status": 200,
+      "sha256": "6926aaee1813925df97be73978c487cd4bb0dc81c76f253159abf54ed5b9c355",
+      "bytes": 1762,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/repos/google/brotli/releases/tags/v1.0.10",
+      "retrievedAtUtc": "2026-11-16T05:07:13.934832+00:00",
+      "status": 200,
+      "sha256": "1169d1dc819b53d42810bd3551b3e48a0f847e04c787522ba186c49cc412afb1",
+      "bytes": 1955,
+      "errorType": null
+    },
+    {
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "retrievedAtUtc": "2026-11-16T05:07:14.363517+00:00",
+      "status": 200,
+      "sha256": "4028ec035856331a717d3305e87e45be37d400fc500da34a5464f05fc2773764",
+      "bytes": 1854379,
+      "errorType": null
+    },
+    {
+      "url": "https://bun.com/blog/bun-v1.4.4",
+      "retrievedAtUtc": "2026-11-16T05:08:12.026819+00:00",
+      "status": 200,
+      "sha256": "bcac748755e13291f8389f0463f97440b7aabf1d13d30f8095f1b0f27a43be3f",
+      "bytes": 791478,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/oven-sh/bun/bun-v1.4.4/scripts/build/deps/brotli.ts",
+      "retrievedAtUtc": "2026-11-16T05:08:12.653254+00:00",
+      "status": 200,
+      "sha256": "bd62d6e4eae1a81ef25bf4452c0ae7a69641bf3c23d6ef24868c2c7f25c7e90b",
+      "bytes": 1734,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/advisories/GHSA-9v8h-qqgm-4m35",
+      "retrievedAtUtc": "2026-11-16T05:08:21.288202+00:00",
+      "status": 200,
+      "sha256": "8b8e68e33814ad964d1fa93cf0196dc5e08d5ee062d8daec2673803e2c7af8df",
+      "bytes": 4217,
+      "errorType": null
+    },
+    {
+      "url": "https://pypi.org/pypi/brotli/json",
+      "retrievedAtUtc": "2026-11-16T05:08:21.829262+00:00",
+      "status": 200,
+      "sha256": "5e6ba73f6e7ccdc331de8780a253a0352605966f7a947f6e1d1c923162b8cc7c",
+      "bytes": 660460,
+      "errorType": null
+    },
+    {
+      "url": "https://pypi.org/pypi/brotlicffi/json",
+      "retrievedAtUtc": "2026-11-16T05:08:48.945465+00:00",
+      "status": 200,
+      "sha256": "38b0e36bcbdb265c1338d65ce87d5cf1b09fa940636be7ea91817f9f008a6698",
+      "bytes": 206822,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/repos/dotnet/announcements/issues/494",
+      "retrievedAtUtc": "2026-11-16T05:09:15.949018+00:00",
+      "status": 200,
+      "sha256": "23e8fe82b66d93b91165a2cdc54b3b47fa4490666f8cdb6b3d5003f36edf6086",
+      "bytes": 52364,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/dotnet/core/main/release-notes/11.0/releases.json",
+      "retrievedAtUtc": "2026-11-16T05:09:16.712402+00:00",
+      "status": 200,
+      "sha256": "d99bb2bd5225ea0c5aa86d28c8c9c2cc7efbbbec8c96c8f472fb6f1fd338a2c9",
+      "bytes": 594097,
+      "errorType": null
+    },
+    {
+      "url": "https://releases.electronjs.org/releases.json",
+      "retrievedAtUtc": "2026-11-16T05:09:25.622437+00:00",
+      "status": 200,
+      "sha256": "b4dba8642b3c29433cd71f58a43adeda65aeb11e9d7a9b47791103f3fae56448",
+      "bytes": 1374750,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/february-2020-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:09:31.819925+00:00",
+      "status": 200,
+      "sha256": "c7d9fad513b861639fa8cb80534d6775dbe87b548b08034a55d22a18878832df",
+      "bytes": 268715,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/september-2020-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:09:34.677669+00:00",
+      "status": 200,
+      "sha256": "8db56f30b2bf89ec40d00ce5b36c659acfc4f962ddba0ff9aa9bf9f09605515a",
+      "bytes": 269359,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/february-2021-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:09:51.757924+00:00",
+      "status": 200,
+      "sha256": "0f5f2db770770e0bd5decaf378fcbb57aef8accdef0a29ab8156463a5e6cd29b",
+      "bytes": 264122,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/december-2025-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:10:13.869063+00:00",
+      "status": 200,
+      "sha256": "75b123411033002ca6a1c8dc5a1e6ed3e316486a09115c259005f72a8a9d4dd7",
+      "bytes": 308375,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/march-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:10:17.593908+00:00",
+      "status": 200,
+      "sha256": "ce87434744339e3740f21c895a7d0b03e1f62e2921a115090430f25ad16504be",
+      "bytes": 293748,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/june-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:10:39.701812+00:00",
+      "status": 200,
+      "sha256": "d013953d5a2e0fedef5b167ccae62c9cdcfb04795a180a0fc8f068ee39fec886",
+      "bytes": 295093,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/july-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:10:43.325868+00:00",
+      "status": 200,
+      "sha256": "057341b70e249356348233b6c155342c3b180458bf6967316b73299ee3962162",
+      "bytes": 293808,
+      "errorType": null
+    },
+    {
+      "url": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "retrievedAtUtc": "2026-11-16T05:10:47.005729+00:00",
+      "status": 200,
+      "sha256": "99c55f5f989f528c8a14def3599e4428f1e15a1b190907d0273df5a7ee85491a",
+      "bytes": 300130,
+      "errorType": null
+    },
+    {
+      "url": "https://api.github.com/repos/nodejs/security-wg/contents/vuln/core?ref=main",
+      "retrievedAtUtc": "2026-11-16T05:11:43.286158+00:00",
+      "status": 200,
+      "sha256": "ff5f284aaa21dbfba3679fd53c56f6769bc9a7360ca134424791ae762043be27",
+      "bytes": 160822,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/electron/electron/v45.3.3/patches/node/build_add_gn_build_files.patch",
+      "retrievedAtUtc": "2026-11-16T05:11:43.675804+00:00",
+      "status": 200,
+      "sha256": "1f516704523cc6c8c6779528c9693c23916396a0500de2d375bcedbcc5fc774d",
+      "bytes": 17017,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/electron/electron/v44.11.3/patches/node/build_add_gn_build_files.patch",
+      "retrievedAtUtc": "2026-11-16T05:11:52.375226+00:00",
+      "status": 200,
+      "sha256": "1f516704523cc6c8c6779528c9693c23916396a0500de2d375bcedbcc5fc774d",
+      "bytes": 17017,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/dotnet/runtime/v11.0.0/src/native/external/brotli/c/dec/decode.c",
+      "retrievedAtUtc": "2026-11-16T05:12:01.127539+00:00",
+      "status": 200,
+      "sha256": "15fac5373afcd33daff148eeb7826108c97d35a3c3d9446e1c8bb2d6e9b7aecf",
+      "bytes": 104033,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/google/brotli/cfa184a997ac19454d5a3ae97f6d600aac2445a6/c/dec/decode.c",
+      "retrievedAtUtc": "2026-11-16T05:12:09.940682+00:00",
+      "status": 200,
+      "sha256": "d48bc54c60553238d50db2fcd606522efd447d33a37d6a2d5c2ea1ece22067c3",
+      "bytes": 109313,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/oven-sh/bun/bun-v1.4.3/scripts/build/deps/brotli.ts",
+      "retrievedAtUtc": "2026-11-16T05:12:18.737073+00:00",
+      "status": 200,
+      "sha256": "59c55f082972d26bacd5bd2f3f87b62b7c472247dab1b199d543acfbab6653d8",
+      "bytes": 1734,
+      "errorType": null
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json",
+      "retrievedAtUtc": "2026-11-16T05:13:51.364740+00:00",
+      "status": 200,
+      "sha256": "f828e1488a638b970e88cc3e9993d34a8fb1fc02bd5e160b8ced2df99016d217",
+      "bytes": 145003,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/152.0.7977.167/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:00.195245+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/152.0.7977.169/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:00.749378+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.48/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:01.187505+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.49/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:01.552172+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.75/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:02.539879+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.80/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:03.884400+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.96/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:04.766733+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    },
+    {
+      "url": "https://chromium.googlesource.com/chromium/src/+/156.0.8078.100/third_party/brotli/README.chromium?format=TEXT",
+      "retrievedAtUtc": "2026-11-16T05:14:05.195979+00:00",
+      "status": 200,
+      "sha256": "9fc76420ab175d01714636f555f9aeb6e53c7055fd2ca58fe43ec6ef91ed0afe",
+      "bytes": 1544,
+      "errorType": null
+    }
+  ]
+}

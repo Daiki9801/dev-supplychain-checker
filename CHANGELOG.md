@@ -4,6 +4,14 @@ User-visible changes are documented here beginning with version 0.1.15. Earlier 
 
 ## [Unreleased]
 
+- Adds seven November 11 Node.js High advisories to shipped and built-in data (24 total), preserves the affected-major and conditional-exposure distinctions, and refreshes the Node baseline after checking its official sources. Updates synthetic fixed-version pins and CI metadata to 22.23.5 / 24.22.3 / 26.13.1.
+- Rechecks the HTTP2Shell baseline on November 16 using official component records and fixed sources. Adds eight exact Electron builds, retains unresolved .NET 11.0.0/vendor cases, and tests the seven-day freshness boundary without changing the OS clock.
+- Adds November Node regression coverage for 140 version boundaries, report classification and missing/invalid-data fallback; links the tests into the existing IOC maintenance CI step and records the public source hashes.
+- Separates two historically correlated Injective package versions from confirmed malware: WARN with explicit uncertainty, medium confidence for installed/lock matches and low confidence for references. Applies the distinction to local and built-in IOCs, ordinary package scans and static npm global/cache metadata.
+- Records the primary-report basis for 39 older payment-package pairs, preserves DANGER for exact confirmed versions and malicious Action commits, and labels historical Action tags with the last blocked repository lookup and unverified current target. Adds synthetic end-to-end coverage to the existing IOC maintenance suite.
+- Corrects npm cache completion classification so `bounded-metadata-within-limits` is not mistaken for a reached limit; partial and limit-reached states retain incomplete coverage.
+- Documents the November 16 Node.js update investigation, November security fixes and the current Node/HTTP2Shell baseline limits without installing or executing Node.js.
+- Makes the HTTP2Shell lockfile regressions check baseline freshness and its specific WARN instead of assuming an indefinitely current baseline and exit 0. Preserves the seven-day review policy and production stale warning.
 - Rejects mapped network and unknown drives before HTTP2Shell host path metadata probes; rechecks drive classification before directory traversal. Adds synthetic drive-type and probe-order regressions without contacting a share.
 - Shares the Windows PowerShell 5.1 npm root-key normalization between ordinary package scans and HTTP2Shell, with v2/v3 package-lock and shrinkwrap regressions.
 - Requires all seven shipped IOC datasets for `iocData.releaseReady=true`. Reports unchecked datasets separately and documents the complete publication gate.

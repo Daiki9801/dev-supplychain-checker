@@ -183,12 +183,26 @@ New-MaintenanceCase campaign-tampered {param($data) $data['campaign-keyv-chaindr
 Assert-BlockedDataset 'campaign-keyv-chaindrop-20260806.json' invalid
 New-MaintenanceCase action-invalid {param($data) $data['known-actions.json'].advisories = @(@{id='invalid'})}
 Assert-BlockedDataset 'known-actions.json' invalid
+New-MaintenanceCase package-invalid-basis {param($data) ($data['known-packages.json'].packages | Where-Object name -eq '@injectivelabs/wallet-cosmostation').evidenceBasis='confirmed-by-date-only'}
+Assert-BlockedDataset 'known-packages.json' invalid
+New-MaintenanceCase package-invalid-correlation-severity {param($data) ($data['known-packages.json'].packages | Where-Object name -eq '@injectivelabs/wallet-cosmos-strategy').severity='DANGER'}
+Assert-BlockedDataset 'known-packages.json' invalid
+New-MaintenanceCase package-invalid-review-date {param($data) ($data['known-packages.json'].packages | Where-Object name -eq '@injectivelabs/wallet-cosmostation').sourceReviewedAt='invalid'}
+Assert-BlockedDataset 'known-packages.json' invalid
+New-MaintenanceCase action-invalid-repository-status {param($data) $data['known-actions.json'].actions[0].repositoryCheckStatus='current-verified'}
+Assert-BlockedDataset 'known-actions.json' invalid
 Reset-MaintenanceContext $artifactRoot
 Set-IocDataSetStatus -Name 'synthetic' -FilePath 'synthetic' -Status current -LastUpdated (Get-Date).AddDays(1).ToString('yyyy-MM-dd') -ExpiresAfterDays 30
 Assert-Maintenance (-not (Get-IocDataSummary).releaseReady) 'Summary setter accepted a future date'
 $cases++
 
 $builtin = Load-BuiltinIocs
+foreach ($name in @('@injectivelabs/wallet-cosmostation','@injectivelabs/wallet-cosmos-strategy')) {
+    foreach ($entries in @($builtin.packages, $shipped['known-packages.json'].packages)) {
+        $entry=@($entries | Where-Object {$_.ecosystem -eq 'npm' -and $_.name -eq $name})
+        Assert-Maintenance ($entry.Count -eq 1 -and $entry[0].severity -eq 'WARN' -and $entry[0].evidenceBasis -eq 'historical-correlation' -and $entry[0].sourceId -eq 'S13') 'Local/builtin correlation confidence differs'
+    }
+}
 foreach ($name in @('jscrambler-webpack-plugin','grunt-jscrambler')) {
     Assert-Maintenance (@($builtin.packages | Where-Object {$_.name -eq $name}).Count -eq 0) 'Excluded Jscrambler wrapper remains in built-in exact IOCs'
     Assert-Maintenance (@($shipped['known-packages.json'].packages | Where-Object {$_.name -eq $name}).Count -eq 0) 'Excluded Jscrambler wrapper remains in local exact IOCs'
@@ -237,5 +251,10 @@ foreach ($file in @(Get-ChildItem -LiteralPath $sampleRoot -File -Recurse -Force
 }
 Assert-Maintenance ($seen.Count -eq 158) 'Fixture inventory changed without review'
 $cases++
+$winPS=Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+& $winPS -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Test-IocConfidenceRegressions.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'IOC confidence end-to-end regression failed' }
+& $winPS -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Test-NodeSecurity20261116.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Node November end-to-end regression failed' }
 Write-NewMaintenanceFile (Join-Path $artifactRoot 'result.json') (@{status='passed';cases=$cases;assertions=$assertions;manifestEntries=$seen.Count} | ConvertTo-Json)
 Write-Output ('IOC maintenance regressions passed: {0} cases, {1} assertions, {2} fixtures. Artifacts: {3}' -f $cases,$assertions,$seen.Count,$artifactRoot)

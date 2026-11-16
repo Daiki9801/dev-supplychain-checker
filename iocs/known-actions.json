@@ -3,6 +3,7 @@
   "lastUpdated": "2026-11-07",
   "sourceSet": "curated-codfish-mini-shai-hulud-and-actions-advisory-review-20261107",
   "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
+  "followupReviewRecord": "docs/ioc-confidence-20261116-ja.md",
   "sourceUrls": [
     "https://api.github.com/advisories?ecosystem=actions&type=malware",
     "https://api.github.com/advisories?ecosystem=actions&type=reviewed",
@@ -11,7 +12,7 @@
     "https://github.com/advisories/GHSA-2qvg-qr73-mqxp"
   ],
   "scope": "Curated immutable known-bad commits, historically affected mutable refs, and bounded CVE reference-version advisories. The current public Actions delta covers 2026-10-07 through 2026-11-07.",
-  "reviewNotes": "Compared both Action incidents and the conflibot CVE with their sources. The delta contained no malware records and one pypi-publish trust-chain advisory outside the compromised-ref and CVE schema. Historical refs retain WARN. The sampled remote tags were inaccessible.",
+  "reviewNotes": "Historical tags and three malicious commits were corroborated with primary reports on November 9. Two authenticated tag queries returned Repository access blocked (tos); the remaining 13 were not queried after the repeated failure. Current targets remain unverified and historical refs retain WARN. The November 7 corpus review date is unchanged.",
   "supplementLastReviewed": "2026-10-06",
   "supplementScope": "S09 bad commit/historical ref and S10 reference-version advisory, included in the complete bounded dataset review recorded above.",
   "expiresAfterDays": 30,
@@ -19,9 +20,12 @@
     {"id":"CVE-2026-55158","repository":"wktk/conflibot","upstreamSeverity":"CRITICAL","published":"2026-08-17","sourceUrl":"https://github.com/advisories/GHSA-2qvg-qr73-mqxp","sourceId":"S10","affectedRanges":[{"maxExclusive":"1.2.1"}],"fixedVersions":["1.2.1","2.0.0"],"conditions":["pull_request_target","attacker-controlled-head-ref"]}
   ],
   "actions": [
-    {"repository":"actions-cool/issues-helper","compromisedCommits":["a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d"],"compromisedRefs":["v2.2.1"],"sourceId":"S09","notes":"Mini Shai-Hulud: reported malicious immutable commit and historical ref. Re-enabled September 16 and disabled again September 25; current availability is not asserted."},
+    {"repository":"actions-cool/issues-helper","compromisedCommits":["a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d"],"compromisedRefs":["v2.2.1"],"sourceId":"S09","repositoryCheckStatus":"blocked-tos","repositoryCheckedAt":"2026-11-09","notes":"Historical compromise; GitHub repository access was blocked (tos) at the last check. Current tag targets remain unverified."},
     {
       "repository": "codfish/semantic-release-action",
+      "sourceId": "S14",
+      "repositoryCheckStatus": "blocked-tos",
+      "repositoryCheckedAt": "2026-11-09",
       "compromisedCommits": [
         "5792aba0e2180b9b80b77644370a6889d5817456",
         "bcb6b1d409144318e8fad2171d6fe06d02299d1a"
@@ -42,7 +46,7 @@
         "v5",
         "v5.0.0"
       ],
-      "notes": "Known compromised commits and historically affected mutable refs. Historical refs remain WARN because their current targets cannot be resolved offline."
+      "notes": "Historical compromise; GitHub repository access was blocked (tos) at the last check. Current tag targets remain unverified."
     }
   ]
 }
