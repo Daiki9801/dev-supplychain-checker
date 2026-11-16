@@ -1,6 +1,6 @@
 # HTTP2Shell / CVE-2026-111497 特別監査
 
-**2026-11-07 JST 再レビュー**。初回調査は 2026-10-26。対象バージョンは **0.1.28**。
+**2026-11-16 JST 再レビュー**。初回調査は 2026-10-26。対象バージョンは **0.1.28**。今回の出典・確認限界は [Node IOC・HTTP2Shell再照合](node-http2shell-20261116-ja.md) と [公開証拠台帳](node-http2shell-20261116-evidence.json) に記録した。
 
 引き継ぎ資料 `HTTP2Shell_CLAUDE_CODE_HANDOFF_2026-10-25.md` を起点に、公開一次情報と固定ソースを再確認した。この文書は一般配布用の判定根拠であり、資料にある特定PCの製品版・PID・署名・更新状態を再観測した記録ではない。資料内の過去の許可を、今回の実機読み取り・設定変更・他プロジェクト更新の許可として扱っていない。
 
@@ -22,7 +22,7 @@ CVE の CNA 評価は **CVSS 4.0: 9.2 / CRITICAL**。Node.js の評価は **HIGH
 | .NET ランタイム | **8.0.33 / 9.0.22 / 10.0.14**。Microsoft が 2026-10-25 19:06 UTC、JST では **10-26** に声明を公開 | SDK、`dotnet.exe` のホスト版、runtimeconfig の最小要求版を実際の選択ランタイムと同一視しない |
 | .NET 11 Preview / RC | 公式修正版は **11.0.0-rc.3.26522.148**。公式版一覧の Preview 1–7 と RC 1・2 は影響範囲内 | 公式一覧と照合した完全なランタイム版文字列を判定。未照合のビルド・短いプレビュー参照・最小要求版は要確認 |
 | .NET SDK | 公式の修正版 SDK は **8.0.133 / 8.0.427、9.0.123 / 9.0.320、10.0.114 / 10.0.403、11.0.100-rc.3.26522.148** | feature band と実際のランタイム選択を別途確認。SDK の数字にランタイム用の閾値を当てない |
-| 公式 Electron | 下表の 11 版で、GN パッチが Chromium の `third_party/brotli:dec/enc` をリンクし、ピン先のデコーダーに修正があることを確認 | 下表にある完全一致の版を修正済み upstream 参照として扱う。未照合の版や独自ビルドは要確認 |
+| 公式 Electron | 下表の 19 版で、GN パッチが Chromium の `third_party/brotli:dec/enc` をリンクし、ピン先のデコーダーに修正があることを確認 | 下表にある完全一致の版を修正済み upstream 参照として扱う。未照合の版や独自ビルドは要確認 |
 | Claude Desktop / Claude Code / Codex / エディター / WebView2 | 製品ごとに Electron、Bun、Node、独自バンドルの証拠が必要 | 製品バイナリはメタデータの棚卸しに留める。署名、公式ハッシュ一致、内蔵版文字列は、それだけでは修正反映の証明にならない |
 | Git / curl / native addon / Pillow / fontTools / WOFF2 | Brotli を含む構成と含まない構成、共有・静的リンクがある | Git/curl や Pillow 自体の製品版に Brotli の修正閾値を当てない。配布元のビルド情報、SBOM、選択・ロード経路を要確認として残す |
 
@@ -31,13 +31,17 @@ PyPI の修正済み配布は Brotli 1.2.1 と brotlicffi 1.2.1.0。C のバッ�
 | 公式 Electron | `DEPS` に固定された Chromium |
 |---|---|
 | 44.9.2、44.9.3 | [152.0.7977.167](https://chromium.googlesource.com/chromium/src/+/152.0.7977.167/third_party/brotli/README.chromium) |
-| 44.10.0、44.10.1、44.10.2 | [152.0.7977.169](https://chromium.googlesource.com/chromium/src/+/152.0.7977.169/third_party/brotli/README.chromium) |
+| 44.10.0、44.10.1、44.10.2、44.11.0～44.11.3 | [152.0.7977.169](https://chromium.googlesource.com/chromium/src/+/152.0.7977.169/third_party/brotli/README.chromium) |
 | 45.0.0 | [156.0.8078.48](https://chromium.googlesource.com/chromium/src/+/156.0.8078.48/third_party/brotli/README.chromium) |
 | 45.1.0、45.2.0 | [156.0.8078.49](https://chromium.googlesource.com/chromium/src/+/156.0.8078.49/third_party/brotli/README.chromium) |
 | 45.2.1 | [156.0.8078.75](https://chromium.googlesource.com/chromium/src/+/156.0.8078.75/third_party/brotli/README.chromium) |
 | 45.2.2、45.2.3 | [156.0.8078.80](https://chromium.googlesource.com/chromium/src/+/156.0.8078.80/third_party/brotli/README.chromium) |
+| 45.3.0、45.3.1 | [156.0.8078.96](https://chromium.googlesource.com/chromium/src/+/156.0.8078.96/third_party/brotli/README.chromium) |
+| 45.3.2、45.3.3 | [156.0.8078.100](https://chromium.googlesource.com/chromium/src/+/156.0.8078.100/third_party/brotli/README.chromium) |
 
-各タグの `DEPS`、GN パッチ、公式リリース一覧を照合した。Chromium の 6 タグが参照する `cfa184a997ac19454d5a3ae97f6d600aac2445a6` では、literal・command・distance の各 block switch が恒久エラーを伝播する。 [公式リリース一覧](https://releases.electronjs.org/releases.json) [44.9.2 の DEPS](https://github.com/electron/electron/blob/v44.9.2/DEPS) [45.2.3 の GN パッチ](https://github.com/electron/electron/blob/v45.2.3/patches/node/build_add_gn_build_files.patch) [固定デコーダー](https://github.com/google/brotli/blob/cfa184a997ac19454d5a3ae97f6d600aac2445a6/c/dec/decode.c)
+11月7日に確認した `DEPS` とGNパッチの対応を保持し、11月16日は公式リリース一覧・両系列の最新GNパッチ・Chromium 8固定版を再照合した。すべてが参照する `cfa184a997ac19454d5a3ae97f6d600aac2445a6` では、literal・command・distance の各 block switch が恒久エラーを伝播する。 [公式リリース一覧](https://releases.electronjs.org/releases.json) [44.11.3 の GN パッチ](https://github.com/electron/electron/blob/v44.11.3/patches/node/build_add_gn_build_files.patch) [45.3.3 の GN パッチ](https://github.com/electron/electron/blob/v45.3.3/patches/node/build_add_gn_build_files.patch) [固定デコーダー](https://github.com/google/brotli/blob/cfa184a997ac19454d5a3ae97f6d600aac2445a6/c/dec/decode.c)
+
+.NET 11.0.0 GAの公開は確認したが、取得した固定decoderソースから上流の修正との対応を確定できなかったため `unknown` を維持する。Preview／RCの公式告知を、GA版の修正済み判定へ自動で拡張しない。これはGA配布物の悪用可能性を断定した結果ではない。
 
 ## 入力経路と対応状態
 
@@ -113,13 +117,13 @@ TXT と JSON の両方へ `HTTP2Shell` の結果を出力する。JSON の `http
 
 件数は観測したメタデータ参照であり、製品数・部品コピー数・環境数・プロセス数ではない。同じ版を複数の lock / manifest が参照することがある。入力候補と版参照をファイル横断で結合して「到達可能」と断定しない。
 
-専用基準の `lastReviewed` は 2026-11-07。UTC 日付で 7 日を超過するか未来日付の場合は再確認の WARN を出す。一般 IOC の公開条件は `-Checks Recommended` の `iocData.releaseReady`、専用基準の鮮度は `http2ShellAssessment.baselineStatus` で確認する。 `scanComplete=true` は選択した範囲の処理完了を示す。 [一般 IOC の照合記録](ioc-maintenance-20261107-ja.md)
+専用基準の `lastReviewed` は 2026-11-16。UTC 日付で 7 日を超過するか未来日付の場合は再確認の WARN を出す（11月24日UTCからstale）。一般 IOC の公開条件は `-Checks Recommended` の `iocData.releaseReady`、専用基準の鮮度は `http2ShellAssessment.baselineStatus` で確認する。 `scanComplete=true` は選択した範囲の処理完了を示す。Node以外の一般IOCの確認日は変更していない。 [一般 IOC の照合記録](ioc-maintenance-20261107-ja.md)
 
 一般 IOC の公開ゲートは `Recommended` の `scanComplete=true`、`completionStatus=complete`、`currentCount=7`、`releaseReady=true` をすべて要求する。`Http2Shell,ScannerSelf` だけでは Node.js データが未確認なので、`notCheckedCount=1`、`releaseReady=false` となる。npm v2/v3 の `package-lock.json` と `npm-shrinkwrap.json` は、通常走査と共有する空ルートキーのメモリ内正規化を使い、入力ファイルを変更しない。
 
 ## 確認した公開情報
 
-2026-11-07 の再照合には次の公開レコードと固定ソースを使用した。Bun tracking と Claude Code CHANGELOG は初回調査の参照先。
+次は基準の出典一覧。2026-11-16の再照合で実際に取得したURLとハッシュは [公開証拠台帳](node-http2shell-20261116-evidence.json) を参照する。CVE APIは今回取得できず、Googleの公式修正告知・GHSA・CISA等を照合した。Bun trackingとClaude Code CHANGELOGは初回調査の参照先で、今回の再照会先ではない。
 
 | ID | 一次情報・参照先 |
 |---|---|

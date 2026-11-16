@@ -3149,7 +3149,7 @@ function Write-Reports {
             Write-Host ("Node.js project refs: observed={0}; evaluated={1}; vulnerable={2}; notAffected={3}; unresolved={4}" -f $nodeRuntimeAssessment.projectReferences.observed,$nodeRuntimeAssessment.projectReferences.versionsEvaluated,$nodeRuntimeAssessment.projectReferences.vulnerable,$nodeRuntimeAssessment.projectReferences.notAffected,$nodeRuntimeAssessment.projectReferences.unresolved)
         }
         if ($http2ShellAssessment.enabled) { Write-Host ("HTTP2Shell: affected version matches={0}; fixed upstream references={1}; unknown={2}; input candidates={3}; remediation confirmed=0; baseline={4}" -f $http2ShellAssessment.summary.affectedVersionMatches,$http2ShellAssessment.summary.fixedVersionReferences,$http2ShellAssessment.summary.unknown,$http2ShellAssessment.inputSignals.Count,$http2ShellAssessment.baselineStatus) }
-        if (-not [bool]$script:Context.coverage.scanComplete -or $coverageStatusSummary.dependencyCoverageStatus -match 'partial|sampled' -or $coverageStatusSummary.npmCacheCoverageStatus -match 'partial|limit') {
+        if (-not [bool]$script:Context.coverage.scanComplete -or $coverageStatusSummary.dependencyCoverageStatus -match 'partial|sampled' -or $coverageStatusSummary.npmCacheCoverageStatus -match 'partial|limit-reached') {
             Write-Host ("Coverage: Dependencies={0}; NpmGlobal={1}; NpmCache={2}; NextAction={3}" -f $coverageStatusSummary.dependencyCoverageStatus,$coverageStatusSummary.npmGlobalCoverageStatus,$coverageStatusSummary.npmCacheCoverageStatus,$coverageStatusSummary.nextAction)
         }
         Write-Host ("TXT:  {0}" -f $script:Context.reportPaths.text)
@@ -3158,8 +3158,9 @@ function Write-Reports {
 }
 
 function Add-BuiltinPackageIoc {
-    param($List, [string]$Ecosystem, [string]$Name, [string[]]$Versions, [string]$Notes)
-    Add-ListItem $List ([ordered]@{ ecosystem=$Ecosystem; name=$Name; versions=@($Versions); severity='DANGER'; notes=$Notes })
+    param($List, [string]$Ecosystem, [string]$Name, [string[]]$Versions, [string]$Notes,
+        [string]$Severity='DANGER', [string]$EvidenceBasis='', [string]$SourceId='', [string]$SourceReviewedAt='')
+    Add-ListItem $List ([ordered]@{ ecosystem=$Ecosystem; name=$Name; versions=@($Versions); severity=$Severity; notes=$Notes; evidenceBasis=$EvidenceBasis; sourceId=$SourceId; sourceReviewedAt=$SourceReviewedAt })
 }
 
 function Add-BuiltinFileHashIoc {
@@ -3208,6 +3209,7 @@ function Load-BuiltinNodeRuntimeIocs {
     $jun2026 = 'https://nodejs.org/en/blog/vulnerability/june-2026-security-releases'
     $jul2026 = 'https://nodejs.org/en/blog/vulnerability/july-2026-security-releases'
     $oct2026 = 'https://nodejs.org/en/blog/vulnerability/october-2026-security-releases'
+    $nov2026 = 'https://nodejs.org/en/blog/vulnerability/november-2026-security-releases'
 
     Add-ListItem $items (New-NodeRuntimeAdvisory 'CVE-2019-15605' 'CRITICAL' '2020-02-06' $feb2020 @(
         (New-NodeRuntimeRange '10.0.0' '10.19.0'), (New-NodeRuntimeRange '12.0.0' '12.15.0'), (New-NodeRuntimeRange '13.0.0' '13.8.0')
@@ -3270,9 +3272,31 @@ function Load-BuiltinNodeRuntimeIocs {
         (New-NodeRuntimeRange '24.20.0' '24.22.1'), (New-NodeRuntimeRange '26.6.0' '26.12.1')
     ) @((New-NodeRuntimeFixedVersion 24 '24.22.1'),(New-NodeRuntimeFixedVersion 26 '26.12.1')) @('tls-client','fullwidth-ipv4'))
 
+    foreach ($id in @('CVE-2026-123864','CVE-2026-123865','CVE-2026-123866','CVE-2026-123872')) {
+        $conditions = switch ($id) {
+            'CVE-2026-123864' { @('https-server','response-before-request-body-end','body-echo-or-storage') }
+            'CVE-2026-123865' { @('http2-server','protocol-error-during-shutdown') }
+            'CVE-2026-123866' { @('http2-server','backpressured-write','stream-teardown') }
+            'CVE-2026-123872' { @('tls-server','tls12-renegotiation','per-host-client-certificate-policy') }
+        }
+        Add-ListItem $items (New-NodeRuntimeAdvisory $id 'HIGH' '2026-11-11' $nov2026 @(
+            (New-NodeRuntimeRange '22.0.0' '22.23.5'), (New-NodeRuntimeRange '24.0.0' '24.22.3'), (New-NodeRuntimeRange '26.0.0' '26.13.1')
+        ) @((New-NodeRuntimeFixedVersion 22 '22.23.5'),(New-NodeRuntimeFixedVersion 24 '24.22.3'),(New-NodeRuntimeFixedVersion 26 '26.13.1')) $conditions)
+    }
+    foreach ($id in @('CVE-2026-123863','CVE-2026-126051','CVE-2026-123874')) {
+        $conditions = switch ($id) {
+            'CVE-2026-123863' { @('http2-server','response-before-request-body-end') }
+            'CVE-2026-126051' { @('tls-server','deferred-handshake-callback','socket-destroy-during-handshake') }
+            'CVE-2026-123874' { @('http2-server','respondWithFile-or-respondWithFD','reset-during-pending-write') }
+        }
+        Add-ListItem $items (New-NodeRuntimeAdvisory $id 'HIGH' '2026-11-11' $nov2026 @(
+            (New-NodeRuntimeRange '24.0.0' '24.22.3'), (New-NodeRuntimeRange '26.0.0' '26.13.1')
+        ) @((New-NodeRuntimeFixedVersion 24 '24.22.3'),(New-NodeRuntimeFixedVersion 26 '26.13.1')) $conditions)
+    }
+
     return [ordered]@{
         schemaVersion = '0.1.14'
-        lastUpdated = '2026-11-07'
+        lastUpdated = '2026-11-16'
         expiresAfterDays = 30
         highRetentionDays = 365
         advisories = $items
@@ -3312,7 +3336,7 @@ function Get-SecurityUpdate20261006Iocs {
             [ordered]@{ pathPattern='(?i)(?:^|[\\/])app\.js$'; sha256='684c877a52d226d50584cb886ca8ec5bec6355d4de853f406734c79d5b387804'; severity='DANGER'; ownerCheck='IdeExtensions'; artifactRole='ide-payload'; sourceId='S11'; ruleId='security-20261006-h16'; notes='Confirmed malicious Marketplace artifact hash; extension identity alone is not sufficient.' }
         )
         actions = @(
-            [ordered]@{ repository='actions-cool/issues-helper'; compromisedCommits=@('a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d'); compromisedRefs=@('v2.2.1'); sourceId='S09'; notes='Mini Shai-Hulud: reported malicious immutable commit and historical ref. Re-enabled September 16 and disabled again September 25; current availability is not asserted.' }
+            [ordered]@{ repository='actions-cool/issues-helper'; compromisedCommits=@('a0c53dd42fc842d2f9276c5a1d4f9a26abe8713d'); compromisedRefs=@('v2.2.1'); sourceId='S09'; repositoryCheckStatus='blocked-tos'; repositoryCheckedAt='2026-11-09'; notes='Mini Shai-Hulud: historical compromise; GitHub repository access was blocked (tos) at the last check. Current tag targets remain unverified.' }
         )
         advisories = @(
             [ordered]@{ id='CVE-2026-55158'; repository='wktk/conflibot'; upstreamSeverity='CRITICAL'; published='2026-08-17'; sourceUrl='https://github.com/advisories/GHSA-2qvg-qr73-mqxp'; sourceId='S10'; affectedRanges=@([ordered]@{ maxExclusive='1.2.1' }); fixedVersions=@('1.2.1','2.0.0'); conditions=@('pull_request_target','attacker-controlled-head-ref') }
@@ -3360,7 +3384,10 @@ function Load-BuiltinIocs {
         '@injectivelabs/wallet-wallet-connect','@injectivelabs/wallet-magic','@injectivelabs/wallet-strategy',
         '@injectivelabs/wallet-turnkey','@injectivelabs/wallet-cosmos-strategy'
     )) {
-        Add-BuiltinPackageIoc $packages 'npm' $injectiveName @('1.20.21') 'Injective compromise exact version'
+        if ($injectiveName -in @('@injectivelabs/wallet-cosmostation','@injectivelabs/wallet-cosmos-strategy')) {
+            Add-BuiltinPackageIoc $packages 'npm' $injectiveName @('1.20.21') 'Historical publication and general maintainer warning; individual package compromise is unconfirmed.' -Severity 'WARN' -EvidenceBasis 'historical-correlation' -SourceId 'S13' -SourceReviewedAt '2026-11-09'
+        }
+        else { Add-BuiltinPackageIoc $packages 'npm' $injectiveName @('1.20.21') 'Injective compromise exact version' }
     }
     Add-BuiltinPackageIoc $packages 'npm' '@bitwarden/cli' @('2026.4.0') 'Bitwarden CLI npm compromise exact version'
     Add-BuiltinPackageIoc $packages 'npm' 'react-native-country-select' @('0.3.91') 'React Native GlassWorm exact version'
@@ -3371,7 +3398,7 @@ function Load-BuiltinIocs {
     Add-BuiltinPackageIoc $packages 'npm' '@cap-js/sqlite' @('2.2.2') 'SAP CAP ecosystem compromise exact version'
     $paymentVersions = @('1.0.0','1.0.1','1.0.2','1.0.3')
     foreach ($paymentName in @('paysafe-checkout','paysafe-vault','neteller','skrill-payments','paysafe-js','paysafe-api','paysafe-node','paysafe-cards','paysafe-fraud','paysafe-kyc','skrill','skrill-sdk','paysafe-payments')) {
-        Add-BuiltinPackageIoc $packages 'npm' $paymentName $paymentVersions 'Payment brand typosquat campaign exact versions'
+        Add-BuiltinPackageIoc $packages 'npm' $paymentName $paymentVersions 'Socket explicitly reports versions 1.0.0 through 1.0.3 as malicious; artifacts were not independently analyzed.' -EvidenceBasis 'primary-report-exact' -SourceId 'S12' -SourceReviewedAt '2026-11-09'
     }
     foreach ($pythonPaymentName in @('paysafe-kyc','paysafe-payments','paysafe-sdk','paysafe-api')) {
         Add-BuiltinPackageIoc $packages 'python' $pythonPaymentName @('1.0.0') 'Python payment brand typosquat exact version'
@@ -3416,7 +3443,8 @@ function Load-BuiltinIocs {
         repository='codfish/semantic-release-action'
         compromisedCommits=@('5792aba0e2180b9b80b77644370a6889d5817456','bcb6b1d409144318e8fad2171d6fe06d02299d1a')
         compromisedRefs=@('v2','v2.2.1','v3','v3.0.0','v3.1.0','v3.2.0','v3.3.0','v3.4.0','v3.5.0','v4','v4.0.0','v4.0.1','v5','v5.0.0')
-        notes='Known compromised GitHub Action commits and historically affected mutable refs'
+        sourceId='S14'; repositoryCheckStatus='blocked-tos'; repositoryCheckedAt='2026-11-09'
+        notes='Historical compromise; GitHub repository access was blocked (tos) at the last check. Current tag targets remain unverified.'
     })
 
     $patterns = New-ArrayList
@@ -3511,6 +3539,14 @@ function Test-LocalIocEntry {
             if (-not (Test-IsExactPackageVersionText -Version ([string]$version) -Ecosystem $ecosystem)) { return $false }
         }
         if ($Section -eq 'packages') {
+            $basis = [string](Get-PropertyValue $Entry 'evidenceBasis')
+            if ($basis -notin @('','primary-report-exact','historical-correlation')) { return $false }
+            if (-not [string]::IsNullOrEmpty($basis)) {
+                if ([string](Get-PropertyValue $Entry 'sourceId') -cnotmatch '^S[0-9]{2}$') { return $false }
+                try { $reviewed=[DateTime]::ParseExact([string](Get-PropertyValue $Entry 'sourceReviewedAt'),'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture); if ($reviewed.Date -gt [DateTime]::UtcNow.Date) { return $false } }
+                catch { return $false }
+                if ($basis -eq 'historical-correlation' -and [string](Get-PropertyValue $Entry 'severity') -ne 'WARN') { return $false }
+            }
             $packageName = [string](Get-PropertyValue $Entry 'name')
             if ([string](Get-PropertyValue $Entry 'ecosystem') -ieq 'python') {
                 return ($packageName.Length -le 128 -and $packageName -match '\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\z')
@@ -3522,6 +3558,12 @@ function Test-LocalIocEntry {
     }
     if ($Section -eq 'actions') {
         if ([string](Get-PropertyValue $Entry 'repository') -notmatch '^[a-z0-9_.-]+/[a-z0-9_.-]+$') { return $false }
+        $repositoryStatus = [string](Get-PropertyValue $Entry 'repositoryCheckStatus')
+        if ($repositoryStatus -notin @('','blocked-tos')) { return $false }
+        if (-not [string]::IsNullOrEmpty($repositoryStatus)) {
+            try { $checked=[DateTime]::ParseExact([string](Get-PropertyValue $Entry 'repositoryCheckedAt'),'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture); if ($checked.Date -gt [DateTime]::UtcNow.Date) { return $false } }
+            catch { return $false }
+        }
         $commits = @((Get-PropertyValue $Entry 'compromisedCommits') | Where-Object {$null -ne $_})
         $refs = @((Get-PropertyValue $Entry 'compromisedRefs') | Where-Object {-not [string]::IsNullOrWhiteSpace([string]$_)})
         foreach ($commit in $commits) { if ([string]$commit -notmatch '^[0-9a-f]{40}$') { return $false } }
@@ -3650,6 +3692,8 @@ function Load-LocalIocs {
                         severity = [string](Get-PropertyValue $package 'severity')
                         notes = [string](Get-PropertyValue $package 'notes')
                         sourceId = [string](Get-PropertyValue $package 'sourceId')
+                        evidenceBasis = [string](Get-PropertyValue $package 'evidenceBasis')
+                        sourceReviewedAt = [string](Get-PropertyValue $package 'sourceReviewedAt')
                     })
                 }
             }
@@ -3684,6 +3728,8 @@ function Load-LocalIocs {
                         compromisedRefs = @((Get-PropertyValue $action 'compromisedRefs'))
                         notes = [string](Get-PropertyValue $action 'notes')
                         sourceId = [string](Get-PropertyValue $action 'sourceId')
+                        repositoryCheckStatus = [string](Get-PropertyValue $action 'repositoryCheckStatus')
+                        repositoryCheckedAt = [string](Get-PropertyValue $action 'repositoryCheckedAt')
                     })
                 }
             }
@@ -4526,16 +4572,19 @@ function Get-Http2ShellSources {
         [ordered]@{ id='H2S-DOTNET'; url='https://github.com/dotnet/announcements/issues/494' },
         [ordered]@{ id='H2S-DOTNET-11'; url='https://github.com/dotnet/core/blob/main/release-notes/11.0/releases.json' },
         [ordered]@{ id='H2S-ELECTRON'; url='https://releases.electronjs.org/releases.json' },
-        [ordered]@{ id='H2S-ELECTRON-LINK'; url='https://github.com/electron/electron/blob/v45.2.3/patches/node/build_add_gn_build_files.patch' },
+        [ordered]@{ id='H2S-ELECTRON-LINK'; url='https://github.com/electron/electron/blob/v45.3.3/patches/node/build_add_gn_build_files.patch' },
+        [ordered]@{ id='H2S-ELECTRON-LINK44'; url='https://github.com/electron/electron/blob/v44.11.3/patches/node/build_add_gn_build_files.patch' },
         [ordered]@{ id='H2S-CHROMIUM'; url='https://chromium.googlesource.com/chromium/src/+/152.0.7977.167/third_party/brotli/README.chromium' },
+        [ordered]@{ id='H2S-CHROMIUM156'; url='https://chromium.googlesource.com/chromium/src/+/156.0.8078.100/third_party/brotli/README.chromium' },
         [ordered]@{ id='H2S-CHROMIUM-FIX'; url='https://github.com/google/brotli/blob/cfa184a997ac19454d5a3ae97f6d600aac2445a6/c/dec/decode.c' }
     )
 }
 
 function Get-Http2ShellBaseline {
-    $lastReviewed = '2026-11-07'
+    param([DateTime]$AsOf = [DateTime]::UtcNow)
+    $lastReviewed = '2026-11-16'
     $reviewAfterDays = 7
-    $age = ([DateTime]::UtcNow.Date - [DateTime]::ParseExact($lastReviewed,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)).Days
+    $age = ($AsOf.Date - [DateTime]::ParseExact($lastReviewed,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)).Days
     $status = if ($age -lt 0) { 'future-dated' } elseif ($age -gt $reviewAfterDays) { 'stale' } else { 'current' }
     return [ordered]@{ lastReviewed=$lastReviewed; reviewAfterDays=$reviewAfterDays; status=$status }
 }
@@ -4620,7 +4669,9 @@ function Get-Http2ShellVersionAssessment {
             # Exact official builds linked to the reviewed Chromium decoder.
             if ($result.version -in @(
                 '44.9.2','44.9.3','44.10.0','44.10.1','44.10.2',
-                '45.0.0','45.1.0','45.2.0','45.2.1','45.2.2','45.2.3'
+                '44.11.0','44.11.1','44.11.2','44.11.3',
+                '45.0.0','45.1.0','45.2.0','45.2.1','45.2.2','45.2.3',
+                '45.3.0','45.3.1','45.3.2','45.3.3'
             )) {
                 $result.status='upstream-fixed-version'
                 $result.fixedVersion=$result.version
@@ -5391,7 +5442,7 @@ function Get-CoverageStatusSummary {
 
     $completionStatus = 'complete'
     $completionLabel = 'COMPLETE'
-    $hasNonCriticalPartial = ($nonCriticalTotal -gt 0 -or $dependencyPartial -or $npmCacheCoverageStatus -match 'partial|limit' -or -not [bool]$script:Context.coverage.directoryCoverageComplete)
+    $hasNonCriticalPartial = ($nonCriticalTotal -gt 0 -or $dependencyPartial -or $npmCacheCoverageStatus -match 'partial|limit-reached' -or -not [bool]$script:Context.coverage.directoryCoverageComplete)
     if ([bool]$script:Context.scannerError) {
         $completionStatus = 'error'
         $completionLabel = 'ERROR'
@@ -8475,9 +8526,9 @@ function Test-VerifiedSelfTestMarkerReference {
     # Versioned, manually reviewed source identities. Only these four posture
     # markers are refined; executable behavior, hashes and other IOCs still run.
     $references=@{
-        '.github/workflows/validate.yml'=@{hash='b1b83f46b8f916585d2b939eaeb4a84fa6314aa6191e053074988d3051e202f2';rules=@('glassworm-c2-marker')}
-        'tests/Test-IocMaintenance.ps1'=@{hash='15c68d2bd8881c78ed54ca88d25266271446db952d0f5dd177cf1883656d14a2';rules=@('keyv_chaindrop_nodereal_contract_marker')}
-        'tests/Test-SecurityUpdate20261006.ps1'=@{hash='40a942f4b7fec74dbfe50f65c2da9c0f7bd0fc54296559f08912fd928c9d357f';rules=@('supplychain_local_campaign_host_marker','virgil_secondary_transfer_endpoint_marker')}
+        '.github/workflows/validate.yml'=@{hash='ca17dbf83714ba50ffd0bffe375c9bf8207c4b9254fe4c04ab3f2b63aacfcca7';rules=@('glassworm-c2-marker')}
+        'tests/Test-IocMaintenance.ps1'=@{hash='ffaa2d13c799a587e63920885c8bbdb08d0b140d31d3c3cbc734bd051df8f1d8';rules=@('keyv_chaindrop_nodereal_contract_marker')}
+        'tests/Test-SecurityUpdate20261006.ps1'=@{hash='3e62b7bf4092c1ba5daa041675b587949f3d660a91f082b36b1127a2fc7e8b14';rules=@('supplychain_local_campaign_host_marker','virgil_secondary_transfer_endpoint_marker')}
     }
     $root=[IO.Path]::GetFullPath($script:BaseDir).TrimEnd('\')+'\'
     if (-not $File.FullName.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)) { return $false }
@@ -9242,6 +9293,39 @@ function Test-IsExactPackageVersionText {
     return ($Version.Trim() -match '^(v|=)?[0-9]+\.[0-9]+\.[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$')
 }
 
+function Get-PackageIocAssessment {
+    param($Ioc, [string]$EvidenceKind)
+    $exact = $EvidenceKind -in @('installed-exact','lockfile-exact')
+    $basis = [string](Get-PropertyValue $Ioc 'evidenceBasis')
+    $historical = $basis -eq 'historical-correlation'
+    $severity = [string](Get-PropertyValue $Ioc 'severity')
+    if ([string]::IsNullOrEmpty($severity)) { $severity = 'DANGER' }
+    $category = 'KNOWN_COMPROMISED_PACKAGE'
+    $title = 'Known compromised package version detected'
+    $confidence = 'high'
+    $riskType = 'known-ioc'
+    $recommendation = 'Confirm the resolved version in a lockfile or installed package metadata before concluding that the affected version is present.'
+    if (-not $exact) {
+        if ($severity -eq 'DANGER') { $severity = 'WARN' }
+        $category = 'KNOWN_COMPROMISED_PACKAGE_REFERENCE'
+        $title = 'Manifest, cache, constraint, or fallback text references a known compromised version'
+        $confidence = 'medium'
+    }
+    if ($historical) {
+        $severity = 'WARN'
+        $category = if ($exact) { 'PACKAGE_INCIDENT_CORRELATION' } else { 'PACKAGE_INCIDENT_CORRELATION_REFERENCE' }
+        $title = 'Package version is associated with an incident; individual compromise is unconfirmed'
+        $confidence = if ($exact) { 'medium' } else { 'low' }
+        $riskType = 'posture'
+        $recommendation = 'Review package-specific maintainer evidence, artifact provenance and the resolved dependency path. Publication history and a general incident warning do not independently establish that this package is malicious.'
+    }
+    $note = ''
+    if (-not [string]::IsNullOrEmpty($basis)) {
+        $note = '; iocBasis={0}; sourceReviewedAt={1}; artifactAnalysis=not-performed' -f $basis,[string](Get-PropertyValue $Ioc 'sourceReviewedAt')
+    }
+    return [ordered]@{ severity=$severity; category=$category; title=$title; confidence=$confidence; riskType=$riskType; recommendation=$recommendation; evidenceNote=$note; historical=$historical }
+}
+
 function Add-KnownPackageFinding {
     param(
         [string]$Ecosystem,
@@ -9257,18 +9341,8 @@ function Add-KnownPackageFinding {
     $normalizedVersion = if ($Ecosystem -ieq 'python') { ConvertTo-PythonPackageVersion $Version } else { Normalize-Version $Version }
     $ioc = Get-ExactPackageIocMatch -Ecosystem $Ecosystem -Name $Name -Version $normalizedVersion
     if ($null -eq $ioc) { return }
-    $sev = [string](Get-PropertyValue $ioc 'severity')
-    if ([string]::IsNullOrEmpty($sev)) { $sev = 'DANGER' }
-    $category = 'KNOWN_COMPROMISED_PACKAGE'
-    $title = 'Known compromised package version detected'
-    $confidence = 'high'
-    if ($EvidenceKind -notin @('installed-exact','lockfile-exact')) {
-        if ($sev -eq 'DANGER') { $sev = 'WARN' }
-        $category = 'KNOWN_COMPROMISED_PACKAGE_REFERENCE'
-        $title = 'Manifest, cache, constraint, or fallback text references a known compromised version'
-        $confidence = 'medium'
-    }
-    Add-Finding -Severity $sev -Category $category -Title $title -Path $Path -Line $Line -Evidence ("ecosystem={0}; package={1}; version={2}; evidenceKind={3}" -f $Ecosystem, $Name, $normalizedVersion, $EvidenceKind) -Recommendation 'Confirm the resolved version in a lockfile or installed package metadata before concluding that the affected version is present.' -RiskType 'known-ioc' -Confidence $confidence -Check 'Packages' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
+    $assessment = Get-PackageIocAssessment -Ioc $ioc -EvidenceKind $EvidenceKind
+    Add-Finding -Severity $assessment.severity -Category $assessment.category -Title $assessment.title -Path $Path -Line $Line -Evidence (("ecosystem={0}; package={1}; version={2}; evidenceKind={3}" -f $Ecosystem, $Name, $normalizedVersion, $EvidenceKind) + $assessment.evidenceNote) -Recommendation $assessment.recommendation -RiskType $assessment.riskType -Confidence $assessment.confidence -Check 'Packages' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
 }
 
 function Test-NpmIncidentWatchlistPackageName {
@@ -10492,7 +10566,11 @@ function Scan-GitHubActionReferences {
             }
             foreach ($knownRef in @($ioc.compromisedRefs)) {
                 if ([string]$entry.reference -ceq [string]$knownRef) {
-                    Add-Finding -Severity 'WARN' -Category 'GITHUB_ACTIONS_HISTORICALLY_COMPROMISED_REF' -Title 'GitHub Action uses a historically affected mutable ref' -Path $File.FullName -Line $entry.line -Evidence ("action={0}; match=historically-affected-ref" -f $entry.display) -Recommendation 'Pin to a reviewed full commit SHA and verify the current ref target from a trusted source.' -RiskType 'known-ioc' -Confidence 'medium' -Check 'CiCd' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
+                    $refEvidence = "action={0}; match=historically-affected-ref; currentTarget=unverified" -f $entry.display
+                    if ([string](Get-PropertyValue $ioc 'repositoryCheckStatus') -eq 'blocked-tos') {
+                        $refEvidence += '; repositoryAccessAtLastCheck=blocked-tos; repositoryCheckedAt={0}' -f [string](Get-PropertyValue $ioc 'repositoryCheckedAt')
+                    }
+                    Add-Finding -Severity 'WARN' -Category 'GITHUB_ACTIONS_HISTORICALLY_COMPROMISED_REF' -Title 'GitHub Action uses a historically affected mutable ref' -Path $File.FullName -Line $entry.line -Evidence $refEvidence -Recommendation 'Use a reviewed immutable commit or stop using the Action if a trusted current target cannot be established. Historical ref evidence is not verification of its current contents.' -RiskType 'known-ioc' -Confidence 'medium' -Check 'CiCd' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
                     $matchedKnown = $true
                 }
             }
@@ -11588,17 +11666,12 @@ function Add-NpmGlobalKnownPackageFinding {
     param([string]$Name, [string]$Version, [string]$PackageJsonPath)
     if ($null -eq $script:Context.iocs) { return }
     $normalizedVersion = Normalize-Version $Version
-    foreach ($ioc in @($script:Context.iocs.packages)) {
-        if ([string]$ioc.ecosystem -ne 'npm') { continue }
-        if ([string]$ioc.name -ne $Name) { continue }
-        foreach ($badVersion in @($ioc.versions)) {
-            if ($badVersion -eq '*' -or (Normalize-Version $badVersion) -eq $normalizedVersion) {
-                $severity = [string]$ioc.severity
-                if ([string]::IsNullOrEmpty($severity)) { $severity = 'DANGER' }
-                Add-Finding -Severity $severity -Category 'NPM_GLOBAL_KNOWN_COMPROMISED_PACKAGE' -Title 'Known compromised npm package found in static global root' -Path $PackageJsonPath -Evidence ("npm global package {0} version {1} matched local IOC baseline. npm was not executed." -f $Name, $normalizedVersion) -Recommendation 'Treat as high priority triage. Verify global package provenance without running npm.' -RiskType 'known-ioc' -Confidence 'high' -Check 'NpmGlobal' -DetectionMethod 'static-path'
-            }
-        }
-    }
+    $ioc = Get-ExactPackageIocMatch -Ecosystem 'npm' -Name $Name -Version $normalizedVersion
+    if ($null -eq $ioc) { return }
+    $assessment = Get-PackageIocAssessment -Ioc $ioc -EvidenceKind 'installed-exact'
+    $category = if ($assessment.historical) { 'NPM_GLOBAL_PACKAGE_INCIDENT_CORRELATION' } else { 'NPM_GLOBAL_KNOWN_COMPROMISED_PACKAGE' }
+    $title = if ($assessment.historical) { $assessment.title } else { 'Known compromised npm package found in static global root' }
+    Add-Finding -Severity $assessment.severity -Category $category -Title $title -Path $PackageJsonPath -Evidence (("npm global package {0} version {1} matched local IOC baseline. npm was not executed." -f $Name, $normalizedVersion) + $assessment.evidenceNote) -Recommendation $assessment.recommendation -RiskType $assessment.riskType -Confidence $assessment.confidence -Check 'NpmGlobal' -DetectionMethod 'static-path' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
 }
 
 function Scan-NpmGlobalPackageJsonStatic {
@@ -11724,8 +11797,12 @@ function Scan-NpmCacheTextMetadata {
         }
     }
     foreach ($entry in @($entries)) {
-        if ($null -eq (Get-ExactPackageIocMatch -Ecosystem 'npm' -Name ([string]$entry.name) -Version ([string]$entry.version))) { continue }
-        Add-Finding -Severity 'WARN' -Category 'NPM_CACHE_METADATA_KNOWN_PACKAGE' -Title 'Known npm package IOC appears in npm cache metadata' -Path $FilePath -Line $entry.line -Evidence ("Package={0}; version={1}; cache metadata only; npm cache ls was not executed." -f $entry.name,$entry.version) -Recommendation 'Cache metadata is not proof of installation or execution. Look for matching project or global package findings.' -RiskType 'posture' -Confidence 'medium' -Check 'NpmCache' -DetectionMethod 'metadata'
+        $ioc = Get-ExactPackageIocMatch -Ecosystem 'npm' -Name ([string]$entry.name) -Version ([string]$entry.version)
+        if ($null -eq $ioc) { continue }
+        $assessment = Get-PackageIocAssessment -Ioc $ioc -EvidenceKind 'cache-only'
+        $category = if ($assessment.historical) { 'NPM_CACHE_METADATA_INCIDENT_CORRELATION' } else { 'NPM_CACHE_METADATA_KNOWN_PACKAGE' }
+        $title = if ($assessment.historical) { $assessment.title } else { 'Known npm package IOC appears in npm cache metadata' }
+        Add-Finding -Severity 'WARN' -Category $category -Title $title -Path $FilePath -Line $entry.line -Evidence (("Package={0}; version={1}; cache metadata only; npm cache ls was not executed." -f $entry.name,$entry.version) + $assessment.evidenceNote) -Recommendation 'Cache metadata is not proof of installation, execution or individual compromise. Review package-specific provenance and the resolved dependency path.' -RiskType 'posture' -Confidence $assessment.confidence -Check 'NpmCache' -DetectionMethod 'metadata' -SourceId ([string](Get-PropertyValue $ioc 'sourceId'))
         $matched = $true
     }
     foreach ($watchName in @($script:NpmIncidentWatchlistNames)) {

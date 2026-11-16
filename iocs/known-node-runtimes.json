@@ -1,9 +1,9 @@
 {
   "schemaVersion": "0.1.14",
-  "lastUpdated": "2026-11-07",
-  "sourceSet": "official-nodejs-critical-history-and-recent-high-review-20261107",
-  "reviewRecord": "docs/ioc-maintenance-20261107-ja.md",
-  "reviewNotes": "Rechecked the 13 existing advisories and added the four High advisories from the official October security release. Fixed tags and TLS regression boundaries were compared with upstream source. The November 11 release announcement did not yet contain published advisory ranges. All retained High entries are within 365 days.",
+  "lastUpdated": "2026-11-16",
+  "sourceSet": "official-nodejs-critical-history-and-recent-high-review-20261116",
+  "reviewRecord": "docs/node-http2shell-20261116-ja.md",
+  "reviewNotes": "Rechecked the official source announcements for 17 retained advisories and added seven High advisories published on November 11. Affected major lines follow each advisory's Impact statement; fixed versions were cross-checked against the three official security releases. Three November advisories exclude the 22.x line. Runtime use and exploit preconditions remain unverified. All retained High entries are within 365 days.",
   "expiresAfterDays": 30,
   "highRetentionDays": 365,
   "advisories": [
@@ -295,6 +295,119 @@
         { "major": 26, "version": "26.12.1" }
       ],
       "conditions": ["tls-client", "fullwidth-ipv4"]
+    },
+    {
+      "id": "CVE-2026-123864",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.5" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.5" },
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["https-server", "response-before-request-body-end", "body-echo-or-storage"]
+    },
+    {
+      "id": "CVE-2026-123865",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.5" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.5" },
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["http2-server", "protocol-error-during-shutdown"]
+    },
+    {
+      "id": "CVE-2026-123866",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.5" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.5" },
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["http2-server", "backpressured-write", "stream-teardown"]
+    },
+    {
+      "id": "CVE-2026-123872",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "22.0.0", "maxExclusive": "22.23.5" },
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 22, "version": "22.23.5" },
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["tls-server", "tls12-renegotiation", "per-host-client-certificate-policy"]
+    },
+    {
+      "id": "CVE-2026-123863",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["http2-server", "response-before-request-body-end"]
+    },
+    {
+      "id": "CVE-2026-126051",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["tls-server", "deferred-handshake-callback", "socket-destroy-during-handshake"]
+    },
+    {
+      "id": "CVE-2026-123874",
+      "upstreamSeverity": "HIGH",
+      "published": "2026-11-11",
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "affectedRanges": [
+        { "minInclusive": "24.0.0", "maxExclusive": "24.22.3" },
+        { "minInclusive": "26.0.0", "maxExclusive": "26.13.1" }
+      ],
+      "fixedVersions": [
+        { "major": 24, "version": "24.22.3" },
+        { "major": 26, "version": "26.13.1" }
+      ],
+      "conditions": ["http2-server", "respondWithFile-or-respondWithFD", "reset-during-pending-write"]
     }
   ]
 }

@@ -37,10 +37,18 @@ function Invoke-H2SScan {
 $tokens=$null; $parseErrors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($scanner,[ref]$tokens,[ref]$parseErrors)
 Assert-H2S ($parseErrors.Count -eq 0) 'Scanner parse errors'
-$allow=@('Get-Http2ShellVersionAssessment','Expand-CheckMacro')
+$allow=@('Get-Http2ShellVersionAssessment','Get-Http2ShellBaseline','Expand-CheckMacro')
 foreach ($definition in $ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in $allow},$true)) { . ([scriptblock]::Create($definition.Extent.Text)) }
 $script:LeafCheckOrder=@('Packages','Http2Shell','ScannerSelf')
 foreach ($macro in @('Recommended','MajorRecommended','AllSafe')) {Assert-H2S ('Http2Shell' -notin @(Expand-CheckMacro $macro)) ($macro+': special audit implicitly enabled')}
+foreach ($case in @(
+    @('2026-11-15','future-dated'),@('2026-11-16','current'),
+    @('2026-11-23','current'),@('2026-11-24','stale')
+)) {
+    $asOf=[DateTime]::ParseExact($case[0],'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)
+    $baseline=Get-Http2ShellBaseline -AsOf $asOf
+    Assert-H2S ($baseline.lastReviewed -eq '2026-11-16' -and $baseline.status -eq $case[1]) ('Baseline date boundary: '+$case[0])
+}
 $versionCases=@(
     @('brotli-native','1.0.2','unknown'),@('brotli-native','1.0.3','upstream-affected-version'),
     @('brotli-native','1.0.9','upstream-affected-version'),@('brotli-native','1.0.10','upstream-fixed-version'),
@@ -64,6 +72,11 @@ $versionCases=@(
     @('electron','44.9.2','upstream-fixed-version'),@('electron','44.9.3','upstream-fixed-version'),
     @('electron','44.10.2','upstream-fixed-version'),@('electron','45.0.0','upstream-fixed-version'),
     @('electron','45.2.3','upstream-fixed-version'),@('electron','45.2.4','unknown'),
+    @('electron','44.11.0','upstream-fixed-version'),@('electron','44.11.1','upstream-fixed-version'),
+    @('electron','44.11.2','upstream-fixed-version'),@('electron','44.11.3','upstream-fixed-version'),
+    @('electron','45.3.0','upstream-fixed-version'),@('electron','45.3.1','upstream-fixed-version'),
+    @('electron','45.3.2','upstream-fixed-version'),@('electron','45.3.3','upstream-fixed-version'),
+    @('electron','44.11.4','unknown'),@('electron','45.3.4','unknown'),@('electron','46.0.0','unknown'),
     @('electron','45.2.3-custom','unknown'),@('claude-code-embedded-runtime','2.1.309','unknown'),
     @('codex-embedded-runtime','1.4.4','unknown'),@('node','>=24.22.1','unknown')
 )
@@ -103,7 +116,16 @@ foreach ($lockName in @('package-lock.json','npm-shrinkwrap.json')) {
         $lockText='{"name":"synthetic-project","lockfileVersion":'+$lockVersion+',"packages":{"":{"name":"brotli","version":"1.2.0"},"node_modules/electron":{"version":"45.2.3"}}}'
         $lockFile=Write-NewH2SFile ($caseName+'/'+$lockName) $lockText
         $lockHash=(Get-FileHash -LiteralPath $lockFile -Algorithm SHA256).Hash
-        $lockReport=Invoke-H2SScan -Name $caseName -Target $lockFile -ExpectedExit 0
+        $baseline=Get-Http2ShellBaseline
+        $expectedAuditExit=if ($baseline.status -eq 'current') {0} else {1}
+        $lockReport=Invoke-H2SScan -Name $caseName -Target $lockFile -ExpectedExit $expectedAuditExit
+        Assert-H2S ($lockReport.http2ShellAssessment.baselineStatus -eq $baseline.status) ($caseName+': baseline freshness status missing')
+        $warnings=@($lockReport.findings | Where-Object {$_.severity -in @('DANGER','WARN','CAUTION')})
+        if ($baseline.status -eq 'current') {
+            Assert-H2S ($warnings.Count -eq 0) ($caseName+': unexpected warning for a current baseline')
+        } else {
+            Assert-H2S ($warnings.Count -eq 1 -and $warnings[0].severity -eq 'WARN' -and $warnings[0].category -eq 'HTTP2SHELL_BASELINE_REVIEW_REQUIRED') ($caseName+': expected only the baseline review warning')
+        }
         Assert-H2S ($lockReport.scanComplete -and $lockReport.completionStatus -eq 'complete') ($caseName+': valid root key was rejected')
         Assert-H2S ($lockReport.http2ShellAssessment.entries.Count -eq 1 -and $lockReport.http2ShellAssessment.entries[0].component -eq 'electron' -and $lockReport.http2ShellAssessment.entries[0].componentAssessment -eq 'upstream-fixed-version') ($caseName+': incorrect component inventory')
         Assert-H2S ((Get-FileHash -LiteralPath $lockFile -Algorithm SHA256).Hash -eq $lockHash) ($caseName+': input was changed')

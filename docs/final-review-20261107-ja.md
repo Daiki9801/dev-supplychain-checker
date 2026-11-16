@@ -1,5 +1,154 @@
 # IOC・HTTP2Shell・CI の最終レビュー
 
+## 2026-11-16 公開前レビュー
+
+IOC確度の修正とNode・HTTP2Shell更新を含む21ファイルをレビューした。公開を妨げる実装上の指摘はなく、下記のWindows PowerShell 5.1回帰結果と、テスト後のコード・データのハッシュ一致を確認した。文書では実装時点の未公開記録と後続の公開工程を区別し、HTTP2Shellの7日方針を維持する記述へ整えた。
+
+公開対象はスキャナー、IOC 3ファイル、CI workflow、回帰テスト5ファイル、fixture 2ファイル、README・CHANGELOG、文書・台帳7ファイル。ローカル設定と実行記録は対象外。個人のPCパスと代表的な秘密値形式を差分・新規ファイルで検査するが、秘密情報が存在しないことの無条件な保証とはしない。
+
+今回のコミット・push・CI確認・mainマージは利用者から依頼された後続工程であり、以下の実装段階に記録した「GitHub未反映・承認待ち」を引き継ぐものではない。mainの確認済みSHA `4c2eb5b563418f5e636a259c98e96465df13fe91` は変更前HEAD `e50f3496a5a531af148c2bbb335e78aa4b134647` と同一tree。通常mergeで履歴を接続し、公開候補の内容を維持する。必須 `Scanner contract` と他のCIが対象SHAで成功した後にsquash mergeする。完了状態・コミットSHA・CI実行結果は当該PRとActionsの記録で確認する。
+
+本節はコミット前のレビュー記録であり、未実行のCIやマージの成功を先に宣言するものではない。実PCの更新、ZIP配布検証、タグ・Release作成はこの工程に含めない。削除・移動・改名・既存ファイル全置換は0件。
+
+## 2026-11-16 追加完了：Node IOC・HTTP2Shell再照合
+
+残件だった新規Node High 7件のIOC反映と、HTTP2Shellの公式情報再照合を完了した。NodeはJSON・内蔵定義とも **24件**、HTTP2Shellは **11月16日確認・Electron 19版**となった。以下の「未収録」「HTTP2Shellがstale」という初回調査時点の記述は履歴であり、現在の状態は本節と [追加レビュー](node-http2shell-20261116-ja.md) を参照する。
+
+公式公開情報は42試行で39件を取得した。取得URL・時刻・SHA-256・版対応は [公開証拠台帳](node-http2shell-20261116-evidence.json) に保存した。制限環境での接続失敗3件も記録し、取得できなかったCVE APIを確認済みとは扱っていない。新規Nodeの影響系列はNode.js自身の各CVEのImpact欄、修正版は公式セキュリティリリースを根拠とした。
+
+### 変更と判定
+
+- `CVE-2026-123864 / 123865 / 123866 / 123872` は22・24・26系列、`CVE-2026-123863 / 126051 / 123874` は24・26系列。修正版は **22.23.5 / 24.22.3 / 26.13.1**。全IDの接頭辞は `CVE-2026-`。版の一致はWARN・上流HIGHで、条件の成立はunknownのまま。
+- 既存17 Node項目の範囲を保持し、その公式告知8ページも再確認した。Nodeの期限は12月16日。他の6 IOCデータセットの期限12月7日は変更していない。
+- HTTP2ShellのBrotli、Node、Bun、Python、.NETの既存修正閾値を再照合した。11月のNode CVEをBrotliの閾値へ混ぜず、24.22.1は当該Brotli CVEで修正済み参照、新規7件では対象版という違いを保持した。
+- Electron 44.11.0～44.11.3、45.3.0～45.3.3の8版を追加。公式リリースとGNリンク先、Chromium 8固定版のBrotli revision、固定decoderのエラー伝播を照合した。未照合の版へ範囲を広げない。
+- HTTP2Shellの7日条件は維持し、**11月24日UTCからstale**。確認日前・当日・7日後・8日後のテストを追加した。
+- .NET 11.0.0 GAは固定ソースだけで上流修正との対応を確定できず、unknownを維持。製品内蔵コピー・実際のロード・入力到達・再起動完了も未確認のまま。
+
+今回の追加対応は17ファイル。`Scan-DevSupplyChain.ps1`、`iocs/known-node-runtimes.json`、`tests/Test-NodeSecurity20261116.ps1`（新規）、`Test-IocMaintenance.ps1`、`Test-Http2ShellAudit.ps1`、`.github/workflows/validate.yml`、`tests/samples/node-runtime-safe/.nvmrc`、`tests/samples/manifest.json`、README、CHANGELOG、文書・台帳7ファイル。前段のIOC確度変更を含む作業ツリー全体では21ファイルとなる。
+
+CIの修正済み版・合成PEの版情報を更新し、旧修正版を新規CVEの陽性ケースとして残した。新規Node回帰はIOC maintenanceから呼び出す。fixture数158と自己参照の許可パス・ルールは維持し、内容を変更したfixture1件・workflow・maintenanceテストのハッシュだけを整合させた。
+
+### 最終ローカル検証
+
+Windows PowerShell **5.1.26100.9818**。構文14ファイル・必須JSON10ファイル、トップレベル11スイートと子スイート2件がすべて合格した。
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-NodeSecurity20261116.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-IocMaintenance.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-Http2ShellAudit.ps1
+```
+
+全スイートのコマンドは [Push前手順](pre-push-test-procedure-ja.md#2-構文json差分検証) に記載。結果は次のとおり。
+
+| 検証 | 結果 |
+|---|---|
+| 新規Node回帰 | **140境界・3走査・325 assertions**。通常・欠落・不正の各データ経路、修正版・prerelease・対象外系列、TXT / JSON、ホスト探索なし |
+| HTTP2Shell | **252 assertions**。Electron追加8版・未知版と4日付境界を含む |
+| IOC maintenance / confidence | **43ケース・1,121 assertions・158 fixtures** / **10ケース・289 assertions**。前段の確度変更も維持 |
+| Git取得 / launcher | **39ケース・25 CIブロック・451 assertions** / 契約合格。JSON検証対象の追加後にGit取得契約を再実行 |
+| SecurityBoundary / SecurityUpdate | **144 assertions** / **36ケース・231 assertions** |
+| PythonMetadata / StaticTriage | **88ケース・343 assertions** / **56ケース・116 assertions** |
+| ScanExecution / ScanTriagePerformance | **20ケース・54 assertions** / **26ケース・72 assertions** |
+| ScanReview | **22ケース・61 assertions**。最終workflowハッシュの自己参照、改変・コピー拒否も合格 |
+
+全合成サンプルの `-Checks Recommended` は終了2、DANGER 49 / WARN 38 / CAUTION 26で必須カテゴリを維持。`-Path tests -Checks Recommended` は終了0、manifest一致のskip 139件、未知fixture・ハッシュ不一致0件。修正済みNode fixtureのNodeRuntime単独と `NodeRuntime,Http2Shell,ScannerSelf` はともに終了0。後者はHTTP2Shell `current`、DANGER / WARN / CAUTIONすべて0件。リポジトリ自己検査は終了1、DANGER / WARN 0・既存workflowのCAUTION 1件だった。
+
+上記5走査はすべてcomplete、一般IOC current 7件・`releaseReady=true`、network / externalCommands / targetCodeExecutionはすべてnone。実PCのNode・npm・プロファイル・端末ログへ探索を広げていない。
+
+結果はローカル専用の `reports/node-review-suites-be8804d3e9b94ac380744aa234180787.jsonl`、`reports/node-http2shell-final-a87f6fc984a840da8e590690814c0d76/` に保持した。新規Nodeの最終結果は `reports/node-security-20261116-4ab3a5e0414247f1b1947d5830415038/result.json`。テスト作成時のscope名の期待値誤りを修正した失敗ログも保持した。実装不具合による回帰の未解決失敗はない。
+
+### 残る境界と承認
+
+今回依頼されたローカル実装・公式調査・回帰・文書更新は完了。実PCのNode更新、GitHubへの反映、実ランナーCI、ZIP配布検証、タグ・Release公開は未実行で、それぞれ対象・差分・操作を確定した後の承認対象となる。過去のコミット・pushの操作回数を使い回していない。
+
+Medium / Lowや未照合majorは既存のNode収録方針の対象外。未確認Injective 2組・Actionsタグ15件の証拠限界も前段どおり保持する。.NET 11.0.0・製品内蔵コピー等を安全と断定せず、公開説明に残す。スキャナーは依存不要・offline-only・read-onlyを維持している。
+
+HEADは `e50f3496a5a531af148c2bbb335e78aa4b134647` のまま。削除0件、移動0件、改名0件、既存ファイルの丸ごと置換0件。以前の変更、`.codex/`、調査・検証の原本を保持した。
+
+## 2026-11-16 IOCの確度反映・Node.js更新調査
+
+旧41組とActionsタグ15件の追跡調査を実装へ反映した。個別の悪性根拠が不足するInjective 2組はWARN、一次報告が版を明示する39組と既知悪性コミット3件はDANGERを維持する。README、出典記録、回帰手順も更新した。詳細な出典と判定は [IOCの証拠と判定の修正](ioc-confidence-20261116-ja.md) を参照する。
+
+今回の作業はローカル実装・合成検証・承認済みNode調査まで。HEADは `e50f3496a5a531af148c2bbb335e78aa4b134647` のままで、stage・commit・push・merge・タグ・Release公開・依存導入は行っていない。以下の11月9日以前の記述は各時点の履歴であり、今回の未コミット変更のCI・配布検証結果には流用しない。
+
+### 実装結果
+
+| 対象 | 今回の動作 |
+|---|---|
+| Injective 2組 | `wallet-cosmostation@1.20.21` / `wallet-cosmos-strategy@1.20.21`（どちらも `@injectivelabs/`）。installed / lockはWARN・medium、manifest / cache等はWARN・low。見出しで個別侵害は未確認と明示し、`riskType=posture` とする |
+| 内蔵定義とnpm | 外部IOCが欠落・不正でも上記2組をDANGERに戻さない。通常のPackages、npm global / cacheの静的メタデータに共通の証拠評価を適用する |
+| 旧41組のうち39組 | Socketの一次報告に13パッケージ×3版を明示的に照合。厳密一致のDANGER・highを維持し、`primary-report-exact` / S12 / 照合日を記録する。全41組とも配布アーティファクト自体の独立解析は未実施 |
+| Actionsタグ15件 | WARNと `currentTarget=unverified` を維持。2026-11-09に2リポジトリで観測したtosアクセス遮断はリポジトリ単位で記録し、残13タグも照会済みと表現しない。不変の悪性コミット3件のDANGERは維持 |
+| 表示と分類 | TXT / JSONの見出し・根拠・信頼度を一致させる。未確認2組を既知悪性のSecurityEvidenceへ計上しない。通常のWARNとして優先表示される場合も未確認という説明を残す |
+| npm cacheの完了状態 | `bounded-metadata-within-limits` が文字列 `limit` の部分一致でpartial扱いになる既存不具合を修正。実際のpartial / limit-reachedは引き続き区別する |
+| HTTP2Shell回帰 | 既存lockfileテストの「常に終了0」という期待を修正。currentなら終了0、stale等なら終了1と専用WARNのみを要求し、予期しない警告は許容しない。製品側の基準日と期限切れ判定は変更しない |
+
+変更対象は13ファイル。スキャナー1、IOC JSON 2、テスト4（新規 `Test-IocConfidenceRegressions.ps1` を含む）、README / CHANGELOG、文書4（本追補・新規出典記録・IOCレビュー・Push前手順）。既存の自己参照テスト2ファイルのハッシュは内容を確認して更新し、許可対象パス・ルールは増やしていない。
+
+### Windows PowerShell 5.1の検証
+
+Windows PowerShell **5.1.26100.9818**。変更した5 PowerShellファイルの構文解析と必須9 JSONが合格。トップレベル11スイートはすべて終了0で、IOC maintenanceが呼び出す追加スイートも合格した。再実行の全一覧は [Push前手順](pre-push-test-procedure-ja.md#2-構文json差分検証) にある。
+
+```powershell
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-IocMaintenance.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-Http2ShellAudit.ps1
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Test-ScanReviewRegressions.ps1
+```
+
+| スイート | 最終結果 |
+|---|---|
+| CheckoutContract | 39ケース・25 CIブロック・451 assertions |
+| LauncherScopeContracts | 合格 |
+| SecurityBoundaryRegressions | 144 assertions |
+| SecurityUpdate20261006 | 36ケース・231 assertions |
+| IocMaintenance | 43ケース・1,121 assertions・158 fixtures |
+| 同上が呼ぶIocConfidenceRegressions | 10ケース・289 assertions。2組の各検出経路、39組、15タグ・3コミット、隣接版、内蔵fallback、TXT / JSONを確認 |
+| Http2ShellAudit | 237 assertions |
+| PythonMetadataRegressions | 88ケース・343 assertions |
+| StaticTriageRegressions | 56ケース・116 assertions |
+| ScanExecutionRegressions | 20ケース・54 assertions |
+| ScanTriagePerformanceRegressions | 26ケース・72 assertions |
+| ScanReviewRegressions | 22ケース・61 assertions。更新した自己参照と改変・コピー拒否も再確認 |
+
+次の5走査も同じWindows PowerShell 5.1で完了し、すべて `scanComplete=true` / `completionStatus=complete`。network / externalCommands / targetCodeExecutionはすべて `none`、一般IOCはcurrent 7件・`releaseReady=true`だった。
+
+| スキャナー引数の対象・検査 | 結果 |
+|---|---|
+| `-Path .\tests\samples -Checks Recommended` | 終了2。合成のDANGER 49 / WARN 38 / CAUTION 26。必須の5検出カテゴリを維持 |
+| `-Path .\tests -Checks Recommended` | 終了0。manifestに一致するfixtureを139件skip、未知ファイル・ハッシュ不一致・解析エラー0 |
+| `-Path .\tests\samples\node-runtime-safe -Checks NodeRuntime` | 終了0。同梱オフライン基準のnot-affected参照を確認。最新CVE全体の陰性を意味しない |
+| 同じ合成ルートの `-Checks NodeRuntime,Http2Shell,ScannerSelf` | 終了1。HTTP2Shell基準staleの専用WARN 1件を確認 |
+| `-Path . -Checks Recommended -ReportDir .\reports` | 終了1。DANGER 0 / WARN 0 / CAUTION 1。既存の手動workflow起動設定のCAUTIONのみ |
+
+各TXT / JSONと結果JSONは `reports/ioc-confidence-final-045b2cf6bb61442988644eee2b653eb5/` に保持した。自己検査は `reports/` 全体を対象外にし、過去の合成生成物を混入させていない。
+
+初回のHTTP2Shell回帰だけは、11月15日UTCからのstale WARNに対し旧テストが終了0を要求して失敗した。上記の期待値修正後に全237項目が合格した。これは期限切れの警告を検証した結果であり、専用基準の鮮度をcurrentへ戻した結果ではない。初回ログと失敗時の生成物も保持している。
+
+### Node.jsの更新判断
+
+承認されたnodejs.orgへの読み取り20回のうち6回を使用し、[11月11日セキュリティ告知](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases)、公式リリース一覧・サポート情報・3系列の修正版を確認した。修正版は **22.23.5 / 24.22.3 / 26.13.1**。High 7件、Medium 6件、Low 3件が含まれ、24.22.1 / 24.22.2も今回の更新対象となる。
+
+別途承認された `Get-Command node.exe -CommandType Application -All` とFileVersionInfoの読み取りで、PATH候補2件を照合した。通常導入版は同じ24.xの修正版への更新を推奨し、Codex同梱版はアプリの更新経路・ベンダーの修正状況を確認する。個別のPCパス・版の記録はGit除外のローカルレポートだけに保存し、この公開用文書には転記していない。node.exeは実行せず、実行中プロセス・脆弱な機能への到達性・ベンダー独自バックポートは確認していない。
+
+スキャナー自体にNode.jsは不要。通常導入版の更新も同梱ファイルの直接置換も実施していない。Nodeの陰性判定は、最新の公式修正版に達したことを保証しない。
+
+### 残る対応と承認範囲
+
+| 残件 | 必要な対応・境界 |
+|---|---|
+| Node IOCの11月11日分 | 同梱Node IOCは11月7日の内容で、新規High 7件は未収録。各CVEの影響系列・版境界・利用条件を確認してからデータ・内蔵定義・境界テストへ追加する。今回の「更新必要性の調査」では範囲を推測して追加しない |
+| HTTP2Shell基準 | 11月7日のままでstale。Bun / Electron / Python / .NET等も含む再照合が必要。今回のNode公式サイトだけの通信承認では、それらの外部照会までは行わない。確認日だけの延長は禁止 |
+| 実PCのNode更新 | 実際の導入・更新は未承認。導入方式、取得元、署名等の確認方法、正確な変更対象を確定して別途承認する。同梱版はアプリ側の更新を使う |
+| 2組・15タグの追加証拠 | 未確認と明示して検出を維持する。2組を確定扱いに戻すには個別一次証拠が必要。タグは信頼できる現行SHAが取得できる状況を待って再照合する。今回、配布物の取得・実行は行わない |
+| GitHub反映・配布 | 今回の13ファイルを含む新しい差分・対象ブランチを確定してstage / commit / pushを別途承認し、候補SHAでCIを確認する。前回の操作回数の承認は使い回さない。ZIP作成・展開、タグ・Release公開も今回の範囲外 |
+
+一般IOCの `lastUpdated=2026-11-07`、期限2026-12-07は維持した。`iocData.releaseReady` は一般データセットの鮮度・構造の指標であり、上記の新規Node CVE収録やHTTP2Shell再照合を完了させるものではない。
+
+Node調査のローカル記録は `reports/node-update-20261116-1a61c4428b88409dbf2647701c4b8d78.json`、公式取得の台帳は同IDの `node-review-20261116-*.jsonl`。回帰の初回台帳は `reports/ioc-confidence-suites-20261116-1a61c4428b88409dbf2647701c4b8d78.jsonl`、最終IOC結果は `ioc-maintenance-regression-b9473b2649d84d3a959b003171bc3e29/result.json` と `ioc-confidence-regression-82d5da46e3194dfda4b47f680c1d720c/result.json`（いずれも `reports/` 配下）に保持した。実PC・認証ファイルの走査は行わず、承認されたPATH候補の版情報だけを読んだ。スキャナーの依存不要・offline-only・read-onlyは維持した。
+
+今回の削除0件、移動0件、改名0件、既存ファイルの丸ごと置換0件。既存の無関係な `.codex/` と過去の検証物は保持した。
+
 ## 2026-11-09 マージ判断の追補
 
 利用者から「残件対応を行いマージし完成させる」との指示を受け、[PR #10](https://github.com/Daiki9801/dev-supplychain-checker/pull/10) をmainへ統合する工程に進める。11月7日に合格したスキャナー・BAT・CI・IOCデータは変更せず、未コミットだった下記の完了記録を含めて文書5ファイルを整えた。CHANGELOGの実ランナー未確認という記述、IOCレビューの旧境界テストの説明、Push前手順の版番号を現在の実装に合わせ、READMEにも出典の確認限界を明記した。

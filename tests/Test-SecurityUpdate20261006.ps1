@@ -46,7 +46,7 @@ Assert-Update (@($parseErrors).Count -eq 0) 'PowerShell scanner parser errors'
 # Only these definitions are evaluated; scanner top-level code and fixture code are never executed.
 $allowlist=@(
  'New-ArrayList','Add-ListItem','Get-PropertyValue','Normalize-Version','ConvertTo-PythonPackageVersion','ConvertTo-PackageIocVersion','Test-IsExactPackageVersionText',
- 'Get-SecurityUpdate20261006Iocs','ConvertTo-PackageIocName','Get-ExactPackageIocMatch','Finalize-IocIndexes','Get-IocSeverityRank','Add-KnownPackageFinding',
+ 'Get-SecurityUpdate20261006Iocs','ConvertTo-PackageIocName','Get-ExactPackageIocMatch','Finalize-IocIndexes','Get-IocSeverityRank','Get-PackageIocAssessment','Add-KnownPackageFinding',
  'Get-StaticCodeMask','ConvertFrom-GypStaticEscapes','Get-GypStaticExecutionAssessment','Get-RuntimeTransferAssessment','Scan-GypBuildFile',
  'Get-CachedBoundedRegex','Get-BoundedTextRegexMatch','Get-BoundedTextRegexMatches','Test-BoundedTextRegex','Get-LineNumberForIndex',
  'ConvertFrom-PythonRecordLine','Read-PythonDistributionHeader','Read-BoundedSecurityCandidateText',
